@@ -207,3 +207,12 @@ print(f"VRAM tối đa đã dùng: {max_mem:.2f} MB")
 - `axes[0].imshow(img)` & `axes[1].imshow(...)`: Hiển thị ảnh gốc ở khung bên trái và ảnh overlay (ảnh gốc resize kèm lớp phủ mask màu 'jet' với độ trong suốt $\alpha = 0.5$) ở khung bên phải.
 - `plt.savefig(...)` & `plt.close()`: Lưu hình ảnh kết quả vào thư mục `results` trên Drive và đóng figure để thu hồi bộ nhớ RAM đồ họa, tránh rò rỉ bộ nhớ (memory leak) khi lặp qua nhiều ảnh.
 - `torch.cuda.max_memory_allocated() / (1024 ** 2)`: Đo lường lượng bộ nhớ GPU tối đa đã được cấp phát trong suốt quá trình chạy (chuyển đổi từ byte sang Megabytes - MB), giúp đánh giá mức độ an toàn trước nguy cơ lỗi OOM (Out Of Memory).
+
+## 6. Checklist Bàn giao cuối tuần (Go/No-Go Phase 1)
+
+Sau khi chạy xong Notebook trên, SV B cần kiểm tra và gửi cho SV A các tài nguyên sau để chốt kết quả Tuần 1:
+- [ ] File `requirements_colab.txt` ghi lại các version của `torch`, `torchvision`, `mmsegmentation`.
+- [ ] 10 ảnh mẫu `result_X.png` (trong thư mục results) để SV A xem overlay.
+- [ ] Log tốc độ: (VD: 20 ảnh chạy mất 5 giây, VRAM tốn 3000MB) để nhóm quyết định xem Colab T4 có đủ gánh nổi toàn bộ dataset dọc UQ hay không.
+
+Nếu mọi thứ tích xanh, nhóm có thể tự tin chuyển sang Phase 2 & 3 vào tuần tới!
