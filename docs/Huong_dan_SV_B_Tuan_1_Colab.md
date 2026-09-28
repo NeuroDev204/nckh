@@ -36,36 +36,57 @@ print(f"Thư mục làm việc: {WORK_DIR}")
 
 ## 3. Clone mã nguồn & Cài đặt thư viện
 
-Chạy cell dưới đây để tải mã nguồn chính thức và cài đặt các thư viện lõi (PyTorch, MMSegmentation, torchvision). 
-> **Lưu ý:** Chạy `pip freeze` ở cuối cell để ghi lại log các phiên bản đang dùng.
+Chạy cell dưới đây để tải mã nguồn chính thức và cài đặt các thư viện lõi (PyTorch, MMSegmentation, torchvision) vào một môi trường ảo riêng biệt nhằm tránh xung đột với Python mặc định của Colab.
 
 ```bash
 # Di chuyển vào thư mục dự án
 %cd /content/drive/MyDrive/NCKH_PanDerm
 
 # Clone repo PanDerm (nếu chưa có)
-!if [ ! -d "PanDerm" ]; then git clone https://github.com/YingWen-wang/PanDerm.git; fi
+!if [ ! -d "PanDerm" ]; then git clone https://github.com/SiyuanYan1/PanDerm.git; fi
 
-# Cài đặt PyTorch và Torchvision phù hợp với CUDA của Colab
-!pip install torch torchvision torchaudio --index-url https://download.pytorch.org/whl/cu121
+# Cài uv để tạo môi trường Python 3.10 riêng (không phụ thuộc Python 3.13 mặc định của Colab)
+!pip install -q uv
+!uv python install 3.10
+
+# Tạo virtual env
+VENV = "/content/drive/MyDrive/NCKH_PanDerm/.venv-panderm"
+!uv venv --python 3.10 --seed {VENV}
+
+# Kiểm tra phiên bản Python trong venv
+!{VENV}/bin/python --version
+
+# Di chuyển vào thư mục segmentation
+%cd /content/drive/MyDrive/NCKH_PanDerm/PanDerm/segmentation
+
+# Cập nhật công cụ build
+!{VENV}/bin/python -m pip install -U pip wheel "setuptools<81"
+
+# Cài đặt PyTorch và Torchvision phù hợp với PanDerm
+!{VENV}/bin/pip install \
+  torch==2.2.1 \
+  torchvision==0.17.1 \
+  --index-url https://download.pytorch.org/whl/cu118
 
 # Cài đặt openmim và MMSegmentation theo hướng dẫn nhánh Segmentation
-!pip install -U openmim
-!mim install mmengine
-!mim install "mmcv>=2.0.0"
-!pip install "mmsegmentation>=1.0.0"
+!{VENV}/bin/pip install -U openmim
+!{VENV}/bin/mim install mmengine
+!{VENV}/bin/mim install "mmcv>=2.0.0"
+!{VENV}/bin/pip install "mmsegmentation>=1.0.0"
 
 # Ghi lại cấu hình môi trường
-!pip freeze > requirements_colab.txt
+!{VENV}/bin/pip freeze > /content/drive/MyDrive/NCKH_PanDerm/requirements_colab.txt
 !echo "Đã lưu requirements_colab.txt"
 ```
 
 *Giải thích chi tiết:*
-- `%cd /content/drive/MyDrive/NCKH_PanDerm`: Lệnh magic của Colab/IPython để chuyển thư mục làm việc hiện tại sang thư mục dự án trên Drive.
-- `git clone https://github.com/YingWen-wang/PanDerm.git`: Tải toàn bộ mã nguồn mô hình PanDerm từ kho lưu trữ GitHub chính thức; cấu trúc `if [ ! -d "PanDerm" ]` giúp kiểm tra và chỉ clone nếu thư mục chưa tồn tại nhằm tránh ghi đè hoặc trùng lặp.
-- `pip install torch torchvision torchaudio --index-url https://download.pytorch.org/whl/cu121`: Cài đặt bộ ba PyTorch, Torchvision, Torchaudio phiên bản tương thích với CUDA 12.1 phục vụ GPU của Colab.
-- `openmim`, `mmengine`, `mmcv`, `mmsegmentation`: Các thư viện trong hệ sinh thái OpenMMLab dành cho bài toán phân vùng tổn thương da (Semantic Segmentation). `openmim` hỗ trợ cài đặt các phiên bản MMCV (>=2.0.0) và MMSegmentation (>=1.0.0) tương thích với phiên bản PyTorch đã nạp.
-- `pip freeze > requirements_colab.txt`: Xuất danh sách toàn bộ thư viện cùng số hiệu phiên bản ra file `requirements_colab.txt` để làm minh chứng và kiểm soát tính tái lập (reproducibility).
+- `git clone https://github.com/SiyuanYan1/PanDerm.git`: Tải toàn bộ mã nguồn mô hình PanDerm từ nhánh chính của tác giả SiyuanYan1.
+- `uv venv --python 3.10 --seed {VENV}`: Sử dụng công cụ `uv` (siêu tốc) để khởi tạo một môi trường ảo (virtual environment) sử dụng đích danh phiên bản Python 3.10. Điều này cực kỳ quan trọng vì PanDerm yêu cầu nghiêm ngặt Python 3.10, trong khi môi trường Google Colab mặc định thường xuyên được nâng cấp (ví dụ Python 3.11/3.13) gây rủi ro xung đột thư viện.
+- `%cd .../PanDerm/segmentation`: Phải đứng ở thư mục gốc của phân hệ segmentation trước khi cài đặt các phụ thuộc liên quan.
+- `setuptools<81`: Ép hạ cấp setuptools vì các bản mới của setuptools có thể làm gãy quá trình build của một số thư viện cũ (MMSegmentation/PyTorch cũ).
+- `torch==2.2.1 torchvision==0.17.1 --index-url .../cu118`: Cài đặt đích danh bộ đôi PyTorch và Torchvision mà mô hình yêu cầu (tương thích CUDA 11.8). Lệnh gọi bắt buộc phải qua `!{VENV}/bin/pip` để cài thẳng vào môi trường ảo, không làm ảnh hưởng Colab.
+- `{VENV}/bin/mim ...`: Cài đặt các thành phần của OpenMMLab. `mim` đóng vai trò quản lý gói chuyên biệt cho MMEngine, MMCV, MMSegmentation.
+- `{VENV}/bin/pip freeze`: Trích xuất danh sách mọi thư viện có trong môi trường ảo của dự án.
 
 ## 4. Chuẩn bị Dữ liệu mẫu (Pilot) & Checkpoint
 
@@ -82,38 +103,29 @@ Chạy cell dưới đây để tải mã nguồn chính thức và cài đặt 
 - `!mkdir -p checkpoints`: Tạo thư mục con `checkpoints` để chứa các file trọng số mô hình đã huấn luyện trước; cờ `-p` giúp bỏ qua lệnh nếu thư mục đã có.
 - `!wget -O checkpoints/panderm_base.pth ...`: Lệnh tải file trọng số từ đường dẫn trực tiếp và lưu với tên `panderm_base.pth` vào thư mục `checkpoints`.
 
-**Bước 4.2: Khởi tạo ảnh Toy Data (Ví dụ 20 ảnh)**
-Để test mà chưa cần xin quyền tải toàn bộ bộ ảnh ISIC lớn, đoạn code sau sẽ lấy 20 ảnh giả lập (hoặc ảnh test mẫu) để kiểm tra pipeline.
-```python
-import os
-import shutil
-import urllib.request
+**Bước 4.2: Tải Dữ liệu ảnh thực tế (ISIC 2017 Task 1)**
+Theo `Readme.md` của dự án, bộ dữ liệu ISIC 2017 Task 1 (gồm 2.000 ảnh) được sử dụng để phân đoạn tổn thương. Đoạn lệnh sau sẽ tải bộ dữ liệu này và giải nén (lưu ý quá trình giải nén trên Drive có thể mất thời gian).
 
-img_dir = '/content/drive/MyDrive/NCKH_PanDerm/toy_data'
-os.makedirs(img_dir, exist_ok=True)
+```bash
+%cd /content/drive/MyDrive/NCKH_PanDerm
+!mkdir -p data/isic2017
+%cd data/isic2017
 
-# Tạo 20 ảnh test (Tải một ảnh mẫu nguồn mở rồi copy ra 20 bản để thử nghiệm memory)
-sample_url = "https://upload.wikimedia.org/wikipedia/commons/6/6c/Melanoma.jpg"
-sample_path = os.path.join(img_dir, "sample_0.jpg")
-if not os.path.exists(sample_path):
-    # Thiết lập User-Agent trình duyệt để tránh lỗi HTTP 403 Forbidden từ Wikimedia
-    opener = urllib.request.build_opener()
-    opener.addheaders = [('User-Agent', 'Mozilla/5.0')]
-    urllib.request.install_opener(opener)
-    urllib.request.urlretrieve(sample_url, sample_path)
+# Tải file ảnh huấn luyện và mask phân đoạn từ nguồn ISIC chính thức
+!wget -c https://isic-archive.s3.amazonaws.com/challenges/2017/ISIC-2017_Training_Data.zip
+!wget -c https://isic-archive.s3.amazonaws.com/challenges/2017/ISIC-2017_Training_Part1_GroundTruth.zip
 
-for i in range(1, 21):
-    shutil.copy(sample_path, os.path.join(img_dir, f"test_img_{i}.jpg"))
-print(f"Đã chuẩn bị 20 ảnh toy data tại {img_dir}")
+# Giải nén dữ liệu (Dùng cờ -q để ẩn bớt log hiển thị trên Colab)
+!unzip -n -q ISIC-2017_Training_Data.zip
+!unzip -n -q ISIC-2017_Training_Part1_GroundTruth.zip
+
+!echo "Đã chuẩn bị xong dữ liệu ISIC 2017 tại data/isic2017"
 ```
 
 *Giải thích chi tiết:*
-- `img_dir`: Biến chuỗi định nghĩa đường dẫn lưu trữ tập dữ liệu thử nghiệm (toy dataset) tại `/content/drive/MyDrive/NCKH_PanDerm/toy_data`.
-- `os.makedirs(img_dir, exist_ok=True)`: Hàm tạo thư mục lưu trữ ảnh; `exist_ok=True` bảo đảm không phát sinh lỗi nếu thư mục đã tồn tại.
-- `sample_url` & `sample_path`: Địa chỉ URL của ảnh mẫu tổn thương da (Melanoma) trên Wikimedia Commons và đường dẫn lưu trữ file ảnh gốc `sample_0.jpg`.
-- `opener.addheaders = [('User-Agent', 'Mozilla/5.0')]` & `urllib.request.install_opener(opener)`: Bổ sung header User-Agent mô phỏng trình duyệt cho `urllib` để vượt qua bộ lọc chống bot của Wikimedia (ngăn chặn lỗi HTTP 403 Forbidden khi tải ảnh).
-- `urllib.request.urlretrieve(sample_url, sample_path)`: Tải ảnh từ URL về lưu trực tiếp thành file tại `sample_path`.
-- `shutil.copy(sample_path, ...)`: Nhân bản file ảnh mẫu gốc thành 20 bản sao từ `test_img_1.jpg` đến `test_img_20.jpg` để tạo tập dữ liệu mô phỏng 20 ảnh phục vụ kiểm tra vòng lặp suy luận hàng loạt (inference loop) và đo lường VRAM tiêu thụ.
+- `%cd .../data/isic2017`: Di chuyển vào thư mục dành riêng cho dữ liệu ISIC 2017.
+- `wget -c ...`: Tiện ích tải file từ internet. Cờ `-c` (continue) cho phép tải tiếp nếu bị gián đoạn, tiết kiệm thời gian với các file dữ liệu lớn như ảnh y khoa.
+- `unzip -n -q ...`: Giải nén file `.zip` vừa tải. Cờ `-q` (quiet) giúp giảm thiểu log hiển thị trên Colab (tránh làm tràn màn hình với 2.000 dòng log), và `-n` (never overwrite) giúp không giải nén lại nếu thư mục đã tồn tại.
 
 ## 5. Chạy Smoke Test (Inference Loop)
 
@@ -152,8 +164,8 @@ print("Đang nạp mô hình... (Ví dụ)")
 # model = model.to(device)
 # model.eval()
 
-# 4. Vòng lặp Inference trên 20 ảnh
-image_paths = glob.glob('/content/drive/MyDrive/NCKH_PanDerm/toy_data/*.jpg')
+# 4. Vòng lặp Inference trên 20 ảnh đầu tiên
+image_paths = sorted(glob.glob('/content/drive/MyDrive/NCKH_PanDerm/data/isic2017/ISIC-2017_Training_Data/*.jpg'))[:20]
 out_dir = '/content/drive/MyDrive/NCKH_PanDerm/results'
 os.makedirs(out_dir, exist_ok=True)
 
@@ -196,7 +208,7 @@ print(f"VRAM tối đa đã dùng: {max_mem:.2f} MB")
   - `transforms.Resize((224, 224))`: Resize kích thước ảnh về $224 \times 224$ pixels phù hợp với kích thước đầu vào của backbone ViT.
   - `transforms.ToTensor()`: Chuyển đổi định dạng PIL Image (giá trị $0 - 255$) thành PyTorch Tensor (khoảng giá trị $[0.0, 1.0]$) với định dạng $(C, H, W)$.
   - `transforms.Normalize(mean=..., std=...)`: Chuẩn hóa kênh màu RGB theo phân phối ImageNet tiêu chuẩn để khớp với trọng số tiền huấn luyện (pretrained weights).
-- `glob.glob('/content/drive/MyDrive/NCKH_PanDerm/toy_data/*.jpg')`: Quét và lấy toàn bộ danh sách đường dẫn file ảnh thử nghiệm trong thư mục `toy_data`.
+- `sorted(glob.glob(...))[:20]`: Quét và lấy danh sách đường dẫn file ảnh thực tế từ tập ISIC 2017, sắp xếp theo tên và cắt lấy 20 ảnh đầu tiên (`[:20]`) để chạy thử nghiệm, tránh việc phải chạy qua toàn bộ 2.000 ảnh gây mất thời gian.
 - `out_dir` & `os.makedirs(out_dir, exist_ok=True)`: Định nghĩa và tự động tạo thư mục `results` trên Google Drive để lưu trữ ảnh overlay kết quả.
 - `torch.cuda.reset_peak_memory_stats()`: Khởi tạo lại bộ đếm theo dõi lượng VRAM đỉnh điểm trước khi bước vào vòng lặp inference nhằm đo đạc chính xác lượng bộ nhớ GPU tiêu thụ (kèm điều kiện kiểm tra `torch.cuda.is_available()`).
 - `Image.open(img_path).convert('RGB')`: Đọc ảnh từ đĩa và đảm bảo định dạng đủ 3 kênh màu RGB (loại bỏ kênh alpha hoặc grayscale nếu có).
@@ -208,7 +220,49 @@ print(f"VRAM tối đa đã dùng: {max_mem:.2f} MB")
 - `plt.savefig(...)` & `plt.close()`: Lưu hình ảnh kết quả vào thư mục `results` trên Drive và đóng figure để thu hồi bộ nhớ RAM đồ họa, tránh rò rỉ bộ nhớ (memory leak) khi lặp qua nhiều ảnh.
 - `torch.cuda.max_memory_allocated() / (1024 ** 2)`: Đo lường lượng bộ nhớ GPU tối đa đã được cấp phát trong suốt quá trình chạy (chuyển đổi từ byte sang Megabytes - MB), giúp đánh giá mức độ an toàn trước nguy cơ lỗi OOM (Out Of Memory).
 
-## 6. Checklist Bàn giao cuối tuần (Go/No-Go Phase 1)
+## 6. Đồng bộ Notebook lên GitHub
+
+Để không bị mất mã nguồn đang viết trên Colab, bạn có thể đồng bộ các file Notebook từ Drive sang Github:
+
+```python
+import os
+import shutil
+import glob
+
+# Đường dẫn đích trong thư mục dự án của bạn
+DEST_DIR = "/content/drive/MyDrive/NCKH_PanDerm"
+
+# Tìm kiếm tất cả các file notebook (.ipynb) trong thư mục mặc định "Colab Notebooks"
+colab_notebooks_path = "/content/drive/MyDrive/Colab Notebooks/*.ipynb"
+notebooks = glob.glob(colab_notebooks_path)
+
+print("--- ĐANG TÌM KIẾM NOTEBOOK ĐỂ SAO CHÉP ---")
+if notebooks:
+    for nb in notebooks:
+        nb_name = os.path.basename(nb)
+        destination_path = os.path.join(DEST_DIR, nb_name)
+        shutil.copy(nb, destination_path)
+        print(f"Đã sao chép thành công notebook: {nb_name} vào thư mục dự án.")
+else:
+    print("Không tìm thấy file notebook nào trong thư mục mặc định 'Colab Notebooks'.")
+    print("Hãy bấm 'File -> Save' (Ctrl+S) trên Colab trước để Drive cập nhật tệp tin mới nhất.")
+```
+
+Đẩy code lên nhánh chính của dự án:
+```bash
+%cd /content/drive/MyDrive/NCKH_PanDerm
+
+# Cập nhật và đẩy file Notebook lên GitHub
+!git add *.ipynb 2>/dev/null || git add .
+!git commit -m "Add/Update Colab notebooks to repository"
+!git push -u origin main
+```
+
+*Giải thích chi tiết:*
+- Lệnh Python đầu tiên tự động tìm các notebook Colab lưu mặc định tại thư mục `Colab Notebooks` trên Drive và copy chúng về thư mục dự án `NCKH_PanDerm` để quản lý tập trung.
+- Lệnh bash tiếp theo dùng `git add` và `git push` đẩy các file `.ipynb` vừa sao chép lên kho lưu trữ GitHub của nhóm để SV A có thể dễ dàng theo dõi.
+
+## 7. Checklist Bàn giao cuối tuần (Go/No-Go Phase 1)
 
 Sau khi chạy xong Notebook trên, SV B cần kiểm tra và gửi cho SV A các tài nguyên sau để chốt kết quả Tuần 1:
 - [ ] File `requirements_colab.txt` ghi lại các version của `torch`, `torchvision`, `mmsegmentation`.
