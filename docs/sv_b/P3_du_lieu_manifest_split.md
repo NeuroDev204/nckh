@@ -78,7 +78,7 @@ Pipeline P6 chỉ làm việc với 6 cột chuẩn:
 | `lesion_id` | mã tổn thương (đơn vị ghép cặp) | chuỗi |
 | `image_id` | mã ảnh, duy nhất | chuỗi |
 | `image_path` | đường dẫn ảnh, tương đối so với `data_root` | chuỗi |
-| `captured_at` | thời điểm chụp | `datetime64[ns, UTC]`; giá trị lỗi → `NaT` (bị loại có lý do ở P6) |
+| `captured_at` | thời điểm chụp | `datetime64[ns, UTC]`, đọc theo định dạng khai báo `captured_at_format` (mặc định ISO-8601); sai định dạng → `NaT` (bị loại có lý do ở P6) |
 | `modality` | loại ảnh | chuỗi viết thường, bỏ khoảng trắng |
 
 `load_uq_metadata` đổi tên cột theo `configs/uq_column_map.yaml`. Nếu thiếu cột gốc, hàm dừng và liệt kê đúng tên cột thiếu, không đoán.
@@ -271,7 +271,7 @@ def find_cross_split_duplicates(df: pd.DataFrame, hash_col: str = "sha256", spli
     return df[n_splits > 1].sort_values([hash_col, split_col])
 
 
-def load_uq_metadata(csv_path: Path, column_map: dict[str, str]) -> pd.DataFrame:
+def load_uq_metadata(csv_path: Path, column_map: dict[str, str], date_format: str = "ISO8601") -> pd.DataFrame:
     raw = pd.read_csv(csv_path)
     missing = [src for src in column_map.values() if src not in raw.columns]
     if missing:
@@ -279,8 +279,9 @@ def load_uq_metadata(csv_path: Path, column_map: dict[str, str]) -> pd.DataFrame
     df = raw.rename(columns={src: std for std, src in column_map.items()})
     for col in ("participant_id", "lesion_id", "image_id", "image_path"):
         df[col] = df[col].where(df[col].isna(), df[col].astype(str))
-    # utc=True: gộp được cả giá trị chỉ có ngày lẫn giá trị có múi giờ; giá trị lỗi thành NaT để bị loại có lý do.
-    df["captured_at"] = pd.to_datetime(df["captured_at"], utc=True, errors="coerce", format="mixed")
+    # Định dạng khai báo tường minh (mặc định ISO-8601): "05/01/2020" không bị đoán thành 1/5 hay 5/1 tùy dòng.
+    # utc=True gộp được giá trị chỉ có ngày và giá trị có múi giờ; giá trị sai định dạng thành NaT → bị loại có lý do.
+    df["captured_at"] = pd.to_datetime(df["captured_at"], utc=True, errors="coerce", format=date_format)
     df["modality"] = df["modality"].astype(str).str.strip().str.lower()
     return df[list(UQ_COLUMNS) + [c for c in df.columns if c not in UQ_COLUMNS]]
 
@@ -458,6 +459,9 @@ captured_at: "<ĐIỀN TÊN CỘT GỐC>"
 modality: "<ĐIỀN TÊN CỘT GỐC>"
 # Giá trị (sau khi viết thường, bỏ khoảng trắng) của cột modality được coi là ảnh dermoscopy.
 modality_dermoscopy_value: "dermoscopy"
+# Định dạng ngày giờ của cột captured_at: "ISO8601" (vd 2020-01-05, 2020-01-05T10:00:00+10:00) hoặc mẫu strftime
+# như "%d/%m/%Y". Khai báo rõ để ngày/tháng không bị đọc nhầm; giá trị sai định dạng bị loại (missing_timestamp).
+captured_at_format: "ISO8601"
 ```
 
 ### 4.5. Test
@@ -584,6 +588,18 @@ def test_load_uq_metadata_maps_and_validates(tmp_path: Path) -> None:
     assert df["modality"].tolist() == ["dermoscopy", "dermoscopy", "clinical"]
     with pytest.raises(ValueError, match="missing_col_date"):
         load_uq_metadata(csv, {**mapping, "captured_at": "missing_col_date"})
+
+
+def test_load_uq_metadata_date_format(tmp_path: Path) -> None:
+    csv = tmp_path / "meta.csv"
+    pd.DataFrame({"pid": [1, 1], "lesion": ["L", "L"], "img": ["a", "b"], "file": ["a.jpg", "b.jpg"],
+                  "date": ["05/01/2020", "13/01/2020"], "type": ["dermoscopy"] * 2}).to_csv(csv, index=False)
+    mapping = {"participant_id": "pid", "lesion_id": "lesion", "image_id": "img", "image_path": "file",
+               "captured_at": "date", "modality": "type"}
+    # Mặc định chỉ nhận ISO-8601: định dạng khác thành NaT (bị loại có lý do) thay vì bị đọc sai ngày/tháng.
+    assert load_uq_metadata(csv, mapping)["captured_at"].isna().all()
+    parsed = load_uq_metadata(csv, mapping, date_format="%d/%m/%Y")["captured_at"]
+    assert parsed.dt.month.tolist() == [1, 1] and parsed.dt.day.tolist() == [5, 13]
 ```
 
 ```python
@@ -728,7 +744,7 @@ Toàn bộ bước ghép cặp và manifest UQ cuối cùng được làm bằng
 !cd {ROOT}/nckh && python -m pytest -q tests/test_manifest.py tests/test_prepare.py
 ```
 
-Kỳ vọng: `13 passed`.
+Kỳ vọng: `14 passed`.
 
 Ánh xạ **8 unit test bắt buộc** của kế hoạch (Mục 3.4) sang test cụ thể:
 
@@ -775,6 +791,6 @@ Số lượng **kỳ vọng** lấy theo dữ liệu chính thức. Nếu số t
 - [ ] `data/manifests/isic2018_seg.csv` + `.sha256` + `.cross_split_duplicates.csv` trên Drive; SHA-256 đã ghi vào protocol.
 - [ ] `mask_count.json` gửi SV A (bằng chứng 1 mask/ảnh), đề cương được sửa.
 - [ ] `isic2017_cls.csv` và `isic2017_cls_trainphase.csv` trên Drive; bảng phân bố lớp gửi SV A.
-- [ ] `pytest`: 13 passed cho phần P3.
+- [ ] `pytest`: 14 passed cho phần P3.
 - [ ] Bảng mục 6 đã điền số thật; mọi ảnh bị loại đều có lý do.
 - [ ] (Khi có UQ) `configs/uq_column_map.yaml` đã điền, commit, và SV A xác nhận đúng nghĩa từng cột.

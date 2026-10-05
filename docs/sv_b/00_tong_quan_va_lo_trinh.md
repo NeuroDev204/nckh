@@ -106,37 +106,26 @@ MyDrive/NCKH_PanDerm/
 
 **Không bao giờ** dán token vào cell, không `print` token, không commit file chứa token.
 
-### 5.2. Cell đồng bộ ở đầu mỗi notebook
+### 5.2. Cell đồng bộ
 
-```python
-# cell: NB_cpu
-from google.colab import drive, userdata
-drive.mount('/content/drive')
-ROOT = '/content/drive/MyDrive/NCKH_PanDerm'
-TOKEN = userdata.get('GH_TOKEN')
-REPO_URL = f'https://{TOKEN}@github.com/NeuroDev204/nckh.git'
-!mkdir -p {ROOT}
-!test -d {ROOT}/nckh/.git || git clone -q {REPO_URL} {ROOT}/nckh
-%cd {ROOT}/nckh
-!git remote set-url origin {REPO_URL}
-!git config user.name "NeuroDev204" && git config user.email "eduteam.hutech@gmail.com"
-!git pull --rebase -q && git log --oneline -1
-```
+Cell đầy đủ nằm ở `P2_moi_truong_checkpoint_smoke_test.md` mục 4.1. Có hai điểm bắt buộc:
+- **Chỉ `NB_cpu` chạy git.** `NB_seg`/`NB_cls` chỉ mount Drive và đọc code.
+- **Token không bao giờ được lưu vào `.git/config`.** Remote `origin` là URL sạch; URL có token (`AUTH_URL`) chỉ được truyền thẳng vào lệnh `git pull`/`git push`.
 
-Cuối phiên:
+Cuối phiên (trong `NB_cpu`, sau khi đã chạy cell 4.1a của P2):
 
 ```python
 # cell: NB_cpu
 %cd {ROOT}/nckh
 !git status --short
-!git add src scripts tests configs demo notebooks pyproject.toml .gitignore
-!git commit -m "mô tả ngắn thay đổi" && git push -q
+!git add src scripts tests configs demo notebooks patches pyproject.toml .gitignore
+!git commit -m "mô tả ngắn thay đổi" && git push -q {AUTH_URL} HEAD:main
 ```
 
 ### 5.3. Ba quy tắc tránh xung đột
 
 1. **Pull trước khi sửa, push ngay sau khi sửa.** GitHub là nguồn sự thật nếu bạn còn sửa ở laptop hoặc SV A cũng sửa.
-2. **Chỉ một runtime commit tại một thời điểm.** Hai runtime Colab cùng ghi vào `.git` trên Drive có thể làm hỏng repo. Các runtime khác chỉ đọc code là được.
+2. **Chỉ `NB_cpu` chạy lệnh git.** Hai runtime Colab cùng ghi vào `.git` trên Drive (kể cả `git pull`) có thể làm hỏng repo. `NB_seg`/`NB_cls` chỉ đọc code.
 3. **Không `git add -A`/`git add .`** ở thư mục gốc repo: luôn chỉ rõ thư mục code như trên, để không bao giờ lỡ đưa ảnh hay checkpoint lên.
 
 ## 6. Ba runtime Colab
@@ -181,7 +170,7 @@ Bạn tự tạo toàn bộ các file dưới đây trong repo `nckh`, theo th�
 | `src/nckh/degrade.py`, `scripts/make_degraded.py`, `scripts/evaluate_robustness.py` | P8 | Ảnh suy giảm/tiền xử lý; so sạch vs suy giảm |
 | `demo/pipeline.py`, `demo/app.py` | P9 | Demo Streamlit |
 | `scripts/make_tables.py`, `scripts/make_figures.py` | P10 | Bảng/hình từ file kết quả; chọn ví dụ lỗi |
-| `tests/test_*.py` (154 test) | cùng phase với module | pytest, chạy trên CPU < 1 phút |
+| `tests/test_*.py` (156 test) | cùng phase với module | pytest, chạy trên CPU < 1 phút |
 | `notebooks/NB_seg.ipynb`, `NB_cls.ipynb`, `NB_cpu.ipynb` | P2 | Notebook mỏng: cell setup + cell gọi script |
 
 ## 9. Thứ tự đọc

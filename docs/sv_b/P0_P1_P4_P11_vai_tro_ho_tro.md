@@ -92,7 +92,7 @@ meta.head(3).T
 # cell: NB_cpu
 import pandas as pd
 from nckh.pairs import stratified_audit_sample
-feat = pd.read_csv(f'{ROOT}/runs/<run_id_P6>/features.csv')          # bảng cặp + area_ratio_t sơ bộ từ P6
+feat = pd.read_csv(f'{ROOT}/runs/<run_id_P6>/ridge/features.csv')    # bảng cặp + area_ratio_t sơ bộ từ P6 (target test đã bị che)
 pool = feat[(feat.split == 'test') & feat.usable]                    # audit lấy từ participant test (kế hoạch P4 bước 3)
 audit = stratified_audit_sample(pool, n_pairs=50, strata_cols=['delta_days', 'area_ratio_t'], seed=2026)
 audit.to_csv(f'{ROOT}/data/uq/audit/audit_pairs.csv', index=False)

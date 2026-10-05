@@ -263,7 +263,7 @@ Kỳ vọng: `5 passed`.
 
 ### 4.4. Pilot rồi fine-tune (NB_cls)
 
-Chuẩn bị mỗi phiên: cell đồng bộ (P2 4.1) → `venv_cls` (P2 4.10, phần cài đặt) → tải ISIC 2017 (P3 4.6).
+Chuẩn bị mỗi phiên: (NB_cpu) cell 4.1a của P2 để pull code → (NB_cls) cell mở đầu 4.1b → `venv_cls` (P2 4.10, phần cài đặt) → tải ISIC 2017 (P3 4.6).
 
 ```python
 # cell: NB_cls
@@ -284,10 +284,13 @@ PILOT = f"{ROOT}/runs/{new_run_id('cls_pilot')}/"
 ```python
 # cell: NB_cls
 RUN = f"{ROOT}/runs/{new_run_id('cls_main')}/"
+os.makedirs(RUN, exist_ok=True)   # tee cần thư mục tồn tại trước
 !cd /content/PanDerm/classification && {VENV}/bin/python run_class_finetuning.py {COMMON} --epochs 50 --exp_name isic2017_ft --wandb_name isic2017_ft_s0 --output_dir {RUN} --csv_path {TRAIN_CSV} 2>&1 | tee {RUN}train_stdout.log | grep -E "Max val|Epoch: \[[0-9]+\] Total|Error"
 ```
 
 Lưu ý `--warmup_epochs 0` ở pilot: chạy 1 epoch thì không thể có 10 epoch warmup. Trong lúc train, theo dõi `Max val mean recall` mỗi epoch.
+
+**Dung lượng:** `checkpoint-best.pth` khoảng 1 GB (model 85,9 triệu tham số + trạng thái optimizer). Xoá thư mục pilot ngay sau khi đo xong (`!rm -rf {PILOT}`); xem bảng dung lượng tổng ở P5a mục 4.8.
 
 ### 4.5. Khóa cấu hình → test thật đúng một lần
 

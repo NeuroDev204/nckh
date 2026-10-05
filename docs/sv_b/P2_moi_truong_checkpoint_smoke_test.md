@@ -90,9 +90,13 @@ Các lớp `fpn1..4` và `norm` là lớp mới của đầu segmentation, khôn
 
 ## 4. Code
 
-### 4.1. Cell đồng bộ Drive ↔ GitHub (đầu **cả 3** notebook)
+### 4.1. Cell mở đầu của 3 notebook
 
-Làm theo `00_tong_quan_va_lo_trinh.md` mục 5 (token `GH_TOKEN` trong Colab Secrets), rồi dán cell sau vào đầu mỗi notebook:
+**Chỉ `NB_cpu` được chạy lệnh git** (pull, commit, push). `NB_seg` và `NB_cls` chỉ **đọc** code trên Drive. Lý do: ba notebook cùng ghi vào một thư mục `.git` trên Drive có thể làm hỏng repo (`00_tong_quan_va_lo_trinh.md` mục 5.3). Thứ tự mỗi phiên: mở `NB_cpu`, chạy cell 4.1a (pull), rồi mới mở notebook GPU.
+
+Token GitHub **không bao giờ được ghi vào `.git/config`** trên Drive (ai có quyền xem thư mục Drive cũng đọc được file đó). URL chứa token chỉ được truyền thẳng vào từng lệnh `pull`/`push`, còn remote `origin` luôn là URL sạch.
+
+**4.1a. `NB_cpu`:**
 
 ```python
 # cell: NB_cpu
@@ -102,18 +106,32 @@ from google.colab import drive, userdata
 drive.mount('/content/drive')
 ROOT = '/content/drive/MyDrive/NCKH_PanDerm'
 os.environ['NCKH_ROOT'] = ROOT
-REPO_URL = f"https://{userdata.get('GH_TOKEN')}@github.com/NeuroDev204/nckh.git"
+CLEAN_URL = 'https://github.com/NeuroDev204/nckh.git'
+AUTH_URL = f"https://{userdata.get('GH_TOKEN')}@github.com/NeuroDev204/nckh.git"   # chỉ dùng trong lệnh, không lưu
 !mkdir -p {ROOT}
-!test -d {ROOT}/nckh/.git || git clone -q {REPO_URL} {ROOT}/nckh
+!test -d {ROOT}/nckh/.git || (git clone -q {AUTH_URL} {ROOT}/nckh && git -C {ROOT}/nckh remote set-url origin {CLEAN_URL})
 %cd {ROOT}/nckh
-!git remote set-url origin {REPO_URL}
-!git config user.name "NeuroDev204" && git config user.email "eduteam.hutech@gmail.com"
-!git pull --rebase -q && git log --oneline -1
+!git config user.name "<tên GitHub của bạn>" && git config user.email "<email GitHub của bạn>"
+!git pull -q --rebase {AUTH_URL} main && git log --oneline -1
 # Package nckh chỉ dùng thư viện thuần Python, nên kernel đọc được trực tiếp từ src/ mà không cần cài.
 sys.path.insert(0, f'{ROOT}/nckh/src')
 ```
 
-> Lần đầu repo chưa có `src/`: cell vẫn chạy được, dòng `sys.path` không gây lỗi.
+**4.1b. `NB_seg` và `NB_cls`** (không có git):
+
+```python
+# cell: NB_seg
+import os, sys
+from pathlib import Path
+from google.colab import drive
+drive.mount('/content/drive')
+ROOT = '/content/drive/MyDrive/NCKH_PanDerm'
+os.environ['NCKH_ROOT'] = ROOT
+sys.path.insert(0, f'{ROOT}/nckh/src')
+!git -C {ROOT}/nckh log --oneline -1   # chỉ đọc: kiểm tra đúng commit vừa pull ở NB_cpu
+```
+
+> Lần đầu repo chưa có `src/`: cell vẫn chạy được, dòng `sys.path` không gây lỗi. Nếu repo cũ đã từng chứa token trong `.git/config`, chạy `!git -C {ROOT}/nckh remote set-url origin https://github.com/NeuroDev204/nckh.git` một lần, rồi **thu hồi token đó** trên GitHub và tạo token mới.
 
 ### 4.2. Tạo package `nckh` (trong `NB_cpu`)
 
@@ -655,10 +673,28 @@ index 1fb750e..b309631 100644
  
  if __name__ == "__main__":
 diff --git a/segmentation/workers/train.py b/segmentation/workers/train.py
-index 0b23f31..81b3042 100644
+index 0b23f31..ddbf374 100644
 --- a/segmentation/workers/train.py
 +++ b/segmentation/workers/train.py
-@@ -77,7 +77,8 @@ def train_worker(args):
+@@ -64,12 +64,15 @@ def train_worker(args):
+             dirpath=save_path,
+             monitor="Val/Jac",
+             mode="max",
+-            filename="model_best_{}".format(str(fold))
++            filename="model_best_{}".format(str(fold)),
++            # Ghi de dung ten file thay vi tao "-v1": khi resume, file cu van la file moi nhat.
++            enable_version_counter=False,
+         )
+ 
+         checkpoint_callback = ModelCheckpoint(
+             dirpath=save_path,
+-            filename="model_checkpoint_{}".format(str(fold))
++            filename="model_checkpoint_{}".format(str(fold)),
++            enable_version_counter=False,
+         )
+ 
+         trainer = Trainer(
+@@ -77,7 +80,8 @@ def train_worker(args):
              devices=args.gpu,
              strategy=DDPStrategy(find_unused_parameters=False),
              logger=args.logger,
@@ -1235,7 +1271,7 @@ Pilot train 1 epoch cần dữ liệu ISIC 2018 đúng layout của loader (P3),
 %cd {ROOT}/nckh
 !git add pyproject.toml .gitignore src tests scripts patches notebooks
 !git status --short
-!git commit -q -m "P2: package nckh, infer, smoke test, patch PanDerm Base" && git push -q && git log --oneline -1
+!git commit -q -m "P2: package nckh, infer, smoke test, patch PanDerm Base" && git push -q {AUTH_URL} HEAD:main && git log --oneline -1
 ```
 
 ## 5. Test
@@ -1279,7 +1315,8 @@ Số ms/ảnh ở đây tính cho batch 1, bao gồm cả tiền xử lý. Dùng
 | `torch.cuda.is_available()` = False | Runtime chưa bật GPU hoặc hết quota GPU | *Runtime → Change runtime type → T4 GPU*; nếu hết quota thì làm phần CPU (P3, P6 với dữ liệu giả) trong lúc chờ |
 | Mất venv sau khi ngắt kết nối | `/content` bị xoá khi runtime reset | Chạy lại cell setup; dữ liệu trên Drive vẫn còn |
 | `gdown` báo quota | File Drive công khai bị giới hạn lượt tải | Xem cách xử lý ở 4.3 |
-| `git push` hỏi mật khẩu | Token hết hạn hoặc chưa bật *Notebook access* | Tạo token mới, cập nhật Colab Secrets |
+| `git push`/`pull` hỏi mật khẩu | Token hết hạn hoặc chưa bật *Notebook access* | Tạo token mới, cập nhật Colab Secrets; chạy lại 4.1a |
+| `.git/index.lock` tồn tại | Hai notebook cùng chạy git, hoặc lệnh git bị ngắt | Chỉ chạy git ở NB_cpu; xoá `{ROOT}/nckh/.git/index.lock` khi chắc không còn lệnh git nào chạy |
 | `ModuleNotFoundError: nckh` trong kernel | Chưa chạy cell 4.1 (dòng `sys.path`) | Chạy lại cell 4.1 |
 | `ModuleNotFoundError: open_clip` khi chạy cls | `classification/models/__init__.py` import `open_clip` | Đã có trong `classification/requirements.txt`; kiểm tra lại cell 4.10 |
 

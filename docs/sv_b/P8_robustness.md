@@ -582,7 +582,7 @@ def test_update_robustness_json_merges_levels(tmp_path: Path) -> None:
 
 ### 4.5. Segmentation: ISIC 2018 test, vòng lặp theo mức (NB_seg)
 
-Chuẩn bị: cell đồng bộ, `venv_seg`, patch, dữ liệu ISIC 2018 (P2/P3).
+Chuẩn bị: pull code ở NB_cpu (P2 4.1a), cell mở đầu 4.1b, `venv_seg`, patch, dữ liệu ISIC 2018 (P2/P3).
 
 ```python
 # cell: NB_seg
@@ -638,7 +638,7 @@ for lv in LEVELS:
 ```python
 # cell: NB_cpu
 RUN = "<run P6 trên UQ>"
-f = pd.read_csv(f"{RUN}/ridge/features.csv")
+f = pd.read_csv(f"{RUN}/ridge_test/features.csv")   # chỉ run đã mở test mới có target của cặp test
 t = f[f.usable & (f.split == 'test')][['image_id_t', 'image_path_t']].drop_duplicates()
 t.rename(columns={'image_id_t': 'image_id', 'image_path_t': 'image_path'}).assign(split='test').to_csv(f"{RUN}/p8_t_images.csv", index=False)
 ```
@@ -652,7 +652,7 @@ Sau đó, với mỗi mức (`D = {RUN}/p8_degraded/<mức>`):
 # cell: NB_cpu
 P8F = f"{RUN}/p8_forecast"          # cố định cho mọi mức
 lv, D = "hair_0.03", f"{RUN}/p8_degraded/hair_0.03"   # đổi theo từng mức
-!cd {ROOT}/nckh && python scripts/evaluate_robustness.py forecast --level {lv} --robustness-json {P8F}/robustness.json --out-dir {P8F} --clean {RUN}/ridge/features.csv --degraded {D}/out --ridge {RUN}/ridge/ridge.joblib
+!cd {ROOT}/nckh && python scripts/evaluate_robustness.py forecast --level {lv} --robustness-json {P8F}/robustness.json --out-dir {P8F} --clean {RUN}/ridge_test/features.csv --degraded {D}/out --ridge {RUN}/ridge_test/ridge.joblib
 ```
 
 `n_unpredictable_degraded` cho biết có bao nhiêu ảnh t bị suy giảm đến mức mask rỗng, không dự báo được. Báo con số này cạnh ΔMAE.

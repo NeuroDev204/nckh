@@ -50,7 +50,8 @@ baseline: Δâ = 0
 ```
 
 - **circularity** = 4π·diện tích / chu vi² của thành phần lớn nhất (hình tròn ≈ 1, hình răng cưa → nhỏ). **eccentricity** của ellipse cùng moment (tròn = 0, dẹt → 1).
-- **Δt** là số ngày thực tế, số thực (giây / 86.400), **không** giả định 6 tháng.
+- **Δt** là số ngày thực tế, số thực (giây / 86.400), **không** giả định 6 tháng. Mọi cặp có Δt ≥ 1 ngày (ảnh dưới 1 ngày bị loại `same_visit`).
+- **Định dạng ngày** được khai báo trong `configs/uq_column_map.yaml` (khóa `captured_at_format`, mặc định ISO-8601). Không để pandas tự đoán: `05/01/2020` có thể bị đọc là 1/5 ở dòng này và 5/1 ở dòng khác.
 - Mask của t+1 chỉ dùng để tạo target, **không bao giờ** là đầu vào.
 
 ### 3.3. Ghép cặp và lý do loại
@@ -65,6 +66,7 @@ baseline: Δâ = 0
 | 4 | `missing_timestamp` | Không có hoặc không đọc được thời điểm chụp |
 | 5 | `participant_mismatch` | Một lesion gắn với hơn một người → lỗi ID; loại cả lesion, không đoán |
 | 6 | `same_timestamp` | Hai ảnh cùng thời điểm: giữ ảnh đầu (theo `image_id`), loại ảnh còn lại |
+| 7 | `same_visit` | Ảnh cách ảnh **được giữ** trước đó < 1 ngày (nhiều ảnh trong một buổi khám, hoặc ngày-không-giờ lệch múi giờ): giữ ảnh đầu buổi, loại ảnh sau |
 
 Sau khi lọc, sắp xếp theo `(lesion_id, captured_at, image_id)` và chỉ ghép **ảnh kề nhau**: lesion có 3 lần chụp cho 2 cặp (1→2, 2→3), không có cặp 1→3. Split được gán theo participant **trước** khi ghép, nên mỗi cặp tự kế thừa split của người đó.
 
@@ -87,7 +89,7 @@ Cặp có mask rỗng ở t hoặc t+1 (`empty_mask`), thiếu kết quả suy l
 | Cặp bị loại được thống kê trước khi mở test | `flow.json`, `pairs_excluded.csv`, `features.csv` (`exclude_reason`) ghi ngay khi chạy, trước `--open-test` |
 | Kiểm thử tự động | `pytest` (mục 5) |
 
-`train_ridge.py` mặc định **không** ghi dự báo test. Chỉ khi chạy với `--open-test` và gõ đúng `mo test` vào câu hỏi xác nhận thì mới ghi `predictions_test.csv`.
+`train_ridge.py` mặc định **không** ghi dự báo test, và trong `features.csv` các cột `delta_area`, `area_ratio_t1`, `empty_t1` của cặp test bị để trống (target test không nằm trên Drive trước khi khóa). Chỉ khi chạy với `--open-test` và gõ đúng `mo test` vào câu hỏi xác nhận thì mới ghi `predictions_test.csv`.
 
 ## 4. Code
 
@@ -100,12 +102,14 @@ import numpy as np
 import pandas as pd
 
 PAIR_EXCLUDE_REASONS = ("missing_lesion_id", "unreadable_image", "not_dermoscopy", "missing_timestamp",
-                        "participant_mismatch", "same_timestamp")
+                        "participant_mismatch", "same_timestamp", "same_visit")
+MIN_DELTA_DAYS = 1.0  # ảnh cách ảnh trước < 1 ngày coi là cùng buổi khám, không phải "lần khám kế tiếp"
 PAIR_COLUMNS = ["participant_id", "lesion_id", "split", "image_id_t", "image_path_t", "captured_at_t",
                 "image_id_t1", "image_path_t1", "captured_at_t1", "delta_days"]
 
 
-def build_consecutive_pairs(df: pd.DataFrame, dermoscopy_value: str = "dermoscopy") -> tuple[pd.DataFrame, pd.DataFrame]:
+def build_consecutive_pairs(df: pd.DataFrame, dermoscopy_value: str = "dermoscopy",
+                            min_delta_days: float = MIN_DELTA_DAYS) -> tuple[pd.DataFrame, pd.DataFrame]:
     """df: manifest UQ đã có cột split (chia theo participant TRƯỚC khi gọi hàm này)."""
     work = df.copy()
     excluded = []
@@ -127,6 +131,16 @@ def build_consecutive_pairs(df: pd.DataFrame, dermoscopy_value: str = "dermoscop
     work = work.sort_values(["lesion_id", "captured_at", "image_id"])
     # Hai ảnh cùng thời điểm không cho biết thứ tự: giữ ảnh đầu (theo image_id), loại ảnh còn lại.
     drop(work.duplicated(["lesion_id", "captured_at"], keep="first"), "same_timestamp")
+    # Nhiều ảnh trong một buổi khám (cách nhau vài phút): chỉ giữ ảnh đầu buổi, so với ảnh GIỮ LẠI gần nhất.
+    same_visit = pd.Series(False, index=work.index)
+    for _, group in work.groupby("lesion_id", sort=False):
+        kept = None
+        for idx, ts in group["captured_at"].items():
+            if kept is not None and (ts - kept).total_seconds() / 86400 < min_delta_days:
+                same_visit[idx] = True
+            else:
+                kept = ts
+    drop(same_visit, "same_visit")
 
     nxt = work.groupby("lesion_id").shift(-1)
     has_next = nxt["image_id"].notna()
@@ -395,8 +409,9 @@ def main(argv: list[str] | None = None) -> None:
     if unfilled:
         raise SystemExit(f"Chưa điền tên cột gốc trong {args.column_map}: {unfilled} (<ĐIỀN TÊN CỘT GỐC>)")
     dermo = cmap.pop("modality_dermoscopy_value", "dermoscopy")
+    date_format = cmap.pop("captured_at_format", "ISO8601")
 
-    uq = load_uq_metadata(args.metadata, cmap)
+    uq = load_uq_metadata(args.metadata, cmap, date_format)
     uq["readable"] = [check_image(args.data_root / p)["readable"] if isinstance(p, str) else False for p in uq["image_path"]]
     # Chia theo participant TRƯỚC khi ghép cặp: mọi ảnh/cặp của một người nằm trong đúng một split.
     uq["split"] = assign_group_split(uq, "participant_id", seed=args.seed)
@@ -574,7 +589,11 @@ def main(argv: list[str] | None = None) -> None:
     per_image = pd.read_csv(args.seg_features).merge(pd.read_csv(args.cls_probs), on="image_id", how="outer")
     table = build_feature_table(pd.read_csv(args.pairs), per_image)
     args.out_dir.mkdir(parents=True, exist_ok=True)
-    table.to_csv(args.out_dir / "features.csv", index=False)
+    saved = table.astype({"empty_t1": "object"})  # cột bool không chứa được NaN
+    if not args.open_test:
+        # Chưa mở test: không để target/giá trị t+1 của cặp test nằm trên Drive (ai đó có thể vô tình đọc).
+        saved.loc[saved["split"] == "test", ["area_ratio_t1", "empty_t1", TARGET_COLUMN]] = np.nan
+    saved.to_csv(args.out_dir / "features.csv", index=False)
 
     usable = table[table["usable"]]
     train, val, test = (usable[usable["split"] == s] for s in ("train", "val", "test"))
@@ -741,6 +760,17 @@ def test_stratified_audit_sample_size_and_seed() -> None:
     assert a["stratum"].nunique() >= 8
     with pytest.raises(ValueError):
         stratified_audit_sample(pool, n_pairs=0, strata_cols=["delta_days"])
+
+
+def test_same_visit_within_one_day_excluded() -> None:
+    # Hai ảnh chụp cách nhau vài phút / lệch múi giờ trong cùng buổi khám không phải "lần khám kế tiếp".
+    pairs, excluded = build_consecutive_pairs(_uq([
+        ("P1", "L1", "a", "2020-01-05T10:00:00", "dermoscopy"),
+        ("P1", "L1", "b", "2020-01-05T10:05:00", "dermoscopy"),
+        ("P1", "L1", "c", "2020-07-05T10:00:00", "dermoscopy"),
+    ]))
+    assert list(zip(pairs.image_id_t, pairs.image_id_t1)) == [("a", "c")]
+    assert _reasons(excluded) == {"b": "same_visit"}
 ```
 
 ```python
@@ -975,6 +1005,12 @@ def test_test_predictions_require_open_test_flag(fake_run: Path, tmp_path: Path)
     train_ridge.main(["--pairs", str(fake_run / "pairs.csv"), "--seg-features", str(fake_run / "seg_features.csv"),
                       "--cls-probs", str(fake_run / "cls_probs.csv"), "--out-dir", str(out)])
     assert (out / "predictions_val.csv").exists() and not (out / "predictions_test.csv").exists()
+    # Chưa mở test: target và mọi giá trị của t+1 ở các cặp test phải bị che trong features.csv.
+    feats = pd.read_csv(out / "features.csv")
+    test_rows = feats[feats["split"] == "test"]
+    assert len(test_rows) > 0
+    assert test_rows[["delta_area", "area_ratio_t1"]].isna().all().all()
+    assert feats.loc[feats["split"] != "test", "delta_area"].notna().any()
 ```
 
 ### 4.6. Chạy thử trên dữ liệu GIẢ (NB_cpu)
@@ -1077,14 +1113,14 @@ print("Baseline:", regression_metrics(ok.delta_area, np.zeros(len(ok))))
 !cd {ROOT}/nckh && python -m pytest -q tests/test_pairs.py tests/test_features.py tests/test_forecast.py tests/test_pipeline_fake.py
 ```
 
-Kỳ vọng: `46 passed` (12 + 8 + 20 + 6).
+Kỳ vọng: `47 passed` (13 + 8 + 20 + 6).
 
 | Nhóm | Test tiêu biểu |
 |---|---|
-| Ghép cặp | chỉ ghép kề nhau; không nối lesion khác; Δt = 182,0 ngày cho 01/01→01/07/2020; trộn ngày thường và có múi giờ; 6 lý do loại |
+| Ghép cặp | chỉ ghép kề nhau; không nối lesion khác; Δt = 182,0 ngày cho 01/01→01/07/2020; trộn ngày thường và có múi giờ; 7 lý do loại (gồm `same_visit` < 1 ngày) |
 | Đặc trưng | hình vuông 10×10 trên 100×100 → 0,01; hình tròn có circularity > 0,85; mask rỗng/1 pixel không lỗi; không có cột tương lai |
 | Ridge | scaler chỉ học train; bảng alpha là MAE val; hòa thì chọn alpha lớn; clip [0, 1]; Δt sai bị từ chối; Ridge thắng baseline trên dữ liệu có quy luật |
-| Đầu-cuối | flow đếm đúng 3 lỗi cố ý; cột dự báo đúng; không ai ở 2 split; `ridge.joblib` đúng cấu trúc; không có `--open-test` thì không ghi test |
+| Đầu-cuối | flow đếm đúng 3 lỗi cố ý; cột dự báo đúng; không ai ở 2 split; `ridge.joblib` đúng cấu trúc; không có `--open-test` thì không ghi test và target test bị che |
 
 ## 6. Benchmark / đánh giá
 
@@ -1093,7 +1129,7 @@ Kỳ vọng: `46 passed` (12 + 8 + 20 + 6).
 | Bước | Ảnh | Participant | Lesion | Cặp |
 |---|---:|---:|---:|---:|
 | Metadata ban đầu | [điền sau khi chạy] | [điền sau khi chạy] | [điền sau khi chạy] | — |
-| Loại `missing_lesion_id` / `unreadable_image` / `not_dermoscopy` / `missing_timestamp` / `participant_mismatch` / `same_timestamp` | [điền sau khi chạy] | — | — | — |
+| Loại `missing_lesion_id` / `unreadable_image` / `not_dermoscopy` / `missing_timestamp` / `participant_mismatch` / `same_timestamp` / `same_visit` | [điền sau khi chạy] | — | — | — |
 | Cặp liên tiếp hợp lệ (train / val / test) | — | [điền sau khi chạy] | [điền sau khi chạy] | [điền sau khi chạy] |
 | Loại sau suy luận (`empty_mask` / `missing_inference` / `nonfinite_feature`) | — | — | — | [điền sau khi chạy] |
 | Cặp dùng cho Ridge (train / val / test) | — | [điền sau khi chạy] | — | [điền sau khi chạy] |
@@ -1112,7 +1148,8 @@ Kết quả test (MAE/RMSE/bias + CI) tính ở **P7** bằng `evaluate_forecast
 |---|---|
 | `SystemExit: Chưa điền tên cột gốc …` | Điền `configs/uq_column_map.yaml` (P3 mục 4.7) |
 | `ValueError: Thiếu cột trong metadata.csv` | Tên cột trong YAML sai so với file thật |
-| Rất nhiều `missing_timestamp` | Định dạng ngày lạ (ví dụ `05/01/2020` kiểu ngày/tháng): đọc bằng `pd.to_datetime(..., dayfirst=True)` để kiểm tra, rồi báo SV A thống nhất cách đọc **trước** khi chạy tiếp |
+| Rất nhiều `missing_timestamp` | Ngày không theo ISO-8601 (ví dụ `05/01/2020`): đặt `captured_at_format: "%d/%m/%Y"` (hoặc mẫu đúng) trong `configs/uq_column_map.yaml` sau khi SV A xác nhận định dạng |
+| Nhiều `same_visit` | Bình thường nếu mỗi buổi khám chụp nhiều ảnh; báo số này trong bảng flow |
 | `Không đủ cặp dùng được: train=…, val=0` | Quá ít participant có ≥ 2 lần chụp; báo SV A (tiêu chí No-Go) |
 | Suy luận UQ rất chậm | Copy ảnh sang `/content` trước; kiểm tra GPU đã bật |
 | Nhiều `empty_mask` | Mask PanDerm kém trên UQ (chuyển miền): báo trong audit P4, không tự hạ ngưỡng |
@@ -1120,7 +1157,7 @@ Kết quả test (MAE/RMSE/bias + CI) tính ở **P7** bằng `evaluate_forecast
 ## 8. Checklist bàn giao cho SV A
 
 - [ ] Văn bản Go/No-Go đã có trước khi UQ lên Drive.
-- [ ] `pytest` phần P6: 46 passed; chạy được pipeline giả.
+- [ ] `pytest` phần P6: 47 passed; chạy được pipeline giả.
 - [ ] `flow.json`, `pairs_excluded.csv`, `features.csv` gửi SV A **trước** khi mở test.
 - [ ] `ridge.joblib`, `alpha_selection.csv`, `predictions_val.csv`, `run_card.json` trong `runs/`.
 - [ ] Nhật ký quyết định ghi thời điểm chạy `--open-test` (một lần).

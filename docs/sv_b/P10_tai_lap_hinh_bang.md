@@ -403,15 +403,15 @@ Nếu bước nào không tái lập được: sửa docs, hoặc ghi giới h�
 !cd {ROOT}/nckh && python -m pytest -q
 ```
 
-Kỳ vọng cho **toàn bộ dự án**: `154 passed` (hoặc một phần `skipped` nếu kernel không có torch).
+Kỳ vọng cho **toàn bộ dự án**: `156 passed` (hoặc một phần `skipped` nếu kernel không có torch).
 
 | File | Số test |
 |---|---:|
-| Đến hết P7 (xem P7 mục 5.2) | 98 |
+| Đến hết P7 (xem P7 mục 5.2) | 100 |
 | `tests/test_degrade.py` + `tests/test_robustness.py` (P8) | 37 |
 | `tests/test_demo_pipeline.py` (P9) | 15 |
 | `tests/test_tables_figures.py` (P10) | 4 |
-| **Tổng** | **154** |
+| **Tổng** | **156** |
 
 Test P10 kiểm: bảng sinh đúng từ JSON (định dạng `0.015 [0.010, 0.020]`); file thiếu thì ghi "chưa có dữ liệu" thay vì crash; 3 hình được tạo; chọn ví dụ đúng 3 nhóm, cùng seed thì cùng kết quả.
 

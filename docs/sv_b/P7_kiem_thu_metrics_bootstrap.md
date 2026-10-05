@@ -255,7 +255,7 @@ LOG = f"{ROOT}/runs/{new_run_id('pytest')}"
 | Tệp | Ảnh/mask mở được, kích thước đúng, hash trùng được xử lý | `test_manifest.py::test_exclude_reasons`, `::test_cross_split_duplicate_found`; `build_manifest.py` | `isic2018_seg.csv` (`exclude_reason`), `.cross_split_duplicates.csv` |
 | Metadata | ID, ngày chụp, nhãn, thiếu | `test_manifest.py::test_load_uq_metadata_maps_and_validates`; `test_prepare.py::test_isic2017_labels` | `flow.json`, P1 data dictionary |
 | Split | Không trùng participant/lesion giữa tập | `test_manifest.py::test_group_split_*`, `::test_leakage_detected`; `test_pipeline_fake.py::test_no_participant_in_two_splits` | `assert_no_group_leakage` trong `build_pairs.py` |
-| Thời gian | Cặp cùng lesion, timestamp tăng, Δt hợp lệ | `test_pairs.py` (12 test) | `pairs.csv`, `pairs_excluded.csv` |
+| Thời gian | Cặp cùng lesion, timestamp tăng, Δt hợp lệ | `test_pairs.py` (13 test) | `pairs.csv`, `pairs_excluded.csv` |
 | Pipeline | Input/output đúng shape, output hữu hạn | `test_infer.py`, `test_bench.py`; `bench_inference.py` trên dữ liệu thật | `bench_*.json`, run card |
 | Tái lập | Chạy lại cùng cấu hình cho cùng kết quả | `test_bootstrap_deterministic`, `test_group_split_disjoint_and_deterministic`; so SHA-256 manifest, `ridge_summary.json` giữa 2 lần chạy | run card |
 | Demo | Ảnh hỏng, mask rỗng, Δt sai | `test_forecast.py::test_validate_delta_days_rejects`; P9 `tests/test_demo_pipeline.py` | log kiểm thử P9 |
@@ -268,16 +268,16 @@ LOG = f"{ROOT}/runs/{new_run_id('pytest')}"
 | `tests/test_inspect_checkpoint.py` | 3 | P2 |
 | `tests/test_infer.py` | 8 | P2 |
 | `tests/test_bench.py` | 3 | P2 |
-| `tests/test_manifest.py` | 7 | P3 |
+| `tests/test_manifest.py` | 8 | P3 |
 | `tests/test_prepare.py` | 6 | P3 |
 | `tests/test_metrics.py` | 11 | P5a |
 | `tests/test_eval_cls_agreement.py` | 5 | P5b/P4 |
-| `tests/test_pairs.py` | 12 | P6 |
+| `tests/test_pairs.py` | 13 | P6 |
 | `tests/test_features.py` | 8 | P6 |
 | `tests/test_forecast.py` | 20 | P6 |
 | `tests/test_pipeline_fake.py` | 6 | P6 |
 | `tests/test_evaluate_forecast.py` | 4 | P7 |
-| **Tổng** | **98** | |
+| **Tổng** | **100** | |
 
 P8, P9, P10 thêm test của riêng các phase đó. Nếu môi trường không có torch, `test_infer.py` và `test_bench.py` báo `skipped`; ghi rõ điều đó trong log.
 

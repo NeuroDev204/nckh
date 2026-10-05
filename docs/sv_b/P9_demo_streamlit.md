@@ -328,7 +328,7 @@ Rồi mở tunnel (mục 4.6). Kết quả trong chế độ giả là vô nghĩ
 ### 4.5. Chạy với model thật (NB_seg, GPU)
 
 Chuẩn bị trong cùng runtime:
-1. cell đồng bộ (P2 4.1);
+1. (NB_cpu) cell 4.1a của P2 để pull code, rồi (NB_seg) cell mở đầu 4.1b;
 2. `venv_seg` (P2 4.4) và patch (P2 4.6);
 3. **cả** phần cài `venv_cls` (P2 4.10, chỉ các dòng cài đặt).
 

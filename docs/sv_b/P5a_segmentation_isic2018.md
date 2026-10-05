@@ -349,7 +349,7 @@ Kỳ vọng: `11 passed`.
 
 ### 4.4. Chuẩn bị mỗi phiên NB_seg
 
-Chạy lần lượt: cell đồng bộ (P2 mục 4.1) → cell dựng `venv_seg` (P2 mục 4.4) → cell áp patch (P2 mục 4.6) → tải ISIC 2018 (P3 mục 4.6, có thể chạy ngay trong NB_seg bằng `python` của kernel).
+Chạy lần lượt: (ở NB_cpu) cell 4.1a của P2 để pull code → (ở NB_seg) cell mở đầu 4.1b của P2 → cell dựng `venv_seg` (P2 mục 4.4) → cell áp patch (P2 mục 4.6) → tải ISIC 2018 (P3 mục 4.6, có thể chạy ngay trong NB_seg bằng `python` của kernel).
 
 ### 4.5. Pilot: 1 epoch trên 5% train + thử resume
 
@@ -359,10 +359,10 @@ from nckh.runcard import new_run_id
 PILOT = f"{ROOT}/runs/{new_run_id('seg_pilot')}/"   # dấu / cuối là bắt buộc
 os.environ['PANDERM_CKPT'] = CK
 os.environ['WANDB_MODE'] = 'disabled'
-!cd /content/PanDerm/segmentation && {VENV}/bin/python run.py --workers 2 --gpu "0," --batch_size 8 --test_batch_size 4 --epoch 2 --lr 1e-4 --weight_decay 0.05 --model cae_seg --size 224 --dataset ISIC2018 --parent_path /content/data/ --save_name {PILOT} --seed 0 --smoke_test --percent 5 2>&1 | tee /content/pilot.log | grep -E "Matched|Epoch|Val/|Error" | tail -20
+!cd /content/PanDerm/segmentation && {VENV}/bin/python run.py --workers 2 --gpu "0," --batch_size 8 --test_batch_size 4 --epoch 2 --lr 1e-4 --weight_decay 0.05 --model cae_seg --size 224 --dataset ISIC2018 --parent_path /content/data/ --save_name {PILOT} --seed 0 --smoke_test --percent 5 2>&1 | tee /content/pilot.log | grep --line-buffered -E "Matched|Val/|Error"
 ```
 
-Khi thấy epoch 0 đã xong (log có `Val/Dice`), dừng cell bằng nút ■, hoặc *Runtime → Restart session* để giả lập bị ngắt. Sau đó chạy lại cell đồng bộ, rồi chạy:
+Khi thấy epoch 0 đã xong (log có `Val/Dice`), dừng cell bằng nút ■, hoặc *Runtime → Restart session* để giả lập bị ngắt. Sau đó chạy lại cell mở đầu (4.1b của P2) và `venv_seg`, rồi chạy:
 
 ```python
 # cell: NB_seg
@@ -384,17 +384,23 @@ Pilot **không** dùng để báo cáo hiệu năng. Nhờ patch P2, train xong 
 
 ```python
 # cell: NB_seg
-RUN = f"{ROOT}/runs/20261020-090000_seg_main/"      # ĐẶT MỘT LẦN, giữ nguyên qua mọi phiên resume
-RESUME = "--resume 0" if os.path.exists(f"{RUN}0/model_checkpoint_0.ckpt") else ""
+SEED = 0                                              # 0, rồi 1, 2 nếu chạy 3 seed
+BATCH = 8                                             # giảm 4 nếu OOM — dùng cùng giá trị ở mục 4.7
+RUN = f"{ROOT}/runs/20261020-090000_seg_main_s{SEED}/"  # ĐẶT MỘT LẦN cho mỗi seed, giữ nguyên qua mọi phiên resume
+os.makedirs(RUN, exist_ok=True)
+# run.py lưu checkpoint vào {RUN}{SEED}/ — kiểm tra đúng thư mục của seed đang chạy.
+RESUME = "--resume 0" if os.path.exists(f"{RUN}{SEED}/model_checkpoint_0.ckpt") else ""
+print("RESUME =", RESUME or "(train từ đầu)")
 os.environ['PANDERM_CKPT'] = CK
 os.environ['WANDB_MODE'] = 'disabled'
-!cd /content/PanDerm/segmentation && {VENV}/bin/python run.py --workers 2 --gpu "0," --batch_size 8 --test_batch_size 4 --epoch 100 --lr 1e-4 --weight_decay 0.05 --model cae_seg --size 224 --dataset ISIC2018 --parent_path /content/data/ --save_name {RUN} --seed 0 --smoke_test {RESUME} 2>&1 | tee -a {RUN}train_stdout.log | grep -E "Epoch|Val/|finished|skipped|Error"
+!cd /content/PanDerm/segmentation && {VENV}/bin/python run.py --workers 2 --gpu "0," --batch_size {BATCH} --test_batch_size 4 --epoch 100 --lr 1e-4 --weight_decay 0.05 --model cae_seg --size 224 --dataset ISIC2018 --parent_path /content/data/ --save_name {RUN} --seed {SEED} --smoke_test {RESUME} 2>&1 | tee -a {RUN}train_stdout.log | grep --line-buffered -E "Val/|finished|skipped|Error"
 ```
 
 - Lấy `run_id` bằng `new_run_id('seg_main')` ở phiên **đầu tiên**, rồi chép cứng vào dòng `RUN` để các phiên sau dùng đúng thư mục đó.
 - Mỗi lần mở lại phiên: chạy mục 4.4 rồi chạy lại cell này. `RESUME` tự bật khi đã có checkpoint.
 - Các tham số `lr`, `weight_decay`, `epoch` giữ đúng `run.sh` upstream. Không chỉnh theo kết quả test.
-- **3 seed (nếu đủ tài nguyên, kế hoạch 5.1 bước 7):** lặp lại với `--seed 1` và `--seed 2`, mỗi seed một `RUN` riêng. Báo mean ± SD qua 3 seed, tách khỏi CI bootstrap của từng seed.
+- **3 seed (nếu đủ tài nguyên và dung lượng Drive, mục 4.8):** đổi `SEED = 1` rồi `SEED = 2`. Mỗi seed có `RUN` riêng (đuôi `_s{SEED}`), và mọi đường dẫn bên dưới đều dùng `{SEED}`. Báo mean ± SD qua 3 seed, tách khỏi CI bootstrap của từng seed.
+- Patch P2 tắt bộ đếm phiên bản của Lightning (`enable_version_counter=False`), nên khi resume file checkpoint được ghi đè đúng tên, không sinh `model_*-v1.ckpt`. Nếu vẫn thấy file `-v1`, nghĩa là patch chưa được áp: dừng lại và kiểm tra.
 
 Theo dõi đường cong học:
 
@@ -415,12 +421,39 @@ Trước khi chạy test:
 
 ```python
 # cell: NB_seg
-!{VENV}/bin/python -m nckh.runcard {RUN}eval --seed 0 --input best={RUN}0/model_best_0.ckpt --input manifest={ROOT}/data/manifests/isic2018_seg.csv --config batch_size=8 --config epochs=100 --config select=Val/Jac
-!cd /content/PanDerm/segmentation && {VENV}/bin/python run.py --workers 2 --gpu "0," --test_batch_size 4 --model cae_seg --size 224 --dataset ISIC2018 --parent_path /content/data/ --save_name {RUN} --seed 0 --smoke_test --evaluate --save_results 2>&1 | grep -E "Writing|saved|Error"
-!cd {ROOT}/nckh && {VENV}/bin/python scripts/evaluate_seg.py --results-xlsx {RUN}count_results_ISIC2018_0_0.xlsx --out-dir {RUN}eval
+!ls -la {RUN}{SEED}/                                   # kỳ vọng: model_best_0.ckpt, model_checkpoint_0.ckpt, không có file -v1
+!cp {RUN}config.json {RUN}config_train.json            # --evaluate ghi đè config.json bằng tham số mặc định
+!{VENV}/bin/python -m nckh.runcard {RUN}eval --seed {SEED} --input best={RUN}{SEED}/model_best_0.ckpt --input manifest={ROOT}/data/manifests/isic2018_seg.csv --config batch_size={BATCH} --config epochs=100 --config select=Val/Jac
+!cd /content/PanDerm/segmentation && {VENV}/bin/python run.py --workers 2 --gpu "0," --test_batch_size 4 --model cae_seg --size 224 --dataset ISIC2018 --parent_path /content/data/ --save_name {RUN} --seed {SEED} --smoke_test --evaluate --save_results 2>&1 | grep -E "Writing|saved|Error"
+!cd {ROOT}/nckh && {VENV}/bin/python scripts/evaluate_seg.py --results-xlsx {RUN}count_results_ISIC2018_0_{SEED}.xlsx --out-dir {RUN}eval
 ```
 
-`--save_results` ghi ảnh overlay (viền xanh = dự đoán, viền đỏ = GT) vào `{RUN}results_ISIC2018_0/`. Dùng các ảnh này cho phân tích lỗi ở P10.
+`--save_results` ghi ảnh overlay (viền xanh = dự đoán, viền đỏ = GT) vào `{RUN}results_ISIC2018_{SEED}/`. Dùng các ảnh này cho phân tích lỗi ở P10.
+
+### 4.8. Dung lượng Drive cho checkpoint (đọc trước khi train)
+
+Model segmentation có **160,7 triệu tham số** (đếm trên model ViT-B sau patch khi viết hướng dẫn). Checkpoint Lightning lưu cả trạng thái AdamW nên khoảng **1,8 GB/file**. Classification (85,9 triệu tham số) khoảng **1 GB/file**.
+
+| Thứ trên Drive | Ước lượng |
+|---|---:|
+| Checkpoint pretrain PanDerm Base | xem `ls -lh` ở P2 |
+| Pilot seg (`model_best_0` + `model_checkpoint_0`) | ~3,7 GB → **xoá ngay sau pilot** |
+| Mỗi seed seg đang train (best + last) | ~3,7 GB |
+| Mỗi seed seg sau khi thu gọn (chỉ trọng số best) | ~0,6 GB |
+| `checkpoint-best.pth` classification | ~1 GB |
+
+Drive miễn phí 15 GB: chỉ train **một seed tại một thời điểm**, và thu gọn ngay khi seed đó xong. **Sau khi đã chạy `--evaluate`** (mục 4.7) và ghi run card:
+
+```python
+# cell: NB_seg
+!rm -rf {PILOT}                                          # nếu còn thư mục pilot
+!rm -f {RUN}{SEED}/model_checkpoint_0.ckpt               # checkpoint để resume, không còn cần
+# Bỏ trạng thái optimizer khỏi checkpoint best (~1,8 GB → ~0,6 GB); test_worker và nckh.infer chỉ đọc "state_dict".
+!{VENV}/bin/python -c "import torch; p='{RUN}{SEED}/model_best_0.ckpt'; c=torch.load(p, map_location='cpu'); torch.save({{'state_dict': c['state_dict'], 'epoch': c.get('epoch')}}, p)"
+!du -sh {ROOT}/runs/* | sort -h | tail
+```
+
+SHA-256 của file best **trước** khi thu gọn đã nằm trong `eval/run_card.json`. Sau khi thu gọn, file có hash mới; ghi thêm một dòng vào nhật ký quyết định. Nếu nhóm có Google One 100 GB thì có thể bỏ bước thu gọn.
 
 ## 5. Test
 
@@ -470,7 +503,7 @@ Không so trực tiếp với bảng xếp hạng ISIC 2018 hay bài PanDerm (k�
 ## 8. Checklist bàn giao cho SV A
 
 - [ ] Log pilot chứng minh resume được (dòng `loading checkpoint` + epoch tiếp theo).
-- [ ] `runs/<seg_main>/` có `model_best_0.ckpt`, `metrics.csv`, `train_stdout.log`, `config.json`.
+- [ ] `runs/<seg_main_s{SEED}>/` có `{SEED}/model_best_0.ckpt`, `metrics.csv`, `train_stdout.log`, `config_train.json`; pilot đã xoá; dung lượng Drive còn đủ.
 - [ ] Nhật ký quyết định ghi cấu hình khóa **trước** khi chạy `--evaluate`.
 - [ ] `eval/seg_metrics.json`, `eval/seg_per_image.csv`, `eval/run_card.json`, thư mục overlay.
 - [ ] Bảng mục 6 đã điền. SV A tự tính lại mean Dice từ `seg_per_image.csv` và khớp với JSON.
