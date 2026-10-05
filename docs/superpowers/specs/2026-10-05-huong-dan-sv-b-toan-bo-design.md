@@ -197,6 +197,15 @@ Pytest trên CPU với dữ liệu giả, toàn bộ chạy dưới 1 phút:
 
 **Kiểm chứng docs:** trước khi đưa code CPU vào docs, người viết docs dựng lại package trong thư mục scratchpad ngoài repo và chạy toàn bộ pytest. Docs chỉ chứa code đã qua bước này. Phần GPU (patch, fine-tune, benchmark, `infer.py` với PanDerm thật) không chạy được ở máy viết docs; docs đánh dấu "chưa kiểm chứng, xác minh trong pilot P2". Riêng patch được kiểm tra bằng `git apply --check` trên bản clone PanDerm `fd7a807`.
 
+## 7b. Điều chỉnh khi lập plan (05/10/2026)
+
+- **Dung lượng Drive:** zip ảnh ISIC 2018 Training nặng 11,2 GB, Test 2,4 GB; ISIC 2017 Train 6,2 GB, Val 0,9 GB, Test 5,8 GB. Tổng vượt 15 GB miễn phí của Drive. Vì vậy mỗi phiên tải ảnh từ S3 về `/content` (script idempotent). Drive chỉ giữ ground truth, CSV nhãn, manifest và kết quả. Mọi manifest lưu đường dẫn **tương đối** so với một `data_root`, không lưu đường dẫn tuyệt đối `/content/...`.
+- **Định dạng bảng:** dùng CSV thay cho parquet, để không phải thêm `pyarrow`.
+- **Script suy luận:** `scripts/infer_images.py` (nhận `--images` hoặc `--manifest`) thay cho `infer_one.py`. Demo, P6 và P8 dùng chung script này.
+- **`metrics.py` được tạo ở P5a** vì P5a/P5b cần dùng trước. P7 dùng lại module này, bổ sung `evaluate_forecast.py` và ma trận test.
+- **Thêm `scripts/make_fake_uq.py`:** sinh ảnh giả và metadata UQ giả, để chạy được toàn bộ P6–P8 trước khi có dữ liệu thật.
+- **Transform eval của classification phải khớp upstream:** Resize(256, bicubic) → CenterCrop(224) → mean/std ImageNet. Segmentation: resize 224×224 bicubic → mean/std 0.5.
+
 ## 8. Ngoài phạm vi
 
 - Không tạo hay sửa file code, notebook, config nào trong repo; chỉ có `docs/sv_b/*.md` và ghi chú lỗi thời ở 3 file docs Tuần 1.
