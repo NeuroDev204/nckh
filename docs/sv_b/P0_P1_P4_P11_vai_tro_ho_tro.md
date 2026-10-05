@@ -81,9 +81,51 @@ meta.head(3).T
 - [ ] Không in/chụp màn hình thông tin định danh.
 - [ ] Không suy ra số cặp bằng phép chia "35.909 ảnh / 7.038 lesion".
 
-## P4 — Audit mask UQ
+## P4 — Audit mask UQ (tuần 3–7)
 
-Nội dung mục này được bổ sung cùng P5b.
+**SV A chủ trì:** viết hướng dẫn gán mask một trang (ranh giới, vùng mờ, lông, bọt khí, vật đánh dấu); gán mask cho tập audit (tối đa ~100 ảnh UQ ≈ 50 cặp); dẫn dắt buổi thống nhất.
+
+**SV B làm:**
+1. **Chọn mẫu audit** có phân tầng theo Δt và diện tích mask sơ bộ, có seed, để audit không chỉ gồm ảnh dễ. Hàm `stratified_audit_sample` (viết ở P6, `src/nckh/pairs.py`) chia cặp thành các ô theo tứ phân vị của từng cột rồi lấy đều mỗi ô:
+
+```python
+# cell: NB_cpu
+import pandas as pd
+from nckh.pairs import stratified_audit_sample
+feat = pd.read_csv(f'{ROOT}/runs/<run_id_P6>/features.csv')          # bảng cặp + area_ratio_t sơ bộ từ P6
+pool = feat[(feat.split == 'test') & feat.usable]                    # audit lấy từ participant test (kế hoạch P4 bước 3)
+audit = stratified_audit_sample(pool, n_pairs=50, strata_cols=['delta_days', 'area_ratio_t'], seed=2026)
+audit.to_csv(f'{ROOT}/data/uq/audit/audit_pairs.csv', index=False)
+print(audit['stratum'].value_counts())
+```
+
+   Lưu `audit_pairs.csv` và seed. **Không** dùng các ảnh này để fine-tune hay chọn checkpoint.
+
+2. **Gán độc lập** một phần ngẫu nhiên đã định trước của tập audit (ví dụ 20 ảnh, chọn bằng `audit.sample(n=20, random_state=2026)`), **không xem** mask của SV A.
+   - Công cụ gợi ý: CVAT hoặc labelme. Xuất **mask nhị phân PNG** (0 = nền, 255 = tổn thương), cùng kích thước ảnh gốc, tên `<image_id>.png`.
+   - Mỗi người một thư mục trên Drive: `data/uq/audit/annotator_A/`, `data/uq/audit/annotator_B/` (chỉ khi đã có quyền UQ).
+   - Trước đó, hai người cùng gán thử 10 ảnh, so sánh, rồi cập nhật hướng dẫn (kế hoạch P4 bước 4).
+
+3. **Tính độ đồng thuận** bằng `scripts/annotator_agreement.py` (mã nguồn và test ở `P5b_classification_isic2017.md` mục 4.2):
+
+```python
+# cell: NB_cpu
+from nckh.runcard import new_run_id
+RUN = f"{ROOT}/runs/{new_run_id('audit_agreement')}"
+!cd {ROOT}/nckh && python scripts/annotator_agreement.py --dir-a {ROOT}/data/uq/audit/annotator_A --dir-b {ROOT}/data/uq/audit/annotator_B --out {RUN}/agreement.csv
+```
+
+   Script chỉ so các ảnh có ở **cả hai** thư mục. Nếu lệch tên file, nó dừng và liệt kê; khi đó hãy copy riêng phần ảnh chung vào hai thư mục con trước khi chạy.
+
+4. **Không xoá** mask độc lập sau buổi thống nhất. Mask thống nhất lưu ở `data/uq/audit/consensus/`; hai thư mục độc lập là bằng chứng inter-annotator agreement.
+
+**Sản phẩm SV B nộp:** `audit_pairs.csv` (+ seed), thư mục `annotator_B/`, `agreement.csv` (Dice, IoU, chênh lệch tỷ lệ diện tích từng ảnh) và một dòng tóm tắt (trung vị + min Dice).
+
+**Checklist**
+- [ ] Mẫu audit chọn từ participant test hoặc cohort tách riêng, có seed.
+- [ ] Gán độc lập, không xem mask người kia.
+- [ ] `agreement.csv` và các mask độc lập được lưu, không bị ghi đè.
+- [ ] Nếu bất đồng lớn (Dice thấp ở nhiều ảnh), báo giảng viên; không gọi mask là "ground truth lâm sàng".
 
 ## P11 — Viết bài: phụ lục kỹ thuật (tuần 12–14)
 
