@@ -55,7 +55,7 @@ Code segmentation của PanDerm hiện chỉ chạy được bản **Large**:
 - `segmentation/models/cae_seg.py` đọc cứng `model_weights/panderm_ll_data6_checkpoint-499.pth` (file của bản Large).
 - Vòng nạp trọng số có lỗi: nhánh `else` gọi `model_dict[k]` cả khi `k` **không có** trong `model_dict`, nên văng `KeyError` khi gặp key lạ.
 
-Patch `patches/panderm_base_seg.patch` sửa 4 chỗ:
+Patch `patches/panderm_base_seg.patch` sửa 5 chỗ:
 1. **Config ViT-B/16:** `embed_dim=768, depth=12, num_heads=12`. Đầu ra lấy ở các block `[3, 5, 7, 11]`, tương đương các block `[7, 11, 15, 23]` của bản 24 tầng. Đầu UPerHead đổi `in_channels`/`channels` thành 768.
 2. **Đường dẫn checkpoint** lấy từ biến môi trường `PANDERM_CKPT`, không còn đọc cứng.
 3. **Nạp trọng số an toàn:**
@@ -64,6 +64,7 @@ Patch `patches/panderm_base_seg.patch` sửa 4 chỗ:
    - **dừng với `RuntimeError` nếu độ phủ < 90%**. Nếu không có bước này, model sẽ âm thầm train từ trọng số ngẫu nhiên và bạn chỉ phát hiện khi kết quả kém bất thường.
 
 4. **Resume khi Colab ngắt:** `workers/train.py` khai báo `checkpoint_callback` (lưu checkpoint epoch mới nhất) nhưng không truyền vào `Trainer`, nên `--resume 0` không bao giờ tìm thấy `model_checkpoint_0.ckpt`. Patch thêm callback này vào `Trainer` (giải thích chi tiết ở P5a).
+5. **Không tự mở test:** `run.py` upstream tự chạy test ngay sau khi train xong, nên nhìn thấy kết quả test trước khi khóa cấu hình. Patch bỏ bước này; test chỉ chạy khi gọi lại với `--evaluate` (P5a mục 4.7).
 
 Các lớp `fpn1..4` và `norm` là lớp mới của đầu segmentation, không có trong checkpoint pretrain, nên không được tính vào độ phủ.
 
@@ -636,6 +637,23 @@ index 0f5f5e7..d01c3f0 100644
  
          model_dict.update(matched_dict)
          self.segmentor.backbone.load_state_dict(model_dict, strict=False)
+diff --git a/segmentation/run.py b/segmentation/run.py
+index 1fb750e..b309631 100644
+--- a/segmentation/run.py
++++ b/segmentation/run.py
+@@ -222,10 +222,8 @@ def main():
+         print("=> Start segmentation training process")
+         train_worker(args)
+         print("=> Segmentation training process finished")
+-
+-        print("=> Start testing segmentation model")
+-        test_worker(args)
+-        print("=> Segmentation model test finished")
++        # Khong tu chay test sau khi train: test chi mo mot lan bang --evaluate sau khi da khoa cau hinh.
++        print("=> Test skipped. Lock the config, then rerun with --evaluate")
+ 
+ 
+ if __name__ == "__main__":
 diff --git a/segmentation/workers/train.py b/segmentation/workers/train.py
 index 0b23f31..81b3042 100644
 --- a/segmentation/workers/train.py
@@ -660,7 +678,7 @@ PATCH = f'{ROOT}/nckh/patches/panderm_base_seg.patch'
 !cd /content/PanDerm && git diff --stat
 ```
 
-Kỳ vọng: `git diff --stat` liệt kê 3 file `segmentation/models/cae_config.py`, `segmentation/models/cae_seg.py`, `segmentation/workers/train.py`.
+Kỳ vọng: `git diff --stat` liệt kê 4 file `segmentation/models/cae_config.py`, `segmentation/models/cae_seg.py`, `segmentation/run.py`, `segmentation/workers/train.py`.
 
 ### 4.7. Module suy luận `nckh.infer`
 

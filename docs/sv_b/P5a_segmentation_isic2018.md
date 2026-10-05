@@ -36,6 +36,7 @@
   1. Metric tính ở độ phân giải 224×224, không phải độ phân giải gốc.
   2. Nếu mask GT rỗng, upstream gán 1 pixel ở tâm GT trước khi tính.
   3. Nếu model không dự đoán pixel tổn thương nào, `largestConnectComponent` chọn nhãn 0 (nền) nên mask thành **toàn ảnh**. Dice khi đó thường rất thấp, nghĩa là lỗi "bỏ sót" vẫn bị phạt; nhưng cần báo số ảnh rơi vào trường hợp này. `nckh.infer` (dùng cho UQ) giữ mask rỗng là rỗng, khác upstream.
+- **Test sau train:** upstream gọi `test_worker` ngay sau `train_worker`. Patch P2 bỏ lời gọi này, nên test chỉ chạy bằng `--evaluate` (mục 4.7).
 - **Logger:** mặc định upstream dùng Weights & Biases (cần tài khoản). Cờ `--smoke_test` chỉ đổi sang `CSVLogger` ghi file `metrics.csv`, **không** làm giảm dữ liệu train. Dùng cờ này để không phụ thuộc wandb.
 
 ### 3.2. Vì sao cần resume và patch callback
@@ -377,9 +378,7 @@ Ghi lại các số sau vào bảng benchmark (mục 6):
 - **thời gian 1 epoch:** trên 5% train, nhân 20 để ra ước lượng cho 100% train;
 - **VRAM:** đọc bằng `!nvidia-smi` trong lúc chạy.
 
-Pilot **không** dùng để báo cáo hiệu năng. Lưu ý: khi train xong, `run.py` tự gọi `test_worker` và chạy test. Ở pilot, hãy dừng cell trước bước này, hoặc bỏ qua các con số test đó và **không ghi lại**.
-
-> Vì lý do trên, ở lần train chính hãy dừng cell khi log báo `=> Segmentation training process finished`, trước khi `=> Start testing segmentation model` chạy xong. Nếu lỡ để test chạy, **không mở/đọc** file `results_*.json` cho đến khi đã khóa cấu hình (mục 4.7). Ghi việc này vào nhật ký quyết định.
+Pilot **không** dùng để báo cáo hiệu năng. Nhờ patch P2, train xong sẽ in `=> Test skipped. Lock the config, then rerun with --evaluate` và **không** chạy test. Upstream gốc thì tự chạy test ngay sau train, làm lộ kết quả test trước khi khóa cấu hình.
 
 ### 4.6. Fine-tune chính (nhiều phiên, có resume)
 
@@ -389,7 +388,7 @@ RUN = f"{ROOT}/runs/20261020-090000_seg_main/"      # ĐẶT MỘT LẦN, giữ 
 RESUME = "--resume 0" if os.path.exists(f"{RUN}0/model_checkpoint_0.ckpt") else ""
 os.environ['PANDERM_CKPT'] = CK
 os.environ['WANDB_MODE'] = 'disabled'
-!cd /content/PanDerm/segmentation && {VENV}/bin/python run.py --workers 2 --gpu "0," --batch_size 8 --test_batch_size 4 --epoch 100 --lr 1e-4 --weight_decay 0.05 --model cae_seg --size 224 --dataset ISIC2018 --parent_path /content/data/ --save_name {RUN} --seed 0 --smoke_test {RESUME} 2>&1 | tee -a {RUN}train_stdout.log | grep -E "Epoch|Val/|finished|Error"
+!cd /content/PanDerm/segmentation && {VENV}/bin/python run.py --workers 2 --gpu "0," --batch_size 8 --test_batch_size 4 --epoch 100 --lr 1e-4 --weight_decay 0.05 --model cae_seg --size 224 --dataset ISIC2018 --parent_path /content/data/ --save_name {RUN} --seed 0 --smoke_test {RESUME} 2>&1 | tee -a {RUN}train_stdout.log | grep -E "Epoch|Val/|finished|skipped|Error"
 ```
 
 - Lấy `run_id` bằng `new_run_id('seg_main')` ở phiên **đầu tiên**, rồi chép cứng vào dòng `RUN` để các phiên sau dùng đúng thư mục đó.
