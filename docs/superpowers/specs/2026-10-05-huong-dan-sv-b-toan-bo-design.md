@@ -6,13 +6,17 @@
 
 ## 1. Mục tiêu
 
-Tạo bộ tài liệu hướng dẫn theo từng phase cho SV B. Mỗi phase có giải thích, code, test, benchmark/đánh giá và checklist bàn giao. Đi kèm là một package Python nhỏ có test thật cho các phần chạy trên CPU. Mọi thứ chạy trên Google Colab. Code được đồng bộ giữa Google Drive và GitHub, còn dữ liệu chỉ nằm trên Drive.
+Tạo bộ tài liệu hướng dẫn theo từng phase cho SV B. Mỗi phase có giải thích, code, test, benchmark/đánh giá và checklist bàn giao. Mọi thứ chạy trên Google Colab. Code được đồng bộ giữa Google Drive và GitHub, còn dữ liệu chỉ nằm trên Drive.
+
+**Sản phẩm của việc này CHỈ là các file `.md` trong `docs/sv_b/`.** SV B tự tạo toàn bộ code trong repo (package, script, test, notebook, patch, `.gitignore`) bằng cách làm theo hướng dẫn. Người viết hướng dẫn không tạo hay sửa file code nào trong repo.
 
 ### Quyết định đã chốt với người dùng
 
 | Câu hỏi | Quyết định |
 |---|---|
-| Dạng code | Docs + package `src/nckh/` có pytest; phần GPU là cell Colab trong docs và notebook mỏng |
+| Phạm vi | Chỉ viết file hướng dẫn; SV B tự code |
+| Mức code trong docs | Code đầy đủ cho từng file (`.py`, test, cell Colab, patch) kèm giải thích từng đoạn. Code CPU được chạy thử trong thư mục tạm ngoài repo trước khi đưa vào docs |
+| Tổ chức code SV B sẽ tạo | Package `src/nckh/` có pytest + script CLI mỏng + 3 notebook Colab mỏng |
 | Dataset segmentation | ISIC 2018 Task 1 (không dùng ISIC 2017 Task 1 như notebook cũ) |
 | Fine-tune classification | SV B làm, theo kế hoạch. Đề cương mục 7 dòng 4 cần SV A sửa; spec này không sửa file docx |
 | Dữ liệu UQ | Chưa có hoặc chưa rõ quyền → schema chuẩn và dữ liệu giả; có cổng Go/No-Go trước khi đưa UQ lên Drive/Colab |
@@ -69,7 +73,9 @@ MyDrive/NCKH_PanDerm/
 
 Package `nckh` chỉ phụ thuộc `numpy, pandas, scikit-learn, scikit-image, pillow, joblib, pyyaml`, không phụ thuộc torch. Phần dùng torch nằm trong `infer.py`, import torch lazily bên trong hàm.
 
-### 3.4. Cấu trúc repo
+### 3.4. Cấu trúc repo mà hướng dẫn dạy SV B tự tạo
+
+Mỗi file dưới đây xuất hiện trong docs của phase tương ứng: đường dẫn, mã nguồn đầy đủ, giải thích và lệnh kiểm tra. Thứ tự tạo file đi theo thứ tự các phase.
 
 ```
 pyproject.toml                    package nckh, extras: demo (streamlit, matplotlib), test (pytest)
@@ -94,7 +100,20 @@ notebooks/        NB_seg, NB_cls, NB_cpu
 docs/sv_b/        11 file hướng dẫn (mục 4)
 ```
 
-`.gitignore`: đổi `/docs/` thành `/docs/*` cộng `!/docs/sv_b/` và `!/docs/superpowers/`. Thêm chặn `*.pth, *.ckpt, *.parquet, data/, runs/`.
+Hướng dẫn P2 dạy SV B sửa `.gitignore`: đổi `/docs/` thành `/docs/*` cộng `!/docs/sv_b/` và `!/docs/superpowers/`, thêm chặn `*.pth, *.ckpt, *.parquet, data/, runs/`. Người viết docs chỉ commit các file `docs/sv_b/*.md` (dùng `git add -f` vì `.gitignore` hiện tại vẫn chặn `docs/`).
+
+**Phân bổ file theo phase:**
+- **P2:** `pyproject.toml`, `paths.py`, `runcard.py`, `bench_inference.py`, patch, `NB_seg`/`NB_cls`/`NB_cpu`
+- **P3:** `manifest.py`, `prepare_isic2018.py`, `prepare_isic2017_cls.py`, `build_manifest.py`
+- **P4:** `annotator_agreement.py`
+- **P5a/P5b:** `evaluate_seg.py`, `evaluate_cls.py`
+- **P6:** `pairs.py`, `features.py`, `forecast.py`, `infer.py`, `build_pairs.py`, `train_ridge.py`
+- **P7:** `metrics.py`, `evaluate_forecast.py`
+- **P8:** `degrade.py`, `make_degraded.py`
+- **P9:** `infer_one.py`, `demo/app.py`
+- **P10:** `make_tables.py`, `make_figures.py`
+
+Test đi kèm nằm ngay trong phase tạo ra module đó.
 
 ## 4. Bộ tài liệu `docs/sv_b/`
 
@@ -174,10 +193,13 @@ Pytest trên CPU với dữ liệu giả, toàn bộ chạy dưới 1 phút:
 - `test_degrade`: dải giá trị, shape, dtype; seed tái lập được; độ che lông nằm trong dung sai.
 - `test_infer`: chạy với model giả (bỏ qua nếu không có torch).
 
-Phần GPU (patch, fine-tune, benchmark, `infer.py` với PanDerm thật) không chạy được trên máy tạo spec. Docs đánh dấu "chưa kiểm chứng, xác minh trong pilot P2".
+Đây là các test mà docs hướng dẫn SV B viết và chạy (trong `NB_cpu`: `!pytest -q`).
+
+**Kiểm chứng docs:** trước khi đưa code CPU vào docs, người viết docs dựng lại package trong thư mục scratchpad ngoài repo và chạy toàn bộ pytest. Docs chỉ chứa code đã qua bước này. Phần GPU (patch, fine-tune, benchmark, `infer.py` với PanDerm thật) không chạy được ở máy viết docs; docs đánh dấu "chưa kiểm chứng, xác minh trong pilot P2". Riêng patch được kiểm tra bằng `git apply --check` trên bản clone PanDerm `fd7a807`.
 
 ## 8. Ngoài phạm vi
 
+- Không tạo hay sửa file code, notebook, config nào trong repo; chỉ có `docs/sv_b/*.md` và ghi chú lỗi thời ở 3 file docs Tuần 1.
 - Không sửa đề cương docx hay kế hoạch; chỉ ghi chú cho SV A.
 - Không viết code cho mô hình khác ngoài PanDerm Base và Ridge.
 - Không điền số kết quả.
