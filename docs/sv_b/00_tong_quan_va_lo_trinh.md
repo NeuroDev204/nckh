@@ -145,8 +145,8 @@ Hai nhánh PanDerm cần hai bộ phiên bản PyTorch khác nhau, nên không c
 
 | Notebook | Python | Dùng cho | Cài gì |
 |---|---|---|---|
-| `notebooks/NB_seg.ipynb` (GPU) | venv 3.10 tạo bằng `uv` tại `/content/venv_seg` | P2, P5a, P6 (mask), P8 | torch 2.2.1 + torchvision 0.17.1 (cu118), mmengine 0.10.4, mmcv 2.1.0, mmsegmentation 1.2.2, `segmentation/requirements.txt`, `openpyxl`, `gdown`, `-e nckh` |
-| `notebooks/NB_cls.ipynb` (GPU) | venv 3.10 tại `/content/venv_cls` | P2, P5b, P6 (xác suất), P8 | torch 2.4.1 + torchvision 0.19.1 + torchaudio 2.4.1 (cu118), `classification/requirements.txt`, `gdown`, `-e nckh` |
+| `notebooks/NB_seg.ipynb` (GPU) | venv 3.10 tạo bằng `uv` tại `/content/venv_seg` | P2, P5a, P6 (mask), P8, P9 | torch 2.1.2 + torchvision 0.16.2 (cu118), mmengine 0.10.4, wheel mmcv 2.1.0, mmsegmentation 1.2.2, `segmentation/requirements.txt`, `openpyxl`, `-e nckh`. Lý do dùng torch 2.1.2 thay vì 2.2.1 của README: P2 mục 3.2 |
+| `notebooks/NB_cls.ipynb` (GPU) | venv 3.10 tại `/content/venv_cls` | P2, P5b, P6 (xác suất), P8 | torch 2.4.1 + torchvision 0.19.1 + torchaudio 2.4.1 (cu118), `classification/requirements.txt`, `timm==0.9.16`, `-e nckh` |
 | `notebooks/NB_cpu.ipynb` (CPU) | Python mặc định của Colab | P3, P4, P6 (Ridge), P7, P10, pytest, P9 demo | `-e nckh[demo,test]` |
 
 Package `nckh` của nhóm **không phụ thuộc torch**, nên cài được vào cả ba môi trường mà không làm lệch phiên bản torch. Venv tạo lại mỗi phiên trên `/content` (nhanh hơn nhiều so với để trên Drive).
@@ -167,21 +167,21 @@ Bạn tự tạo toàn bộ các file dưới đây trong repo `nckh`, theo th�
 | File | Tạo ở | Vai trò |
 |---|---|---|
 | `pyproject.toml`, `.gitignore` | P2 | Khai báo package `nckh`, chặn file không được commit |
-| `src/nckh/paths.py` | P2 | Đường dẫn Drive/`/content` từ biến môi trường |
-| `src/nckh/runcard.py` | P2 | Run card: git commit, hash, seed, phiên bản, GPU |
-| `patches/panderm_base_seg.patch` | P2 (bổ sung P5a) | Sửa segmentation upstream sang ViT-B, resume |
-| `src/nckh/manifest.py` | P3 | Manifest, kiểm tra ảnh, split theo nhóm, leakage |
-| `scripts/prepare_isic2018.py`, `prepare_isic2017_cls.py`, `build_manifest.py` | P3 | Tải/giải nén ISIC, CSV nhãn, manifest |
-| `configs/uq_column_map.yaml` | P3 | Map cột gốc UQ → schema chuẩn |
-| `src/nckh/metrics.py`, `scripts/evaluate_seg.py` | P5a | Metric dùng chung, bootstrap; đánh giá seg |
+| `src/nckh/paths.py`, `src/nckh/runcard.py` | P2 | Đường dẫn từ biến môi trường; run card (git commit, hash, seed, phiên bản, GPU) + CLI `python -m nckh.runcard` |
+| `src/nckh/infer.py` | P2 | Suy luận PanDerm seg/cls (tiền xử lý khớp upstream), dùng lại ở P6, P8, P9 |
+| `scripts/inspect_checkpoint.py`, `scripts/bench_inference.py` | P2 | Soi key checkpoint; smoke test + benchmark ms/ảnh, VRAM |
+| `patches/panderm_base_seg.patch` | P2 | Sửa segmentation upstream: ViT-B, đường dẫn checkpoint, nạp an toàn, resume, không tự mở test |
+| `src/nckh/isic.py`, `src/nckh/manifest.py` | P3 | Tải/giải nén ISIC, nhãn ISIC 2017; manifest, kiểm tra ảnh, split theo nhóm, kiểm tra rò rỉ |
+| `scripts/prepare_isic2018.py`, `prepare_isic2017_cls.py`, `build_manifest.py`, `configs/uq_column_map.yaml` | P3 | CLI chuẩn bị dữ liệu; map cột UQ |
+| `src/nckh/metrics.py`, `scripts/evaluate_seg.py` | P5a | Metric dùng chung + bootstrap theo nhóm; đánh giá seg |
 | `scripts/evaluate_cls.py`, `scripts/annotator_agreement.py` | P5b / P4 | Đánh giá cls; đồng thuận người gán |
-| `src/nckh/pairs.py`, `features.py`, `forecast.py`, `infer.py` | P6 | Ghép cặp, đặc trưng, Ridge, suy luận PanDerm |
-| `scripts/make_fake_uq.py`, `build_pairs.py`, `infer_images.py`, `train_ridge.py`, `bench_inference.py` | P6 | Pipeline dự báo, benchmark |
-| `scripts/evaluate_forecast.py` | P7 | Ridge vs baseline + bootstrap |
-| `src/nckh/degrade.py`, `scripts/make_degraded.py` | P8 | Ảnh suy giảm |
+| `src/nckh/pairs.py`, `features.py`, `forecast.py` | P6 | Ghép cặp, đặc trưng tại t, Ridge + baseline, kiểm tra Δt |
+| `scripts/make_fake_uq.py`, `build_pairs.py`, `infer_images.py`, `train_ridge.py` | P6 | Dữ liệu giả; pipeline dự báo |
+| `scripts/evaluate_forecast.py` | P7 | Ridge vs baseline + paired bootstrap theo participant |
+| `src/nckh/degrade.py`, `scripts/make_degraded.py`, `scripts/evaluate_robustness.py` | P8 | Ảnh suy giảm/tiền xử lý; so sạch vs suy giảm |
 | `demo/pipeline.py`, `demo/app.py` | P9 | Demo Streamlit |
-| `scripts/make_tables.py`, `scripts/make_figures.py` | P10 | Bảng/hình từ file kết quả |
-| `tests/test_*.py` | cùng phase với module | pytest, chạy trên CPU < 1 phút |
+| `scripts/make_tables.py`, `scripts/make_figures.py` | P10 | Bảng/hình từ file kết quả; chọn ví dụ lỗi |
+| `tests/test_*.py` (154 test) | cùng phase với module | pytest, chạy trên CPU < 1 phút |
 | `notebooks/NB_seg.ipynb`, `NB_cls.ipynb`, `NB_cpu.ipynb` | P2 | Notebook mỏng: cell setup + cell gọi script |
 
 ## 9. Thứ tự đọc

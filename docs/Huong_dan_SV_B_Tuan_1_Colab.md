@@ -1,3 +1,5 @@
+> ⚠️ Tài liệu này đã lỗi thời (smoke test giả bằng torch.rand, dùng ISIC 2017 thay vì ISIC 2018, link checkpoint sai, cài mmcv không ghim phiên bản). Dùng [sv_b/P2_moi_truong_checkpoint_smoke_test.md](sv_b/P2_moi_truong_checkpoint_smoke_test.md).
+
 # Hướng dẫn chi tiết: SV B Triển khai Tuần 1 trên Google Colab
 
 Tài liệu này cung cấp toàn bộ mã nguồn từ số 0 để bạn (SV B) copy-paste vào các cell của Google Colab nhằm hoàn thành Phase 1 & 2 của dự án.
