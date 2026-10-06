@@ -1,0 +1,30 @@
+# file: pyproject.toml
+[build-system]
+requires = ["setuptools>=68"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "nckh"
+version = "0.1.0"
+description = "Pipeline nghiên cứu PanDerm: manifest, ghép cặp, Ridge, metric, robustness"
+requires-python = ">=3.10"
+dependencies = [
+    "numpy",
+    "pandas",
+    "scikit-learn",
+    "scikit-image",
+    "scipy",
+    "pillow",
+    "joblib",
+    "pyyaml",
+]
+
+[project.optional-dependencies]
+demo = ["streamlit", "matplotlib"]
+test = ["pytest", "openpyxl"]
+
+[tool.setuptools.packages.find]
+where = ["src"]
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
