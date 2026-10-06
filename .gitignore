@@ -1,4 +1,7 @@
+/docs/
 .venv-panderm/
 .idea/
 __pycache__/
 .ipynb_checkpoints/
+.env
+*.env
