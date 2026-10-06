@@ -1,7 +1,20 @@
-/docs/
-.venv-panderm/
-.idea/
+# file: .gitignore
+# Chỉ commit docs của SV B và spec/plan; các docs cũ khác giữ ngoài git như trước.
+/docs/*
+!/docs/sv_b/
+!/docs/superpowers/
+# Môi trường, cache
+.venv*/
 __pycache__/
+*.egg-info/
 .ipynb_checkpoints/
+.pytest_cache/
+.idea/
+# Dữ liệu và trọng số: không bao giờ lên GitHub
+*.pth
+*.ckpt
+*.joblib
+data/
+runs/
 .env
 *.env
