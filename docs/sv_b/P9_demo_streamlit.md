@@ -10,10 +10,8 @@
 
 ## 2. Chạy ở đâu
 
-- **Thử giao diện (chế độ giả):** máy, `NB_cpu` (mục 4.4), mở http://localhost:8501 trong trình duyệt. Không cần GPU.
-- **Model thật:** Colab `NB_seg` (GPU), dựng thêm `venv_cls` trong cùng server vì demo cần cả hai venv. Xem qua tunnel cloudflared (mục 4.6), vì cổng 8501 của server Colab không mở thẳng về máy.
-
-> ⚠️ Chưa kiểm chứng trên extension — nếu extension hỗ trợ chuyển tiếp cổng thì có thể bỏ tunnel.
+- **Thử giao diện (chế độ giả):** laptop, `nb_cpu` (mục 4.4), mở http://localhost:8501 trong trình duyệt. Không cần GPU.
+- **Model thật:** máy GPU (mục 4.5), cần cả `venv_seg` và `venv_cls` trên cùng máy. Mở http://localhost:8501 trên máy GPU, hoặc từ laptop qua SSH (mục 4.6).
 
 > ⚠️ Chưa kiểm chứng trên GPU — xác minh trong pilot P2. Khi viết docs đã kiểm tra: toàn bộ logic `demo/pipeline.py` (pytest, gồm chạy thật `infer_images.py --fake` qua tiến trình con); `demo/app.py` chạy không lỗi bằng `streamlit.testing.AppTest`; server Streamlit trả HTTP 200.
 
@@ -22,10 +20,10 @@
 ### 3.1. Kiến trúc
 
 ```
-Trình duyệt (máy) ──(URL tunnel)──► Streamlit trên server Colab (demo/app.py)
+Trình duyệt ──(localhost:8501)──► Streamlit local (demo/app.py, Python của .venv)
                                    │  cache theo SHA-256 của ảnh
-                                   ├─► /content/venv_seg/bin/python scripts/infer_images.py --task seg …  → masks/<id>.png
-                                   ├─► /content/venv_cls/bin/python scripts/infer_images.py --task cls …  → cls_probs.csv
+                                   ├─► ~/venvs/venv_seg/bin/python scripts/infer_images.py --task seg …  → masks/<id>.png
+                                   ├─► ~/venvs/venv_cls/bin/python scripts/infer_images.py --task cls …  → cls_probs.csv
                                    └─► ridge.joblib + nckh.forecast  → a_t, Δâ, â_{t+1}, xu hướng
 ```
 
@@ -47,10 +45,10 @@ Trình duyệt (máy) ──(URL tunnel)──► Streamlit trên server Colab (
 
 ### 3.3. An toàn dữ liệu
 
-URL `trycloudflare.com` là **công khai**: ai có link đều mở được. Vì vậy:
+Demo chỉ lắng nghe trên `localhost` (mặc định của lệnh ở mục 4.4/4.5), nên chỉ người ngồi ở máy đó hoặc có SSH vào máy mới mở được. Vẫn vậy:
 - chỉ upload ảnh ISIC (giấy phép cho phép), **tuyệt đối không** dùng ảnh UQ;
-- tắt tunnel ngay khi xong (dừng runtime hoặc `pkill cloudflared`);
-- không chia sẻ link công khai; ảnh chụp màn hình chỉ chứa ảnh ISIC.
+- không mở demo ra mạng ngoài (không thêm `--server.address 0.0.0.0`, không dùng tunnel công khai);
+- tắt Streamlit khi xong; ảnh chụp màn hình chỉ chứa ảnh ISIC.
 
 ## 4. Code
 
@@ -313,12 +311,12 @@ def test_disclaimer_exact() -> None:
                           "hoặc khuyến nghị điều trị.")
 ```
 
-### 4.4. Thử giao diện bằng chế độ giả (máy, không cần model)
+### 4.4. Thử giao diện bằng chế độ giả (laptop, không cần model)
 
-Cần một `ridge.joblib`: dùng file từ lần chạy dữ liệu giả ở P6 mục 4.6 (đã nằm ở máy, `~/nckh_drive/runs/<p6_fake_run_id>/`; nếu run đó nằm trên Drive, kéo về máy bằng rclone theo `00` mục 5.2).
+Cần một `ridge.joblib`: dùng file từ lần chạy dữ liệu giả ở P6 mục 4.6 (`~/nckh_root/runs/<p6_fake_run_id>/`).
 
 ```python
-# cell: NB_cpu (máy cá nhân)
+# cell: nb_cpu
 import os, subprocess, time
 os.environ['NCKH_SEG_CMD'] = f"{PY} {REPO}/scripts/infer_images.py --task seg --fake"
 os.environ['NCKH_CLS_CMD'] = f"{PY} {REPO}/scripts/infer_images.py --task cls --fake"
@@ -330,64 +328,46 @@ time.sleep(8)
 !curl -s localhost:8501/_stcore/health && echo " ← Streamlit OK, mở http://localhost:8501"
 ```
 
-Mở http://localhost:8501 trong trình duyệt của máy (không cần tunnel). Tắt: `!pkill -f "streamlit run"`. Kết quả trong chế độ giả là vô nghĩa về mặt nghiên cứu; bước này chỉ để kiểm tra giao diện và luồng xử lý lỗi.
+Mở http://localhost:8501 trong trình duyệt. Tắt: `!pkill -f "streamlit run"`. Kết quả trong chế độ giả là vô nghĩa về mặt nghiên cứu; bước này chỉ để kiểm tra giao diện và luồng xử lý lỗi.
 
-### 4.5. Chạy với model thật (Colab NB_seg, GPU)
+### 4.5. Chạy với model thật (máy GPU)
 
-`ridge.joblib` của P6 được tạo ở máy; đẩy lên Drive để Colab đọc:
-
-```bash
-# terminal VS Code (máy cá nhân)
-rclone copy ~/nckh_drive/runs/<p6_uq_run_id>/ridge gdrive:NCKH_PanDerm/runs/<p6_uq_run_id>/ridge --progress
-```
-
-Chuẩn bị trong cùng server Colab:
-1. push code ở máy, rồi cell setup Colab P2 4.1b trong `NB_seg`;
-2. `venv_seg` (P2 4.4) và patch (P2 4.6);
-3. **cả** phần cài `venv_cls` (P2 4.10, chỉ các dòng cài đặt), rồi chạy lại `VENV = '/content/venv_seg'`: phần cài đặt gán `VENV` sang `venv_cls`, nên nếu không đặt lại thì các cell seg sau đó trong cùng phiên dùng nhầm venv.
-
-```python
-# cell: NB_seg (Colab GPU)
-import os, subprocess, time
-SEG_FT = f"{ROOT}/runs/<seg_main_run_id>/0/model_best_0.ckpt"
-CLS_FT = f"{ROOT}/runs/<cls_main_run_id>/checkpoint-best.pth"
-SCRIPT = f"{CODE}/scripts/infer_images.py"
-os.environ['NCKH_SEG_CMD'] = (f"/content/venv_seg/bin/python {SCRIPT} --task seg --panderm-dir /content/PanDerm/segmentation "
-                              f"--pretrained {CK} --finetuned {SEG_FT}")
-os.environ['NCKH_CLS_CMD'] = (f"/content/venv_cls/bin/python {SCRIPT} --task cls --panderm-dir /content/PanDerm/classification "
-                              f"--finetuned {CLS_FT}")
-os.environ['NCKH_RIDGE'] = f"{ROOT}/runs/<p6_uq_run_id>/ridge/ridge.joblib"
-os.environ['NCKH_STABLE_EPS'] = "<giá trị đã chốt ở P7>"
-!pip install -q -e "{CODE}[demo]"
-subprocess.Popen(f"streamlit run {CODE}/demo/app.py --server.port 8501 --server.headless true > /content/streamlit.log 2>&1", shell=True)
-time.sleep(8)
-!curl -s localhost:8501/_stcore/health && echo " ← Streamlit OK"
-```
-
-Nếu chưa có `ridge.joblib` từ UQ thật (chưa qua Go/No-Go), demo vẫn chạy được phần mask + xác suất với ridge của dữ liệu giả. Đẩy file đó lên Drive rồi đổi `NCKH_RIDGE` trong cell trên thành `f"{ROOT}/runs/<p6_fake_run_id>/ridge.joblib"`:
+Cần sẵn trên máy GPU: `venv_seg` (P2 4.4) và patch (P2 4.6), `venv_cls` (P2 4.10, các dòng cài đặt), `.venv` có extras `demo` (`00` mục 6b), checkpoint fine-tune (P5a/P5b) và `ridge.joblib` từ P6 (`~/nckh_root/runs/<p6_uq_run_id>/ridge/`).
 
 ```bash
-# terminal VS Code (máy cá nhân)
-rclone copyto ~/nckh_drive/runs/<p6_fake_run_id>/ridge.joblib gdrive:NCKH_PanDerm/runs/<p6_fake_run_id>/ridge.joblib
+# terminal (máy GPU, .venv) — trong tmux để demo không tắt khi đóng terminal
+tmux new -s p9           # đã có phiên: tmux attach -t p9
+cd ~/Documents/nckh
+CK=~/nckh_root/checkpoints/panderm_bb_data6_checkpoint-499.pth
+SEG_FT=~/nckh_root/runs/<seg_main_run_id>/0/model_best_0.ckpt
+CLS_FT=~/nckh_root/runs/<cls_main_run_id>/checkpoint-best.pth
+SCRIPT=$HOME/Documents/nckh/scripts/infer_images.py
+export NCKH_SEG_CMD="$HOME/venvs/venv_seg/bin/python $SCRIPT --task seg --panderm-dir $HOME/PanDerm/segmentation --pretrained $CK --finetuned $SEG_FT"
+export NCKH_CLS_CMD="$HOME/venvs/venv_cls/bin/python $SCRIPT --task cls --panderm-dir $HOME/PanDerm/classification --finetuned $CLS_FT"
+export NCKH_RIDGE=~/nckh_root/runs/<p6_uq_run_id>/ridge/ridge.joblib
+export NCKH_STABLE_EPS="<giá trị đã chốt ở P7>"
+.venv/bin/python -m streamlit run demo/app.py --server.port 8501 --server.headless true 2>&1 | tee ~/nckh_root/runs/streamlit.log
 ```
-Khi đó **phải** ghi rõ trên ảnh chụp màn hình rằng con số dự báo chỉ là minh họa từ dữ liệu giả.
 
-### 4.6. Mở tunnel để xem từ trình duyệt
+Kiểm tra từ terminal khác: `curl -s localhost:8501/_stcore/health` in `ok`. Tắt: `Ctrl+C` trong phiên `tmux`.
 
-```python
-# cell: NB_seg (Colab GPU)
-!test -x /content/cloudflared || (wget -q -O /content/cloudflared https://github.com/cloudflare/cloudflared/releases/latest/download/cloudflared-linux-amd64 && chmod +x /content/cloudflared)
-subprocess.Popen("/content/cloudflared tunnel --url http://localhost:8501 > /content/cloudflared.log 2>&1", shell=True)
-time.sleep(10)
-!grep -o "https://[a-z0-9-]*\.trycloudflare\.com" /content/cloudflared.log | head -1
+Nếu chưa có `ridge.joblib` từ UQ thật (chưa qua Go/No-Go), demo vẫn chạy được phần mask + xác suất với ridge của dữ liệu giả: đổi `NCKH_RIDGE` thành `~/nckh_root/runs/<p6_fake_run_id>/ridge.joblib` (chép từ laptop theo `00` mục 5.2 nếu run đó ở laptop). Khi đó **phải** ghi rõ trên ảnh chụp màn hình rằng con số dự báo chỉ là minh họa từ dữ liệu giả.
+
+### 4.6. Xem demo của máy GPU từ laptop
+
+Nếu muốn mở demo bằng trình duyệt trên laptop, chuyển tiếp cổng qua SSH (demo vẫn chỉ nghe trên `localhost` của máy GPU):
+
+```bash
+# terminal (laptop, .venv)
+ssh -N -L 8501:localhost:8501 <user>@<máy-gpu>
 ```
 
-Mở link in ra trong trình duyệt của máy. Khi xong: `!pkill cloudflared; pkill -f "streamlit run"`.
+Rồi mở http://localhost:8501 trên laptop. `Ctrl+C` để đóng chuyển tiếp.
 
 ## 5. Test
 
 ```python
-# cell: NB_cpu (máy cá nhân)
+# cell: nb_cpu
 !cd {REPO} && {PY} -m pytest -q tests/test_demo_pipeline.py
 ```
 
@@ -397,8 +377,8 @@ Kỳ vọng: `15 passed`.
 
 | # | Yêu cầu | Cách kiểm | Kết quả lưu |
 |---|---|---|---|
-| 1 | Dựng môi trường sạch theo hướng dẫn | Server Colab mới → chạy lần lượt mục 4.5 | Ghi thời gian dựng |
-| 2 | Nạp checkpoint seg, cls, Ridge, cấu hình | Lần upload đầu không lỗi; log `/content/streamlit.log` sạch | Ảnh chụp |
+| 1 | Dựng môi trường sạch theo hướng dẫn | Máy GPU mới → `00` mục 6b, P2 4.4/4.6/4.10, rồi mục 4.5 | Ghi thời gian dựng |
+| 2 | Nạp checkpoint seg, cls, Ridge, cấu hình | Lần upload đầu không lỗi; log `~/nckh_root/runs/streamlit.log` sạch | Ảnh chụp |
 | 3 | Một ảnh hợp lệ chạy từ đầu đến cuối | Upload 1 ảnh ISIC 2018 **val** | Ảnh chụp toàn trang |
 | 4 | Overlay đúng vị trí, kích thước, màu | So overlay với ảnh gốc; mở thêm mask ở `/tmp/nckh_demo/<sha>/masks/` | Ghi nhận |
 | 5 | Xác suất hữu hạn, tổng đúng quy ước | Cộng 3 xác suất trên bảng ≈ 100%; `test_run_inference_reads_outputs_with_fake_models` | Ảnh chụp |
@@ -406,7 +386,7 @@ Kỳ vọng: `15 passed`.
 | 7 | Δt âm, 0, thiếu, không phải số bị từ chối | Nhập lần lượt `-30`, `0`, (rỗng), `6 tháng`; `test_forecast_rejects_bad_delta` | Ảnh chụp thông báo |
 | 8 | Ảnh hỏng, mask rỗng có thông báo | Upload file `.jpg` rỗng/hỏng; ảnh da không có tổn thương; `test_run_inference_unreadable_image`, `test_forecast_empty_mask_no_prediction` | Ảnh chụp |
 | 9 | Cùng ảnh + checkpoint + Δt cho cùng đầu ra | Upload lại cùng ảnh → số giống hệt (cache), restart server rồi thử lại → số giống trong sai số số học | Ghi nhận |
-| 10 | Chỉ dùng dữ liệu công khai được phép | Chỉ ảnh ISIC; tunnel tắt sau khi dùng | Ghi vào checklist |
+| 10 | Chỉ dùng dữ liệu công khai được phép | Chỉ ảnh ISIC; demo chỉ nghe trên `localhost`, tắt sau khi dùng | Ghi vào checklist |
 
 ## 6. Benchmark / đánh giá
 
@@ -415,24 +395,20 @@ Kỳ vọng: `15 passed`.
 | GPU | [điền sau khi chạy] |
 | Thời gian từ upload đến kết quả, ảnh mới (lần đầu) | [điền sau khi chạy] |
 | Như trên, cùng ảnh đổi Δt (cache) | [điền sau khi chạy] |
-| Thời gian dựng môi trường từ runtime mới | [điền sau khi chạy] |
+| Thời gian dựng môi trường trên máy mới | [điền sau khi chạy] |
 
-## 7. Lỗi thường gặp (máy / Colab extension)
+## 7. Lỗi thường gặp (máy local)
 
 | Triệu chứng | Cách xử lý |
 |---|---|
-| `localhost:8501` không mở được ở máy khi chạy trên Colab | Cổng của server Colab không chuyển về máy: dùng tunnel mục 4.6 |
-| `AssertionError: Chưa mount Drive` | `Ctrl+Shift+P` → *Colab: Mount Google Drive to Server...*, chạy lại cell setup |
-| Kernel Colab mất kết nối / server bị thu hồi | *Select Kernel → Colab → New Colab Server*, chạy lại cell setup + 2 venv + mục 4.5 |
-| Colab chạy code cũ | Ở máy `git push`, chạy lại cell setup (có `git pull`) |
-| `userdata.get` / `files.upload` lỗi | Chưa hỗ trợ trong extension; không dùng, file đi qua Drive |
-| `rclone` báo `couldn't fetch token` | `rclone config reconnect gdrive:` |
-| Colab báo không thấy `ridge.joblib` | Chưa đẩy `ridge/` lên Drive (mục 4.5) |
-| `KeyError: 'NCKH_SEG_CMD'` | Chưa đặt biến môi trường **trước** khi `Popen` streamlit |
+| `localhost:8501` không mở được trên laptop khi demo chạy ở máy GPU | Chuyển tiếp cổng qua SSH (mục 4.6) |
+| Máy GPU chạy code cũ | Push ở laptop, `git pull` ở máy GPU |
+| Không thấy `ridge.joblib` | Kiểm tra đường dẫn `NCKH_RIDGE`; run P6 nằm trên máy giữ UQ |
+| Đóng terminal làm tắt demo | Chạy trong `tmux new -s p9`; mở lại bằng `tmux attach -t p9` |
+| `KeyError: 'NCKH_SEG_CMD'` | Chưa đặt biến môi trường **trước** khi chạy streamlit (`export` ở mục 4.5, `os.environ` ở mục 4.4) |
 | `ModuleNotFoundError: pipeline` | Chạy `streamlit run` với đường dẫn tới `demo/app.py` (Streamlit tự thêm thư mục `demo/` vào `sys.path`) |
-| Báo lỗi mô hình, stderr có `CUDA out of memory` | Đang có process khác giữ GPU (notebook train); restart kernel Colab |
-| Link tunnel không mở | Đọc `/content/cloudflared.log`; chờ thêm 10 giây; chạy lại cell |
-| Mỗi ảnh chậm 30–60 giây | Server Colab không có GPU; tạo server mới có GPU |
+| Báo lỗi mô hình, stderr có `CUDA out of memory` | Đang có process khác giữ GPU (train, kernel notebook): xem `nvidia-smi`, tắt process đó |
+| Mỗi ảnh chậm 30–60 giây | Suy luận đang chạy trên CPU: kiểm tra `nvidia-smi` và torch cu118 trong hai venv |
 
 ## 8. Checklist bàn giao cho SV A
 
