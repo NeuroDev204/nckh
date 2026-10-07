@@ -59,18 +59,18 @@ Số lượng công bố trong bài báo của bộ dữ liệu không đồng n
 | Công việc | Nơi chạy đề xuất | Công cụ/mã nguồn | Ghi chú triển khai |
 |---|---|---|---|
 | Quản lý mã, protocol, manifest và phân tích metadata | Máy cá nhân hoặc máy trường, CPU | Git; Python; pandas; Jupyter | Chỉ đẩy mã và tài liệu được phép lên GitHub; không đẩy ảnh, metadata định danh hoặc checkpoint bị hạn chế |
-| Fine-tune phân đoạn | Google Colab có GPU, notebook riêng | `PanDerm/segmentation/run.sh`; ISIC 2018 Task 1 | Dùng PanDerm pretrained; train/validation để chọn checkpoint, test khóa riêng |
-| Fine-tune phân loại tham khảo | Google Colab có GPU, runtime riêng | `PanDerm/classification/script/finetune_train.sh`; ISIC 2017 Task 3 | Tách runtime khỏi phân đoạn vì hai nhánh trong repo yêu cầu bộ phiên bản PyTorch/torchvision khác nhau |
-| Suy luận PanDerm trên UQ và xuất mask/đặc trưng | Máy trường/máy cá nhân được phép; Colab chỉ khi điều khoản UQ cho phép | Checkpoint đã khóa, inference script, Python | Protocol chính dùng UQ cho đánh giá dọc, không fine-tune PanDerm trên UQ; không tải lên Colab trước khi xác minh quyền |
+| Fine-tune phân đoạn | Máy GPU local, venv riêng cho nhánh | `PanDerm/segmentation/run.sh`; ISIC 2018 Task 1 | Dùng PanDerm pretrained; train/validation để chọn checkpoint, test khóa riêng |
+| Fine-tune phân loại tham khảo | Máy GPU local, venv riêng cho nhánh | `PanDerm/classification/script/finetune_train.sh`; ISIC 2017 Task 3 | Tách venv khỏi phân đoạn vì hai nhánh trong repo yêu cầu bộ phiên bản PyTorch/torchvision khác nhau |
+| Suy luận PanDerm trên UQ và xuất mask/đặc trưng | Máy trường/máy cá nhân được phép | Checkpoint đã khóa, inference script, Python | Protocol chính dùng UQ cho đánh giá dọc, không fine-tune PanDerm trên UQ; không đưa UQ vào máy trước khi xác minh quyền |
 | Ghép cặp ảnh và huấn luyện Ridge | Máy cá nhân/máy trường, CPU | pandas, NumPy, scikit-learn | Ridge không cần GPU; xử lý dữ liệu UQ tại nơi được phép |
 | Tạo ảnh suy giảm và đánh giá độ bền | CPU để biến đổi ảnh; GPU cho suy luận PanDerm nếu có | Pillow hoặc OpenCV, script đã khóa | Tạo biến thể sau khi chia tập; giữ mask/target tham chiếu cố định |
 | Thống kê, biểu đồ và demo | Máy cá nhân, CPU | pandas, scikit-learn, Matplotlib; Streamlit chạy cục bộ | Demo dùng ảnh được phép; không đưa ảnh UQ hạn chế lên web công khai |
 
-**Cách dùng Colab:** ưu tiên Colab GPU cho hai tác vụ fine-tune trên ISIC và các lượt suy luận ảnh cần GPU. Mỗi nhánh PanDerm dùng notebook/runtime riêng theo hướng dẫn của repo; lưu cấu hình, log và checkpoint định kỳ vào nơi lưu trữ được phép để khôi phục khi runtime ngắt. Colab không bảo đảm luôn có GPU hoặc một loại GPU cố định. Nếu không được cấp tài nguyên, tiếp tục xử lý dữ liệu/Ridge trên CPU và chuyển huấn luyện sang GPU của trường hoặc máy có quyền sử dụng. Không đổi mô hình hay dùng tập test để bù cho giới hạn phần cứng.
+**Cách dùng máy GPU:** fine-tune trên ISIC và các lượt suy luận ảnh cần GPU chạy trên máy GPU local; mỗi nhánh PanDerm một venv riêng theo hướng dẫn của repo; chạy trong `tmux`, lưu cấu hình, log và checkpoint định kỳ vào `runs/` để khôi phục khi bị dừng. Nếu máy GPU không đủ tài nguyên, tiếp tục xử lý dữ liệu/Ridge trên CPU và chuyển huấn luyện sang GPU của trường. Không đổi mô hình hay dùng tập test để bù cho giới hạn phần cứng.
 
 Trong protocol chính, PanDerm được tinh chỉnh trên ISIC; UQ được giữ cho kiểm tra chuyển miền, tạo cặp thời gian và đánh giá dự báo. Không dùng participant test UQ để tinh chỉnh mô hình, chọn checkpoint hoặc điều chỉnh ngưỡng.
 
-**Quyền dữ liệu:** chỉ dùng ảnh ISIC trên Colab sau khi kiểm tra điều khoản. Với UQ, mặc định xử lý tại máy được đơn vị dữ liệu cho phép; chỉ dùng dịch vụ đám mây sau khi có căn cứ rõ ràng rằng điều khoản cho phép tải và xử lý ở đó. Kiểm tra riêng điều khoản PanDerm/checkpoint trước khi chia sẻ checkpoint tinh chỉnh hoặc công khai demo.
+**Quyền dữ liệu:** kiểm tra điều khoản ISIC trước khi dùng. Với UQ, chỉ xử lý trên máy được đơn vị dữ liệu cho phép; không tải lên dịch vụ đám mây. Kiểm tra riêng điều khoản PanDerm/checkpoint trước khi chia sẻ checkpoint tinh chỉnh hoặc công khai demo.
 
 ---
 
@@ -104,11 +104,11 @@ Các phase có thể chạy song song. Nếu vướng quyền dữ liệu hoặc
 | Tuần | Phase chính | SV A | SV B | Nơi chạy chính | Mốc cần có |
 |---|---|---|---|---|---|
 | 1 | Khóa câu hỏi và protocol | Rà soát dữ liệu, giấy phép, tài liệu | Clone repo, kiểm tra yêu cầu môi trường | Máy cá nhân, CPU | Protocol v1, checklist rủi ro |
-| 1–2 | Go/No-Go UQ và pilot mô hình | Kiểm tra quyền, metadata, ID, thời gian | Thử nạp checkpoint và suy luận 20–50 ảnh | Metadata UQ tại nơi được phép; pilot GPU trên Colab với ISIC | Quyết định có đủ điều kiện làm nhánh dự báo |
+| 1–2 | Go/No-Go UQ và pilot mô hình | Kiểm tra quyền, metadata, ID, thời gian | Thử nạp checkpoint và suy luận 20–50 ảnh | Metadata UQ tại nơi được phép; pilot GPU trên máy GPU local với ISIC | Quyết định có đủ điều kiện làm nhánh dự báo |
 | 2–3 | Thu thập, kiểm kê dữ liệu | Data dictionary, số lượng, missingness | Loader và smoke test | Máy cá nhân/máy trường, CPU | Manifest nguồn và báo cáo dữ liệu |
 | 3–4 | Làm sạch, ghép cặp, chia tập | Kiểm tra cặp thời gian và split | Viết unit tests cho loader/pair builder | Máy cá nhân/máy trường, CPU | Split khóa, không rò rỉ |
-| 4–6 | Tinh chỉnh PanDerm | Kiểm tra nhãn, mask tham chiếu, bảng log | Tinh chỉnh segmentation và classification | Colab GPU; notebook/runtime riêng cho mỗi nhánh | Checkpoint chọn từ validation |
-| 5–7 | Chạy mask UQ và audit thủ công | Gán mask tập audit, đánh giá chéo | Chạy suy luận UQ và xuất features | Máy/GPU được phép; Colab chỉ sau khi xác nhận quyền UQ | Báo cáo Dice/IoU và area error UQ |
+| 4–6 | Tinh chỉnh PanDerm | Kiểm tra nhãn, mask tham chiếu, bảng log | Tinh chỉnh segmentation và classification | Máy GPU local; venv riêng cho mỗi nhánh | Checkpoint chọn từ validation |
+| 5–7 | Chạy mask UQ và audit thủ công | Gán mask tập audit, đánh giá chéo | Chạy suy luận UQ và xuất features | Máy/GPU được phép | Báo cáo Dice/IoU và area error UQ |
 | 7–9 | Dự báo một bước | Kiểm tra đơn vị phân tích, khoảng Δt | Huấn luyện Ridge, chọn alpha, so baseline | Máy cá nhân/máy trường, CPU | Kết quả trên participant test |
 | 9–10 | Robustness và tiền xử lý | Kiểm tra tính hợp lệ biến đổi ảnh | Chạy phép suy giảm/tiền xử lý đã khóa | CPU tạo biến thể; GPU chạy inference | Bảng độ bền, biểu đồ lỗi |
 | 10–11 | Demo và kiểm thử hệ thống | Rà soát thông điệp giới hạn sử dụng | Tích hợp giao diện và pipeline | Streamlit chạy cục bộ | Demo chạy được bằng dữ liệu cho phép |
@@ -166,7 +166,7 @@ Các phase có thể chạy song song. Nếu vướng quyền dữ liệu hoặc
 2. Ghi rõ nhóm được phép:
    - tải và lưu dữ liệu ở đâu;
    - huấn luyện/tinh chỉnh mô hình;
-   - dùng dịch vụ đám mây như Colab;
+   - lưu và xử lý trên máy của thành viên nhóm;
    - tạo và lưu mask/embedding;
    - công bố số liệu, hình minh họa hoặc mã nguồn;
    - chia sẻ checkpoint đã tinh chỉnh.
@@ -256,12 +256,12 @@ Nhóm sẽ kiểm kê toàn bộ cặp hợp lệ trước khi quyết định c
 
 - Nếu checkpoint Base không nạp được vào segmentation config, ghi rõ lỗi và kiểm tra các phiên bản, đường dẫn, kiến trúc.
 - Repo PanDerm hướng dẫn segmentation và classification với bộ phụ thuộc PyTorch/torchvision khác nhau. Dựng hai runtime riêng thay vì cài hai bộ vào cùng một môi trường; ghi lại phiên bản thực tế đã chạy trong mỗi notebook.
-- Hướng dẫn repo hiện ghi segmentation dùng Python 3.10, PyTorch 2.2.1/torchvision 0.17.1 và MMSegmentation; classification dùng PyTorch 2.4.1/torchvision 0.19.1. Xác minh lại lệnh cài và tương thích với Colab tại thời điểm chạy; không trộn tùy tiện các phiên bản.
+- Hướng dẫn repo hiện ghi segmentation dùng Python 3.10, PyTorch 2.2.1/torchvision 0.17.1 và MMSegmentation; classification dùng PyTorch 2.4.1/torchvision 0.19.1. Xác minh lại lệnh cài và tương thích với driver máy GPU tại thời điểm chạy; không trộn tùy tiện các phiên bản.
 - Repo nêu mã nguồn/mô hình theo giấy phép CC BY-NC-ND 4.0 và mục đích nghiên cứu học thuật phi thương mại. Xác minh điều kiện áp dụng cụ thể trước khi sửa đổi, chia sẻ checkpoint tinh chỉnh hoặc công khai demo.
 - Cho phép một vòng thử có giới hạn. Không thay sang model khác theo cảm tính.
 - Nếu không giải quyết được trong tuần 2, trao đổi giảng viên để chọn hướng giảm phạm vi trong PanDerm theo repo hoặc dùng GPU của trường; không tự chuyển sang mô hình khác.
-- Trên Colab, chạy pilot ngắn để kiểm tra VRAM và thời gian trước khi huấn luyện chính. Lưu checkpoint/log ra nơi lưu trữ được phép và thử nạp lại checkpoint sau khi runtime khởi động lại.
-- Colab thay đổi giới hạn sử dụng và loại GPU, không bảo đảm GPU luôn sẵn có; xem [FAQ chính thức của Colab](https://research.google.com/colaboratory/faq.html). Nếu không có GPU, vẫn làm các bước CPU như ghép cặp, Ridge, thống kê và viết bài.
+- Trên máy GPU, chạy pilot ngắn để kiểm tra VRAM và thời gian trước khi huấn luyện chính. Lưu checkpoint/log vào `runs/` và thử resume sau khi dừng train giữa chừng.
+- Nếu máy GPU chưa sẵn sàng, vẫn làm các bước CPU như ghép cặp, Ridge, thống kê và viết bài.
 
 ### Sản phẩm và điều kiện đạt
 
@@ -360,12 +360,12 @@ Chọn ngẫu nhiên có phân tầng theo khoảng Δt và diện tích mask s�
 **Thời gian:** tuần 4–6  
 **Chủ trì:** SV B; SV A kiểm tra nhãn, split và bảng thống kê.
 
-**Nơi chạy:** Google Colab GPU cho fine-tune và suy luận ISIC; tạo hai notebook riêng cho segmentation và classification theo môi trường PanDerm tương ứng. Nếu Colab không cấp GPU hoặc không tương thích phụ thuộc, dùng GPU của trường/máy có môi trường đã khóa. Lưu checkpoint tốt nhất theo validation, log và cấu hình ở nơi lưu trữ được phép.
+**Nơi chạy:** máy GPU local cho fine-tune và suy luận ISIC; hai venv riêng cho segmentation và classification theo môi trường PanDerm tương ứng. Nếu máy GPU không đủ hoặc không tương thích phụ thuộc, dùng GPU của trường có môi trường đã khóa. Lưu checkpoint tốt nhất theo validation, log và cấu hình ở nơi lưu trữ được phép.
 
 ### 5.1. Phân đoạn — ISIC 2018 Task 1
 
 1. Đọc hướng dẫn PanDerm segmentation và tải ảnh/mask từ nguồn ISIC chính thức.
-2. Trong notebook Colab segmentation riêng, cài phụ thuộc theo `PanDerm/Segmentation.md`, sửa đường dẫn dữ liệu/checkpoint trong `segmentation/run.sh`, rồi chạy lệnh từ thư mục `segmentation/`. Đây là nơi fine-tune nhánh phân đoạn trên ISIC 2018 Task 1.
+2. Trong venv segmentation riêng trên máy GPU, cài phụ thuộc theo `PanDerm/Segmentation.md`, sửa đường dẫn dữ liệu/checkpoint trong `segmentation/run.sh`, rồi chạy lệnh từ thư mục `segmentation/`. Đây là nơi fine-tune nhánh phân đoạn trên ISIC 2018 Task 1.
 3. Kiểm tra nhiều mask tham chiếu cho từng ảnh. Chọn cách đánh giá trước:
    - cách chính: so prediction với mask đồng thuận đa số; hoặc
    - báo Dice/IoU trung bình trên các người gán.
@@ -385,7 +385,7 @@ Chọn ngẫu nhiên có phân tầng theo khoảng Δt và diện tích mask s�
 
 1. Kiểm tra mapping nhãn melanoma, nevus, seborrheic keratosis và số ảnh từng lớp.
 2. Giữ split chính thức nếu có đủ nhãn; nếu tự chia, nhóm theo lesion_id/hash.
-3. Trong notebook Colab classification riêng, cài phụ thuộc theo README PanDerm, cập nhật CSV/đường dẫn ảnh/checkpoint và chạy `bash script/finetune_train.sh` từ thư mục `classification/`. Đây là nơi fine-tune nhánh phân loại trên ISIC 2017 Task 3.
+3. Trong venv classification riêng trên máy GPU, cài phụ thuộc theo README PanDerm, cập nhật CSV/đường dẫn ảnh/checkpoint và chạy `bash script/finetune_train.sh` từ thư mục `classification/`. Đây là nơi fine-tune nhánh phân loại trên ISIC 2017 Task 3.
 4. Nếu dùng weighted sampler, chỉ áp dụng trên train.
 5. Chọn checkpoint và mọi ngưỡng từ validation; không dùng test để chọn prompt, augmentation hay class threshold.
 6. Lưu logits/probabilities của từng ảnh test để có thể tái tạo confusion matrix, AUROC và calibration.
@@ -543,7 +543,7 @@ Diễn giải MAE theo điểm phần trăm diện tích ảnh để người đ
 **Thời gian:** tuần 8–10  
 **Chủ trì:** SV B tạo biến đổi; SV A duyệt mức và lập bảng kết quả.
 
-**Nơi chạy:** tạo biến đổi brightness/blur/white balance/hair bằng Pillow hoặc OpenCV trên CPU; chạy lại PanDerm inference bằng GPU Colab hoặc GPU trường. Sinh biến thể theo batch để tránh lưu nhiều bản sao ảnh. Không tải ảnh UQ lên Colab nếu chưa xác minh quyền xử lý trên đám mây.
+**Nơi chạy:** tạo biến đổi brightness/blur/white balance/hair bằng Pillow hoặc OpenCV trên CPU; chạy lại PanDerm inference bằng máy GPU local hoặc GPU trường. Sinh biến thể theo batch để tránh lưu nhiều bản sao ảnh. Chỉ xử lý ảnh UQ trên máy được phép giữ UQ.
 
 ### 8.1. Phép suy giảm ảnh
 
@@ -762,7 +762,7 @@ Tiêu chí nghiệm thu đánh giá **tính hoàn thành và tính hợp lệ c�
 - Bỏ mọi tuyên bố về diện tích thật hoặc tiến triển sinh học.
 - Ghi số lượng thủ công thực hiện được và lý do giới hạn.
 
-### GPU/Colab không ổn định
+### GPU không đủ hoặc không ổn định
 
 - Chạy pilot ngắn trước khi huấn luyện dài.
 - Lưu checkpoint/log định kỳ vào nơi nhóm được phép dùng.
@@ -839,7 +839,6 @@ Các URL dưới đây là điểm bắt đầu. Nhóm cần đọc lại điề
 10. **CLAIM 2024 Update:** [Radiology: Artificial Intelligence, DOI 10.1148/ryai.240300](https://doi.org/10.1148/ryai.240300)
 11. **Ridge regression:** Hoerl & Kennard, 1970, [DOI 10.1080/00401706.1970.10488634](https://doi.org/10.1080/00401706.1970.10488634)
 12. **DermFM-Zero — tài liệu nền liên quan:** [repo](https://github.com/SiyuanYan1/DermFM-Zero), [bài arXiv 2602.10624](https://arxiv.org/abs/2602.10624). Không đưa vào pipeline chính nếu chưa sửa câu hỏi và protocol.
-13. **Google Colab — FAQ về GPU và giới hạn runtime:** [FAQ chính thức](https://research.google.com/colaboratory/faq.html). Kiểm tra lại khả năng cấp GPU tại thời điểm chạy; không xem Colab là tài nguyên được bảo đảm.
 
 ---
 
