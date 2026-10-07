@@ -6,19 +6,14 @@
 
 | Đầu vào | Đầu ra (`runs/<p10_run>/`) | Sinh ở |
 |---|---|---|
-| `seg_metrics.json`, `cls_metrics.json`, `forecast_metrics.json`, `flow.json`, `robustness.json`, `predictions_test.csv` | `tables/table_{seg,cls,forecast,flow,robustness}.{csv,md}` | Máy: `~/nckh_drive/runs/<p10_run>/tables/` |
-| `seg_per_image.csv`, overlay P5a, `predictions_test.csv` | `figures/{pred_vs_obs,residual_vs_dt,robustness}.png`, `examples_seg.csv`, `examples_forecast.csv` | Máy: `~/nckh_drive/runs/<p10_run>/` |
+| `seg_metrics.json`, `cls_metrics.json`, `forecast_metrics.json`, `flow.json`, `robustness.json`, `predictions_test.csv` | `tables/table_{seg,cls,forecast,flow,robustness}.{csv,md}` | Laptop (`.venv`): `~/nckh_root/runs/<p10_run>/tables/` |
+| `seg_per_image.csv`, overlay P5a, `predictions_test.csv` | `figures/{pred_vs_obs,residual_vs_dt,robustness}.png`, `examples_seg.csv`, `examples_forecast.csv` | Laptop (`.venv`): `~/nckh_root/runs/<p10_run>/` |
 
 ## 2. Chạy ở đâu
 
-Toàn bộ **trên máy** (`NB_cpu`, chạy cell setup P2 4.1a trước). Mỗi lệnh chạy vài giây.
+Toàn bộ trên laptop bằng `.venv` (`nb_cpu`, chạy cell setup P2 4.1a trước). Mỗi lệnh chạy vài giây.
 
-Kéo các run cần dùng về máy (P5a/P5b/P8 do Colab ghi; P6/P7 đã ở máy), bỏ checkpoint:
-
-```bash
-# terminal VS Code (máy cá nhân)
-rclone copy gdrive:NCKH_PanDerm/runs/<run_id> ~/nckh_drive/runs/<run_id> --exclude "*.ckpt" --exclude "*.pth" --progress
-```
+Các run P5a/P5b/P8 được tạo trên máy GPU: chép về laptop theo `00` mục 5.2 (lệnh có `--exclude '*.ckpt' --exclude '*.pth'`). Run có dữ liệu UQ (P6, P7) chỉ chép khi laptop được phép giữ UQ (P6 mục 3.1); nếu không, chạy phần bảng/hình dự báo trên máy giữ UQ.
 
 ## 3. Giải thích
 
@@ -201,7 +196,7 @@ from pathlib import Path
 
 import matplotlib
 
-matplotlib.use("Agg")  # Colab/CLI không có màn hình
+matplotlib.use("Agg")  # chạy từ terminal không có màn hình
 import matplotlib.pyplot as plt  # noqa: E402
 import numpy as np  # noqa: E402
 import pandas as pd  # noqa: E402
@@ -370,7 +365,7 @@ def test_select_examples_groups_and_seed() -> None:
 ### 4.4. Chạy
 
 ```python
-# cell: NB_cpu (máy cá nhân)
+# cell: nb_cpu
 from nckh.runcard import new_run_id
 P10 = f"{ROOT}/runs/{new_run_id('p10')}"
 SEG = f"{ROOT}/runs/<seg_main_run_id>/eval"
@@ -383,7 +378,7 @@ ROB = f"{ROOT}/runs/<p8_seg_run_id>/robustness.json"      # lặp lại make_tab
 ```
 
 ```python
-# cell: NB_cpu (máy cá nhân)
+# cell: nb_cpu
 import sys, pandas as pd
 sys.path.insert(0, f"{REPO}/scripts")
 from make_figures import select_examples
@@ -399,12 +394,12 @@ Overlay của từng ảnh ví dụ segmentation nằm ở `runs/<seg_main>/resu
 
 ### 4.5. Kiểm tra tái lập cuối (kế hoạch Mục 7), do SV A làm
 
-Từ một máy **mới** (clone repo, làm `00` mục 6b) và một server Colab **mới**, chỉ làm theo docs:
+Từ một máy **mới** có GPU (clone repo, làm `00` mục 6b), chỉ làm theo docs:
 
-1. **Đọc manifest (máy):** chạy P3 mục 4.6, rồi so SHA-256 `isic2018_seg.csv` với giá trị ghi trong protocol.
-2. **Nạp checkpoint (Colab `NB_seg`):** cell setup P2 4.1b, dựng `venv_seg` (P2 4.4), áp patch (P2 4.6), chạy `bench_inference.py --finetuned <model_best_0.ckpt>` trên 20 ảnh val. Kỳ vọng `SMOKE TEST OK`.
-3. **Chạy một inference mẫu (Colab `NB_seg`):** demo P9 mục 4.5 với một ảnh ISIC val, ghi lại tỷ lệ mask và xác suất.
-4. **Tạo một metric nhỏ (máy, sau khi kéo run về):** `evaluate_seg.py` trên file xlsx của run chính. Kỳ vọng Dice/IoU **trùng** `seg_metrics.json` (cùng seed bootstrap). Chạy `evaluate_forecast.py` trên `predictions_test.csv`: kỳ vọng MAE trùng.
+1. **Đọc manifest (`nb_cpu`):** chạy P3 mục 4.6, rồi so SHA-256 `isic2018_seg.csv` với giá trị ghi trong protocol.
+2. **Nạp checkpoint (máy GPU, `venv_seg`):** dựng `venv_seg` (P2 4.4), áp patch (P2 4.6), chạy `bench_inference.py --finetuned <model_best_0.ckpt>` trên 20 ảnh val. Kỳ vọng `SMOKE TEST OK`.
+3. **Chạy một inference mẫu (máy GPU):** demo P9 mục 4.5 với một ảnh ISIC val, ghi lại tỷ lệ mask và xác suất.
+4. **Tạo một metric nhỏ (`.venv`, sau khi chép run về):** `evaluate_seg.py` trên file xlsx của run chính. Kỳ vọng Dice/IoU **trùng** `seg_metrics.json` (cùng seed bootstrap). Chạy `evaluate_forecast.py` trên `predictions_test.csv`: kỳ vọng MAE trùng.
 5. **Xác nhận định dạng bảng cuối:** chạy mục 4.4 vào một `run_id` mới, rồi `diff` các file `table_*.md` với bản của SV B. Kỳ vọng giống hệt.
 
 Nếu bước nào không tái lập được: sửa docs, hoặc ghi giới hạn vào bài **trước** khi nộp.
@@ -412,7 +407,7 @@ Nếu bước nào không tái lập được: sửa docs, hoặc ghi giới h�
 ## 5. Test
 
 ```python
-# cell: NB_cpu (máy cá nhân)
+# cell: nb_cpu
 !cd {REPO} && {PY} -m pytest -q
 ```
 
@@ -439,15 +434,14 @@ Test P10 kiểm: bảng sinh đúng từ JSON (định dạng `0.015 [0.010, 0.0
 | `table_*.md` của SV A và SV B giống hệt | [điền sau khi chạy] |
 | Thời gian SV A dựng lại môi trường | [điền sau khi chạy] |
 
-## 7. Lỗi thường gặp (máy / Colab extension)
+## 7. Lỗi thường gặp (máy local)
 
 | Triệu chứng | Cách xử lý |
 |---|---|
 | Bảng ghi "chưa có dữ liệu" | Sai đường dẫn JSON; kiểm tra `run_id` |
 | Số trong bảng khác lần trước | So run card hai lần: phiên bản gói, seed, SHA-256 đầu vào |
-| `ModuleNotFoundError: matplotlib` | `%pip install -e "{REPO}[demo]"` trong `NB_cpu` (extras `demo` có matplotlib) |
-| `rclone` báo `couldn't fetch token` | `rclone config reconnect gdrive:` |
-| Ở máy không thấy file Colab vừa ghi | Chạy lệnh `rclone copy gdrive:NCKH_PanDerm/runs/<run_id> ~/nckh_drive/runs/<run_id>` |
+| `ModuleNotFoundError: matplotlib` | `%pip install -e "{REPO}[demo]"` trong `nb_cpu` (extras `demo` có matplotlib) |
+| Không thấy run của máy GPU ở laptop | Chép về theo `00` mục 5.2 |
 | Chữ tiếng Việt trong hình lỗi font | Font mặc định DejaVu Sans của matplotlib hỗ trợ tiếng Việt; nếu đổi font, chọn font có dấu |
 
 ## 8. Checklist bàn giao cho SV A (trước khi nộp)

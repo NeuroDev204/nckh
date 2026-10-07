@@ -6,22 +6,15 @@
 
 | Đầu vào | Đầu ra | Sinh ở |
 |---|---|---|
-| `predictions_val.csv`, `predictions_test.csv` (P6) | `eval_forecast/forecast_metrics.json`, `eval_forecast/forecast_by_dt_bin.csv` | Máy: `~/nckh_drive/runs/<p6_uq_run_id>/eval_forecast/` |
+| `predictions_val.csv`, `predictions_test.csv` (P6) | `eval_forecast/forecast_metrics.json`, `eval_forecast/forecast_by_dt_bin.csv` | Máy giữ UQ (`.venv`): `~/nckh_root/runs/<p6_uq_run_id>/eval_forecast/` |
 | `seg_metrics.json` (P5a), `cls_metrics.json` (P5b) | Bảng kết quả tổng (điền ở mục 6, sinh tự động ở P10) | Máy |
-| Toàn bộ `<repo>/tests/` | Log `pytest` lưu vào `runs/<run_id>/pytest.log` | Máy: `~/nckh_drive/runs/<run_id>/pytest.log` |
+| Toàn bộ `<repo>/tests/` | Log `pytest` lưu vào `runs/<run_id>/pytest.log` | Laptop (`.venv`): `~/nckh_root/runs/<run_id>/pytest.log` |
 
 ## 2. Chạy ở đâu
 
-Tất cả chạy **trên máy** (`NB_cpu`, chạy cell setup P2 4.1a trước). Một lần `evaluate_forecast.py` mất vài giây đến vài chục giây (2.000 lần bootstrap). Biến `RUN` là run P6 trên UQ ở máy: `RUN = f"{ROOT}/runs/<p6_uq_run_id>"`.
+Tất cả chạy bằng `.venv` (`nb_cpu`, chạy cell setup P2 4.1a trước). Phần dự báo UQ chạy trên máy được giữ UQ (P6 mục 3.1, thường là máy GPU); `pytest` chạy trên laptop. Một lần `evaluate_forecast.py` mất vài giây đến vài chục giây (2.000 lần bootstrap). Biến `RUN` là run P6 trên UQ: `RUN = f"{ROOT}/runs/<p6_uq_run_id>"`.
 
-Run P6 (`ridge/`, `ridge_test/`) đã nằm sẵn ở máy (trường hợp UQ được lưu trên máy; nếu không, xem ghi chú ngay dưới). Các run P5a/P5b (`seg_metrics.json`, `cls_metrics.json`) do Colab ghi, nên kéo về trước nếu chưa làm:
-
-```bash
-# terminal VS Code (máy cá nhân)
-rclone copy gdrive:NCKH_PanDerm/runs/<run_id> ~/nckh_drive/runs/<run_id> --exclude "*.ckpt" --exclude "*.pth" --progress
-```
-
-> Nếu điều khoản UQ **không** cho lưu trên máy (P6 mục 3.1): chạy các cell `NB_cpu` dưới đây trong `NB_seg` trên Colab, thay `{REPO}` bằng `{CODE}` và `{PY}` bằng `{VENV}/bin/python`, bỏ các lệnh rclone kéo/đẩy thư mục UQ; kết quả nằm trên Drive.
+Các run P5a/P5b/P6 nằm trong `~/nckh_root/runs/`; nếu tạo trên máy GPU mà cần trên laptop, chép về theo `00` mục 5.2 (bỏ checkpoint). Không chép run có dữ liệu UQ sang máy không được giữ UQ.
 
 ## 3. Giải thích
 
@@ -67,7 +60,7 @@ Ví dụ thật trên **dữ liệu giả** (P6 mục 4.6, chỉ có 4 participa
 2. **Độ bất đồng diện tích giữa hai người gán** ở P4: trung vị `area_diff` trong `agreement.csv`. Ý nghĩa: thay đổi nhỏ hơn mức hai người gán đã lệch nhau thì không phân biệt được với nhiễu đo.
 
 ```python
-# cell: NB_cpu (máy cá nhân)
+# cell: nb_cpu
 import pandas as pd
 val = pd.read_csv(f"{RUN}/ridge/predictions_val.csv")
 print("Phương án 1 — trung vị |Δa| val:", round(val.delta_area.abs().median(), 4))
@@ -242,7 +235,7 @@ def test_bin_min_size(tmp_path: Path) -> None:
 ### 4.4. Chạy
 
 ```python
-# cell: NB_cpu (máy cá nhân)
+# cell: nb_cpu
 EPS = 0.005   # ← giá trị đã chốt trong protocol (mục 3.4), KHÔNG chọn lại sau khi xem test
 !cd {REPO} && {PY} scripts/evaluate_forecast.py --predictions {RUN}/ridge_test/predictions_test.csv --out-dir {RUN}/eval_forecast --stable-eps {EPS}
 !cat {RUN}/eval_forecast/forecast_by_dt_bin.csv
@@ -253,7 +246,7 @@ Chạy thêm trên `predictions_val.csv` (thư mục `eval_forecast_val`) để 
 ### 4.5. Chạy toàn bộ test và lưu log
 
 ```python
-# cell: NB_cpu (máy cá nhân)
+# cell: nb_cpu
 from nckh.runcard import new_run_id
 LOG = f"{ROOT}/runs/{new_run_id('pytest')}"
 !mkdir -p {LOG} && cd {REPO} && {PY} -m pytest -q 2>&1 | tee {LOG}/pytest.log | tail -3
@@ -309,12 +302,11 @@ Bảng kết quả theo kế hoạch Mục 10. **Không điền trước số k�
 | Ridge — mức B (thủ công) | [điền sau khi chạy] | MAE / RMSE / bias | [điền sau khi chạy] | [điền sau khi chạy] | Tách riêng, mẫu nhỏ |
 | Độ bền ảnh | [điền sau khi chạy] | ΔDice / ΔMacro-F1 / ΔMAE | [điền sau khi chạy] | [điền sau khi chạy] | Từng phép suy giảm (P8) |
 
-## 7. Lỗi thường gặp (máy / Colab extension)
+## 7. Lỗi thường gặp (máy local)
 
 | Triệu chứng | Cách xử lý |
 |---|---|
-| `rclone` báo `couldn't fetch token` | `rclone config reconnect gdrive:` |
-| Ở máy không thấy file Colab vừa ghi (`seg_metrics.json`, `cls_metrics.json`) | Chạy lệnh `rclone copy gdrive:NCKH_PanDerm/runs/<run_id> ~/nckh_drive/runs/<run_id>` |
+| Không thấy `seg_metrics.json`, `cls_metrics.json` ở laptop | Run được tạo trên máy GPU: chép về theo `00` mục 5.2 |
 | `ValueError: File có nhiều split` | Đang đưa file trộn val+test; dùng đúng `predictions_test.csv` |
 | CI rất rộng | Ít participant test; báo cỡ mẫu hiệu dụng, gọi kết quả là thăm dò (kế hoạch Phase 1) |
 | Cảnh báo `n lần bootstrap không tính được thống kê` | Thường do AUROC khi một lần lặp thiếu lớp; báo `n_failed` trong bảng |
