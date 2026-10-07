@@ -4,32 +4,33 @@
 
 **Mục tiêu (kế hoạch Phase 3):** đưa ISIC 2018 Task 1 và ISIC 2017 Task 3 về đúng layout mà code PanDerm cần; tạo **manifest** (mỗi ảnh một dòng: đường dẫn, hash, kích thước, lý do loại); khóa split; viết các unit test chống rò rỉ. Chuẩn bị sẵn schema và hàm chia tập cho UQ để dùng ngay khi có quyền dữ liệu.
 
-| Đầu vào | Đầu ra |
-|---|---|
-| 6 zip ISIC 2018 Task 1 (S3 chính thức) | `/content/data/ISIC2018/{Training,Validation,Test}_{Data,GroundTruth}/` (mỗi phiên) |
-| 3 zip ảnh + 3 CSV nhãn ISIC 2017 Task 3 | `/content/data/ISIC2017/ISIC-2017_*_Data/*.jpg` (mỗi phiên) |
-| — | Trên Drive: `data/manifests/isic2018_seg.csv` + `.sha256` + `.cross_split_duplicates.csv`, `isic2017_cls.csv`, `isic2017_cls_trainphase.csv`, `mask_count.json` |
-| Metadata UQ (khi có quyền) | `configs/uq_column_map.yaml` đã điền; manifest UQ có cột `split` (tạo ở P6 bằng `build_pairs.py`) |
+| Đầu vào | Đầu ra | Sinh ở |
+|---|---|---|
+| 6 zip ISIC 2018 Task 1 (S3 chính thức) | `~/nckh_data/ISIC2018/{Training,Validation,Test}_{Data,GroundTruth}/` | Máy (một lần); Colab tải lại vào `/content/data/ISIC2018/` mỗi phiên ở P5a |
+| 3 zip ảnh + 3 CSV nhãn ISIC 2017 Task 3 | `/content/data/ISIC2017/ISIC-2017_*_Data/*.jpg` | Colab `NB_cls` (mỗi phiên) |
+| — | `~/nckh_drive/data/manifests/isic2018_seg.csv` + `.sha256` + `.cross_split_duplicates.csv`, `mask_count.json` | Máy → đẩy lên `MyDrive/NCKH_PanDerm/data/manifests/` bằng rclone |
+| — | `MyDrive/NCKH_PanDerm/data/manifests/isic2017_cls.csv`, `isic2017_cls_trainphase.csv` | Colab `NB_cls` ghi lên Drive → kéo về `~/nckh_drive/data/manifests/` |
+| Metadata UQ (khi có quyền) | `<repo>/configs/uq_column_map.yaml` đã điền; manifest UQ có cột `split` (tạo ở P6 bằng `build_pairs.py`) | Máy |
 
 ## 2. Chạy ở đâu
 
-| Việc | Notebook | Thời gian ước tính |
+| Việc | Chạy ở | Thời gian ước tính |
 |---|---|---|
-| Tạo `nckh/isic.py`, `nckh/manifest.py`, scripts, test; chạy pytest | NB_cpu | 20 phút |
-| Tải + giải nén ISIC 2018 (~14 GB zip) | NB_cpu hoặc NB_seg | 10–25 phút mỗi phiên (tùy tốc độ mạng của Colab) |
-| Tải + giải nén ISIC 2017 (~13 GB zip) | NB_cls (vì P5b chạy ở đó) | 10–25 phút mỗi phiên |
-| Tạo manifest ISIC 2018 (băm 3.694 ảnh) | NB_cpu | 3–6 phút |
+| Tạo `nckh/isic.py`, `nckh/manifest.py`, scripts, test; chạy pytest | Máy (`NB_cpu`) | 20 phút |
+| Tải + giải nén ISIC 2018 (~14 GB zip) vào `~/nckh_data` | Máy (`NB_cpu`), một lần | tùy mạng |
+| Tạo manifest ISIC 2018 (băm 3.694 ảnh), đẩy lên Drive | Máy (`NB_cpu` + terminal) | 3–6 phút |
+| Tải + giải nén ISIC 2017 (~13 GB zip), CSV nhãn lên Drive | Colab `NB_cls` (vì P5b chạy ở đó) | 10–25 phút mỗi phiên |
 
-Đĩa `/content` của Colab có khoảng 80–100 GB nên đủ chứa. Hãy dùng `--delete-zips` để xoá zip sau khi giải nén.
+Máy cần ~30 GB trống cho `~/nckh_data` (zip bị xoá sau khi giải nén nhờ `--delete-zips`). Đĩa `/content` của Colab ~80–100 GB.
 
 ## 3. Giải thích
 
 ### 3.1. Vì sao không lưu ảnh lên Drive
 
 Tổng zip ảnh ISIC khoảng 27 GB (bảng ở `00_tong_quan_va_lo_trinh.md` mục 4), vượt 15 GB miễn phí của Drive. Thêm nữa, đọc hàng nghìn ảnh nhỏ qua Drive rất chậm. Quy tắc:
-- **Ảnh**: tải thẳng từ S3 của ISIC về `/content/zips`, giải nén vào `/content/data`, xoá zip. Mỗi phiên làm lại; script **idempotent** (đã giải nén đủ thì bỏ qua).
+- **Ảnh**: máy tải một lần từ S3 của ISIC về `~/nckh_data` (giữ lại). Colab tải lại về `/content/data` mỗi phiên khi cần train/suy luận. Script **idempotent** (đã giải nén đủ thì bỏ qua).
 - **Drive** chỉ giữ thứ nhỏ: CSV nhãn, manifest, `mask_count.json`.
-- **Manifest lưu đường dẫn tương đối** (`ISIC2018/Training_Data/ISIC_0000000.jpg`) so với `data_root`. Phiên sau ảnh vẫn nằm ở `/content/data`, manifest vẫn dùng được, và hash SHA-256 giúp phát hiện nếu file tải về khác lần trước.
+- **Manifest lưu đường dẫn tương đối** (`ISIC2018/Training_Data/ISIC_0000000.jpg`) so với `data_root`. Cùng manifest dùng được với `~/nckh_data` ở máy và `/content/data` trên Colab, và hash SHA-256 giúp phát hiện nếu file tải về khác lần trước.
 
 ### 3.2. Layout mà loader PanDerm cần
 
@@ -86,6 +87,8 @@ Pipeline P6 chỉ làm việc với 6 cột chuẩn:
 ## 4. Code
 
 ### 4.1. `src/nckh/isic.py`
+
+📁 **Tạo trên máy cá nhân:** `<repo>/src/nckh/isic.py`
 
 ```python
 # file: src/nckh/isic.py
@@ -204,6 +207,8 @@ def make_trainphase(df: pd.DataFrame) -> pd.DataFrame:
 
 ### 4.2. `src/nckh/manifest.py`
 
+📁 **Tạo trên máy cá nhân:** `<repo>/src/nckh/manifest.py`
+
 ```python
 # file: src/nckh/manifest.py
 """Manifest dữ liệu, kiểm tra ảnh, chia tập theo nhóm và kiểm tra rò rỉ.
@@ -309,6 +314,8 @@ def assert_no_group_leakage(df: pd.DataFrame, group_col: str, split_col: str = "
 
 ### 4.3. Scripts
 
+📁 **Tạo trên máy cá nhân:** `<repo>/scripts/prepare_isic2018.py`
+
 ```python
 # file: scripts/prepare_isic2018.py
 """Tải + giải nén ISIC 2018 Task 1 về /content theo đúng layout loader PanDerm, đếm số mask mỗi ảnh.
@@ -347,6 +354,8 @@ def main(argv: list[str] | None = None) -> None:
 if __name__ == "__main__":
     main()
 ```
+
+📁 **Tạo trên máy cá nhân:** `<repo>/scripts/prepare_isic2017_cls.py`
 
 ```python
 # file: scripts/prepare_isic2017_cls.py
@@ -405,6 +414,8 @@ if __name__ == "__main__":
     main()
 ```
 
+📁 **Tạo trên máy cá nhân:** `<repo>/scripts/build_manifest.py`
+
 ```python
 # file: scripts/build_manifest.py
 """Tạo manifest ISIC 2018 (3 split chính thức), báo ảnh trùng xuyên split, ghi hash của manifest.
@@ -448,6 +459,8 @@ if __name__ == "__main__":
 
 Đây là template: bạn điền tên cột gốc sau P1. Giá trị `<ĐIỀN TÊN CỘT GỐC>` cố ý để trống, và P6 sẽ báo lỗi rõ ràng nếu bạn quên điền.
 
+📁 **Tạo trên máy cá nhân:** `<repo>/configs/uq_column_map.yaml`
+
 ```yaml
 # file: configs/uq_column_map.yaml
 # Điền TÊN CỘT GỐC trong metadata UQ cho từng cột chuẩn (làm sau P1, khi đã đọc data dictionary).
@@ -465,6 +478,8 @@ captured_at_format: "ISO8601"
 ```
 
 ### 4.5. Test
+
+📁 **Tạo trên máy cá nhân:** `<repo>/tests/test_manifest.py`
 
 ```python
 # file: tests/test_manifest.py
@@ -602,6 +617,8 @@ def test_load_uq_metadata_date_format(tmp_path: Path) -> None:
     assert parsed.dt.month.tolist() == [1, 1] and parsed.dt.day.tolist() == [5, 13]
 ```
 
+📁 **Tạo trên máy cá nhân:** `<repo>/tests/test_prepare.py`
+
 ```python
 # file: tests/test_prepare.py
 import zipfile
@@ -686,18 +703,35 @@ def test_count_masks(tmp_path: Path) -> None:
 ### 4.6. Cell chạy
 
 ```python
-# cell: NB_cpu
-# ISIC 2018: tải + giải nén về /content (mỗi phiên), manifest + mask_count lên Drive.
-!cd {ROOT}/nckh && python scripts/prepare_isic2018.py --zips-dir /content/zips --data-root /content/data --delete-zips
-!cp /content/data/ISIC2018/mask_count.json {ROOT}/data/manifests/
-!cd {ROOT}/nckh && python scripts/build_manifest.py --data-root /content/data --out {ROOT}/data/manifests/isic2018_seg.csv
+# cell: NB_cpu (máy cá nhân)
+# ISIC 2018: tải + giải nén về ~/nckh_data (một lần), manifest + mask_count vào ~/nckh_drive.
+!mkdir -p {ROOT}/data/manifests
+!cd {REPO} && {PY} scripts/prepare_isic2018.py --zips-dir /tmp/nckh_zips --data-root {DATA} --delete-zips
+!cp {DATA}/ISIC2018/mask_count.json {ROOT}/data/manifests/
+!cd {REPO} && {PY} scripts/build_manifest.py --data-root {DATA} --out {ROOT}/data/manifests/isic2018_seg.csv
 ```
 
+Đẩy manifest lên Drive để Colab dùng:
+
+```bash
+# terminal VS Code (máy cá nhân)
+rclone copy ~/nckh_drive/data/manifests gdrive:NCKH_PanDerm/data/manifests --progress
+```
+
+Trên Colab, P5a tải lại ảnh ISIC 2018 vào `/content/data` bằng cùng script (`--zips-dir /content/zips --data-root /content/data --delete-zips`); manifest không cần tạo lại.
+
 ```python
-# cell: NB_cls
+# cell: NB_cls (Colab GPU)
 # ISIC 2017: ảnh về /content/data/ISIC2017, CSV nhãn lên Drive.
-!cd {ROOT}/nckh && /content/venv_cls/bin/python scripts/prepare_isic2017_cls.py --zips-dir /content/zips --data-root /content/data --out-dir {ROOT}/data/manifests --delete-zips
+!cd {CODE} && /content/venv_cls/bin/python scripts/prepare_isic2017_cls.py --zips-dir /content/zips --data-root /content/data --out-dir {ROOT}/data/manifests --delete-zips
 !ls /content/data/ISIC2017/*/ | head; ls /content/data/ISIC2017/ISIC-2017_Training_Data | wc -l
+```
+
+Kéo CSV nhãn ISIC 2017 về máy:
+
+```bash
+# terminal VS Code (máy cá nhân)
+rclone copy gdrive:NCKH_PanDerm/data/manifests ~/nckh_drive/data/manifests --progress
 ```
 
 Kỳ vọng:
@@ -707,7 +741,7 @@ Kỳ vọng:
 Kiểm tra nhanh manifest:
 
 ```python
-# cell: NB_cpu
+# cell: NB_cpu (máy cá nhân)
 import pandas as pd
 m = pd.read_csv(f'{ROOT}/data/manifests/isic2018_seg.csv')
 print(m.groupby('split').size())                     # train 2594, val 100, test 1000
@@ -720,14 +754,14 @@ Ghi SHA-256 của manifest vào protocol. Từ thời điểm này **không sử
 
 ### 4.7. Khi có quyền UQ
 
-1. Điền `configs/uq_column_map.yaml` theo bảng P1, rồi commit.
+1. Điền `<repo>/configs/uq_column_map.yaml` theo bảng P1, rồi commit + push ở máy (00 mục 5.1).
 2. Thử đọc:
 
 ```python
-# cell: NB_cpu
+# cell: NB_cpu (máy cá nhân)
 import yaml
 from nckh.manifest import load_uq_metadata, assign_group_split, assert_no_group_leakage
-cmap = yaml.safe_load(open(f'{ROOT}/nckh/configs/uq_column_map.yaml'))
+cmap = yaml.safe_load(open(f'{REPO}/configs/uq_column_map.yaml'))
 dermo = cmap.pop('modality_dermoscopy_value')
 uq = load_uq_metadata(Path(f'{ROOT}/data/uq/metadata.csv'), cmap)   # đổi tên file cho đúng gói thật
 uq['split'] = assign_group_split(uq, 'participant_id', seed=2026)
@@ -740,8 +774,8 @@ Toàn bộ bước ghép cặp và manifest UQ cuối cùng được làm bằng
 ## 5. Test
 
 ```python
-# cell: NB_cpu
-!cd {ROOT}/nckh && python -m pytest -q tests/test_manifest.py tests/test_prepare.py
+# cell: NB_cpu (máy cá nhân)
+!cd {REPO} && {PY} -m pytest -q tests/test_manifest.py tests/test_prepare.py
 ```
 
 Kỳ vọng: `14 passed`.
@@ -776,14 +810,21 @@ Số lượng **kỳ vọng** lấy theo dữ liệu chính thức. Nếu số t
 | Tải + giải nén ISIC 2017 | [điền sau khi chạy] |
 | `build_manifest.py` | [điền sau khi chạy] |
 
-## 7. Lỗi thường gặp trên Colab
+## 7. Lỗi thường gặp (máy / Colab extension)
 
 | Triệu chứng | Cách xử lý |
 |---|---|
-| Runtime ngắt giữa lúc tải | Chạy lại cell. File `.part` dở dang sẽ bị ghi đè; zip đã đủ byte thì bỏ qua |
-| `No space left on device` | Thêm `--delete-zips`; xoá `/content/smoke`; kiểm tra bằng `!df -h /content` |
+| Mạng/runtime ngắt giữa lúc tải | Chạy lại cell. File `.part` dở dang sẽ bị ghi đè; zip đã đủ byte thì bỏ qua |
+| `No space left on device` | Thêm `--delete-zips`. Máy: kiểm tra `df -h ~ /tmp`. Colab: xoá `/content/smoke`, kiểm tra `!df -h /content` |
 | Số ảnh train ít hơn 2.594 | Giải nén bị ngắt: xoá thư mục `Training_Data` rồi chạy lại (`extract_zip` chỉ bỏ qua khi đã đủ file) |
-| Manifest có `missing_mask` hàng loạt | Thiếu zip GroundTruth hoặc sai tên thư mục; kiểm tra `ls /content/data/ISIC2018` |
+| Manifest có `missing_mask` hàng loạt | Thiếu zip GroundTruth hoặc sai tên thư mục; kiểm tra `ls ~/nckh_data/ISIC2018` (máy) hoặc `ls /content/data/ISIC2018` (Colab) |
+| Manifest trên Colab là bản cũ | Quên đẩy sau khi tạo lại ở máy: chạy lại `rclone copy ~/nckh_drive/data/manifests gdrive:NCKH_PanDerm/data/manifests` |
+| `AssertionError: Chưa mount Drive` (Colab) | `Ctrl+Shift+P` → *Colab: Mount Google Drive to Server...*, chạy lại cell setup |
+| Kernel Colab mất kết nối / server bị thu hồi | *Select Kernel → Colab → New Colab Server*, chạy lại cell setup + venv; dữ liệu trên Drive vẫn còn |
+| Colab chạy code cũ | Ở máy `git push`, chạy lại cell setup (có `git pull`) |
+| `userdata.get` / `files.upload` lỗi | Chưa hỗ trợ trong extension; không dùng, file đi qua Drive |
+| `rclone` báo `couldn't fetch token` | `rclone config reconnect gdrive:` |
+| Ở máy không thấy file Colab vừa ghi | Chạy lệnh `rclone copy gdrive:NCKH_PanDerm/... ~/nckh_drive/...` |
 | `ValueError: Thiếu cột trong metadata.csv` | Tên cột trong YAML sai; đối chiếu danh sách "Cột hiện có" trong thông báo lỗi |
 
 ## 8. Checklist bàn giao cho SV A
