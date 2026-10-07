@@ -53,7 +53,8 @@ index 0f5f5e7..d01c3f0 100644
 +        ckpt_path = os.environ.get('PANDERM_CKPT', 'model_weights/panderm_bb_data6_checkpoint-499.pth')
 +        print('=> Loading CAE weights from', ckpt_path)
 +        cae_weight = torch.load(ckpt_path, map_location='cpu')
-         new_state_dict = {k.replace('encoder.', ''): v for k, v in cae_weight.items() if 'encoder' in k}
+-        new_state_dict = {k.replace('encoder.', ''): v for k, v in cae_weight.items() if 'encoder' in k}
++        new_state_dict = dict(cae_weight)
  
          model_dict = self.segmentor.backbone.state_dict()
          matched_dict = {}
@@ -128,8 +129,3 @@ index 0b23f31..ddbf374 100644
              max_epochs=epoch,
              log_every_n_steps=10
          )
-# cell: NB_seg (Colab GPU)
-PATCH = f'{CODE}/patches/panderm_base_seg.patch'
-# Kiểm tra theo chiều ngược trước, để chạy lại cell này nhiều lần cũng không áp patch hai lần.
-!cd /content/PanDerm && (git apply --reverse --check {PATCH} 2>/dev/null && echo "Patch đã áp từ trước") || (git apply {PATCH} && echo "Đã áp patch")
-!cd /content/PanDerm && git diff --stat
