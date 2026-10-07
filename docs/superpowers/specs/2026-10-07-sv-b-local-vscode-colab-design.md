@@ -33,7 +33,7 @@
 
 Vòng làm việc: sửa code ở máy → `git push` → trên Colab `git pull` + chạy → kết quả ghi lên Drive → ở máy `rclone copy gdrive:NCKH_PanDerm/runs ~/nckh_drive/runs` → đánh giá ở máy. Chiều ngược lại: manifest/config tạo ở máy → `rclone copy ~/nckh_drive/data/manifests gdrive:NCKH_PanDerm/data/manifests`.
 
-Phân phase: **Máy** = P0, P1, P3, P4, P6 (ghép cặp, Ridge), P7, P9, P10, P11, pytest. **Colab** = P2 (smoke test, benchmark, cài venv GPU), P5a, P5b, P6 (suy luận mask/xác suất), P8 (tạo ảnh suy giảm + suy luận).
+Phân phase: **Máy** = P0, P1, P3, P4, P6 (ghép cặp, Ridge), P7, P9 (chế độ giả), P10, P11, pytest. **Colab** = P2 (smoke test, benchmark, cài venv GPU), P5a, P5b, P6 (suy luận mask/xác suất), P8 (tạo ảnh suy giảm + suy luận), P9 (model thật).
 
 ## 4. Quy ước ghi vị trí file (áp dụng mọi file phase)
 
@@ -56,7 +56,7 @@ Phân phase: **Máy** = P0, P1, P3, P4, P6 (ghép cặp, Ridge), P7, P9, P10, P1
 | `P6` | Tách phần Colab (suy luận mask/xác suất) và phần máy (`make_fake_uq.py`, `build_pairs.py`, `train_ridge.py`); thêm lệnh rclone giữa các bước. |
 | `P7`, `P10`, `P0_P1_P4_P11` | `NB_cpu` → máy; thêm lệnh rclone kéo kết quả. |
 | `P8` | Tạo ảnh suy giảm + suy luận trên Colab; `evaluate_robustness.py` trên máy. |
-| `P9` | Demo Streamlit chạy trên máy (CPU), checkpoint kéo từ Drive về `~/nckh_drive/`; bỏ phần chạy Streamlit trên Colab nếu có. |
+| `P9` | Chế độ giả chạy trên máy (localhost:8501, không tunnel); demo với model thật chạy trên Colab NB_seg + tunnel cloudflared (chạy model ⇒ Colab). |
 
 Tất cả file: mục 7 đổi tên thành **"Lỗi thường gặp (máy / Colab extension)"**. Các lỗi mới: server Colab bị ngắt/thu hồi, Drive chưa mount (`/content/drive` trống), `userdata.get` không dùng được trong extension, rclone token hết hạn, quên `git push` trước khi `pull` trên Colab.
 
