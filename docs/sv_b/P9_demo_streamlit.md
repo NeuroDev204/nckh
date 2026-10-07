@@ -364,7 +364,13 @@ time.sleep(8)
 !curl -s localhost:8501/_stcore/health && echo " ← Streamlit OK"
 ```
 
-Nếu chưa có `ridge.joblib` từ UQ thật (chưa qua Go/No-Go), demo vẫn chạy được phần mask + xác suất với ridge của dữ liệu giả. Khi đó **phải** ghi rõ trên ảnh chụp màn hình rằng con số dự báo chỉ là minh họa từ dữ liệu giả.
+Nếu chưa có `ridge.joblib` từ UQ thật (chưa qua Go/No-Go), demo vẫn chạy được phần mask + xác suất với ridge của dữ liệu giả. Đẩy file đó lên Drive rồi đổi `NCKH_RIDGE` trong cell trên thành `f"{ROOT}/runs/<p6_fake_run_id>/ridge.joblib"`:
+
+```bash
+# terminal VS Code (máy cá nhân)
+rclone copyto ~/nckh_drive/runs/<p6_fake_run_id>/ridge.joblib gdrive:NCKH_PanDerm/runs/<p6_fake_run_id>/ridge.joblib
+```
+Khi đó **phải** ghi rõ trên ảnh chụp màn hình rằng con số dự báo chỉ là minh họa từ dữ liệu giả.
 
 ### 4.6. Mở tunnel để xem từ trình duyệt
 

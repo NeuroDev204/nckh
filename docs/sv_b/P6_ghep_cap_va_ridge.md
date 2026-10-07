@@ -1080,6 +1080,8 @@ print(Path(RUN).name)   # run_id: dùng ở lệnh rclone và cell NB_seg/NB_cls
 
 Gửi `flow.json` và `pairs_excluded.csv` cho SV A **trước khi** chạy bước tiếp theo (kế hoạch: cặp bị loại được thống kê trước khi mở test).
 
+Chuẩn bị phiên Colab cho mục 4.7: push code ở máy (có `scripts/infer_images.py`) → cell setup P2 4.1b → `NB_seg`: `venv_seg` (P2 4.4), patch (P2 4.6), biến `CK` (P2 4.3); `NB_cls`: `venv_cls` (P2 4.10, các dòng cài đặt).
+
 Đẩy run lên Drive cho Colab:
 
 ```bash
@@ -1115,10 +1117,14 @@ rclone copy gdrive:NCKH_PanDerm/runs/<p6_uq_run_id> ~/nckh_drive/runs/<p6_uq_run
 !cd {REPO} && {PY} scripts/train_ridge.py --pairs {RUN}/pairs.csv --seg-features {RUN}/seg_features.csv --cls-probs {RUN}/cls_probs.csv --out-dir {RUN}/ridge
 ```
 
-```python
-# cell: NB_cpu (máy cá nhân)
+Lần 2 chạy trong **terminal VS Code**, không chạy trong cell: script hỏi xác nhận bằng `input()`, mà lệnh `!` trong notebook ở máy không nhận bàn phím (báo `EOFError`).
+
+```bash
+# terminal VS Code (máy cá nhân)
 # Lần 2 — ĐÚNG MỘT LẦN, sau khi khóa protocol và SV A xác nhận. Script sẽ hỏi; gõ: mo test
-!cd {REPO} && {PY} scripts/train_ridge.py --pairs {RUN}/pairs.csv --seg-features {RUN}/seg_features.csv --cls-probs {RUN}/cls_probs.csv --out-dir {RUN}/ridge_test --open-test
+cd <repo> && source .venv/bin/activate && set -a && source .env && set +a
+RUN=~/nckh_drive/runs/<p6_uq_run_id>
+python scripts/train_ridge.py --pairs $RUN/pairs.csv --seg-features $RUN/seg_features.csv --cls-probs $RUN/cls_probs.csv --out-dir $RUN/ridge_test --open-test
 ```
 
 Lần 2 ghi vào thư mục mới (`ridge_test`), nên run lần 1 được giữ nguyên làm bằng chứng. Dữ liệu và seed giống nhau nên alpha và mô hình phải trùng lần 1: so `ridge_summary.json` hai lần.

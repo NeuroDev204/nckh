@@ -441,6 +441,8 @@ Cài và chạy test ở máy (`NB_cpu`):
 
 Kỳ vọng: `5 passed`.
 
+> **Trước cell Colab đầu tiên của P2:** Colab chỉ thấy code đã push. Vì vậy tạo xong **trên máy** mọi file của P2 (4.2, `scripts/inspect_checkpoint.py` ở 4.5, `patches/panderm_base_seg.patch` ở 4.6, `src/nckh/infer.py` ở 4.7, `scripts/bench_inference.py` ở 4.8, kèm các file test), chạy pytest (mục 5), rồi commit + push bằng lệnh ở 4.12. Sau đó mới chạy cell setup 4.1b trên Colab. Mỗi lần sửa file ở máy: push lại và chạy lại 4.1b (có `git pull`).
+
 ### 4.3. Tải checkpoint PanDerm_Base (Colab `NB_seg`, lưu lên Drive)
 
 Đọc điều khoản trước: PanDerm phát hành theo CC BY-NC-ND 4.0, chỉ dùng cho nghiên cứu phi thương mại và phải ghi nguồn.
@@ -595,7 +597,9 @@ def test_summarize_flags_missing_prefix() -> None:
 
 ### 4.6. Áp patch segmentation (trong `NB_seg`)
 
-Tạo file `patches/panderm_base_seg.patch` với **đúng** nội dung dưới đây. Khối này không có dòng `# file:` vì file patch không được có dòng thừa. File phải kết thúc bằng một dòng trống.
+Tạo file `patches/panderm_base_seg.patch` **ở máy** với **đúng** nội dung dưới đây, push lên GitHub, rồi mới chạy cell áp patch trên Colab. Khối này không có dòng `# file:` vì file patch không được có dòng thừa. File phải kết thúc bằng một dòng trống.
+
+📁 **Tạo trên máy cá nhân:** `<repo>/patches/panderm_base_seg.patch`
 
 ```diff
 diff --git a/segmentation/models/cae_config.py b/segmentation/models/cae_config.py

@@ -706,7 +706,7 @@ def test_count_masks(tmp_path: Path) -> None:
 # cell: NB_cpu (máy cá nhân)
 # ISIC 2018: tải + giải nén về ~/nckh_data (một lần), manifest + mask_count vào ~/nckh_drive.
 !mkdir -p {ROOT}/data/manifests
-!cd {REPO} && {PY} scripts/prepare_isic2018.py --zips-dir /tmp/nckh_zips --data-root {DATA} --delete-zips
+!cd {REPO} && {PY} scripts/prepare_isic2018.py --zips-dir {DATA}/zips --data-root {DATA} --delete-zips
 !cp {DATA}/ISIC2018/mask_count.json {ROOT}/data/manifests/
 !cd {REPO} && {PY} scripts/build_manifest.py --data-root {DATA} --out {ROOT}/data/manifests/isic2018_seg.csv
 ```
@@ -719,6 +719,8 @@ rclone copy ~/nckh_drive/data/manifests gdrive:NCKH_PanDerm/data/manifests --pro
 ```
 
 Trên Colab, P5a tải lại ảnh ISIC 2018 vào `/content/data` bằng cùng script (`--zips-dir /content/zips --data-root /content/data --delete-zips`); manifest không cần tạo lại.
+
+Chuẩn bị phiên Colab `NB_cls`: push code ở máy (có `scripts/prepare_isic2017_cls.py`) → cell setup P2 4.1b → dựng `venv_cls` (P2 4.10, các dòng cài đặt).
 
 ```python
 # cell: NB_cls (Colab GPU)
