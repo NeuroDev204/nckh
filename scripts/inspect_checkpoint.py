@@ -24,9 +24,9 @@ def summarize_state_dict(sd: dict) -> dict:
     elif shape[0] == 1024:
         verdict = "ViT-L (1024) — đây là PanDerm Large, không phải base"
     elif shape[0] == 768 and has_encoder:
-        verdict = "ViT-B (768) với prefix encoder. — dùng được với patch"
+        verdict = "ViT-B (768) với prefix encoder. — patch đang dùng dict(cae_weight), phải đổi lại thành replace('encoder.','')"
     else:
-        verdict = "ViT-B (768) nhưng không có prefix encoder. — sử dụng replace('encoder.','') trong patch"
+        verdict = "ViT-B (768) không có prefix encoder. — dùng được với patch (dict(cae_weight))"
     return {
         "wrapped_in": wrapped_in,
         "n_key": len(sd),

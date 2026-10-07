@@ -530,9 +530,9 @@ def summarize_state_dict(sd: dict) -> dict:
     elif shape[0] == 1024:
         verdict = "ViT-L (1024) — đây là PanDerm Large, không phải Base"
     elif shape[0] == 768 and has_encoder:
-        verdict = "ViT-B (768) với prefix encoder. — dùng được với patch"
+        verdict = "ViT-B (768) với prefix encoder. — patch đang dùng dict(cae_weight), phải đổi lại thành replace('encoder.','')"
     else:
-        verdict = "ViT-B (768) nhưng không có prefix encoder. — sửa dòng replace('encoder.', '') trong patch"
+        verdict = "ViT-B (768) không có prefix encoder. — dùng được với patch (dict(cae_weight))"
     return {
         "wrapped_in": wrapped_in,
         "n_keys": len(sd),
@@ -576,7 +576,7 @@ def test_summarize_counts_prefix_and_patch_shape() -> None:
     s = summarize_state_dict(sd)
     assert s["prefix_counts"] == {"encoder": 2, "decoder": 1}
     assert s["patch_embed_shape"] == [768, 3, 16, 16]
-    assert s["verdict"] == "ViT-B (768) với prefix encoder. — dùng được với patch"
+    assert s["verdict"].startswith("ViT-B (768) với prefix encoder.")
 
 
 def test_summarize_unwraps_and_flags_large() -> None:
@@ -587,7 +587,7 @@ def test_summarize_unwraps_and_flags_large() -> None:
 
 def test_summarize_flags_missing_prefix() -> None:
     s = summarize_state_dict({"patch_embed.proj.weight": np.zeros((768, 3, 16, 16))})
-    assert "không có prefix encoder." in s["verdict"]
+    assert "dùng được với patch" in s["verdict"]
 ```
 
 ```python
@@ -597,9 +597,9 @@ def test_summarize_flags_missing_prefix() -> None:
 
 | Bạn thấy `verdict` | Làm gì |
 |---|---|
-| `ViT-B (768) với prefix encoder. — dùng được với patch` | Đi tiếp 4.6 |
+| `ViT-B (768) không có prefix encoder. — dùng được với patch` | Đi tiếp 4.6 (checkpoint `panderm_bb_data6` thuộc trường hợp này) |
 | `ViT-L (1024) …` | Tải nhầm bản Large. Kiểm tra lại ID Google Drive ở 4.3 |
-| `ViT-B (768) nhưng không có prefix encoder.` | Trong patch, ở dòng `new_state_dict = {k.replace('encoder.', ''): v ... if 'encoder' in k}`, đổi `'encoder.'`/`'encoder'` thành prefix thật (xem `prefix_counts`). Ghi vào nhật ký quyết định |
+| `ViT-B (768) với prefix encoder. …` | Trong patch, đổi dòng `new_state_dict = dict(cae_weight)` thành `new_state_dict = {k.replace('encoder.', ''): v for k, v in cae_weight.items() if 'encoder' in k}`. Ghi vào nhật ký quyết định |
 | `Không tìm thấy patch_embed.proj.weight` | Dừng lại, gửi `first_keys` cho nhóm/giảng viên |
 
 ### 4.6. Áp patch segmentation (trong `NB_seg`)
@@ -664,7 +664,8 @@ index 0f5f5e7..d01c3f0 100644
 +        ckpt_path = os.environ.get('PANDERM_CKPT', 'model_weights/panderm_bb_data6_checkpoint-499.pth')
 +        print('=> Loading CAE weights from', ckpt_path)
 +        cae_weight = torch.load(ckpt_path, map_location='cpu')
-         new_state_dict = {k.replace('encoder.', ''): v for k, v in cae_weight.items() if 'encoder' in k}
+-        new_state_dict = {k.replace('encoder.', ''): v for k, v in cae_weight.items() if 'encoder' in k}
++        new_state_dict = dict(cae_weight)
  
          model_dict = self.segmentor.backbone.state_dict()
          matched_dict = {}
