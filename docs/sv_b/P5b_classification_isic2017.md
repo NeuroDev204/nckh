@@ -4,21 +4,23 @@
 
 **Mục tiêu (kế hoạch Phase 5.2):** fine-tune nhánh phân loại PanDerm Base cho 3 nhóm tham khảo (melanoma, nevus, seborrheic keratosis). Chọn checkpoint trên validation, đánh giá test **một lần**, lưu xác suất từng ảnh để tính lại mọi metric. Đầu ra là **điểm/xác suất theo nhãn dữ liệu**, không phải chẩn đoán.
 
-| Đầu vào | Đầu ra (`runs/<run_id>/` trên Drive) |
-|---|---|
-| `/content/data/ISIC2017/ISIC-2017_*_Data/` (P3) | `checkpoint-best.pth` (chọn theo val) |
-| `data/manifests/isic2017_cls_trainphase.csv` (khi train), `isic2017_cls.csv` (khi test) | `val.csv` (xác suất val của epoch gần nhất), `log.txt`, `train_stdout.log` |
-| Checkpoint pretrain (P2) | Sau khi khóa: `eval_test/test.csv`, `eval_test/cls_metrics.json`, `eval_test/calibration.png`, `run_card.json` |
+| Đầu vào | Đầu ra (`MyDrive/NCKH_PanDerm/runs/<run_id>/`) | Sinh ở |
+|---|---|---|
+| `/content/data/ISIC2017/ISIC-2017_*_Data/` (Colab, P3) | `checkpoint-best.pth` (chọn theo val) | Colab `NB_cls` ghi lên Drive |
+| `{ROOT}/data/manifests/isic2017_cls_trainphase.csv` (khi train), `isic2017_cls.csv` (khi test) | `val.csv` (xác suất val của epoch gần nhất), `log.txt`, `train_stdout.log` | Colab `NB_cls` ghi lên Drive |
+| Checkpoint pretrain (P2) | Sau khi khóa: `eval_test/test.csv`, `eval_test/cls_metrics.json`, `run_card.json` | Colab `NB_cls` ghi lên Drive → kéo về `~/nckh_drive/runs/<run_id>/` |
+| — | `eval_test/calibration.png` | Máy, trong `~/nckh_drive/runs/<run_id>/eval_test/` |
 
 ## 2. Chạy ở đâu
 
-| Việc | Notebook | Thời gian ước tính |
+| Việc | Chạy ở | Thời gian ước tính |
 |---|---|---|
-| Tạo `evaluate_cls.py`, `annotator_agreement.py`, test | NB_cpu | 10 phút |
-| Tải ISIC 2017 (P3) | NB_cls | 10–25 phút mỗi phiên |
-| Pilot 1 epoch | NB_cls (GPU) | 5–10 phút |
-| Fine-tune 50 epoch | NB_cls (GPU) | Ước lượng = thời gian/epoch đo ở pilot × 50 (thường vừa trong một phiên) |
-| Eval test một lần + metric | NB_cls + NB_cpu | 5 phút |
+| Tạo `evaluate_cls.py`, `annotator_agreement.py`, test | Máy (`NB_cpu`) | 10 phút |
+| Tải ISIC 2017 (P3) | Colab `NB_cls` | 10–25 phút mỗi phiên |
+| Pilot 1 epoch | Colab `NB_cls` (GPU) | 5–10 phút |
+| Fine-tune 50 epoch | Colab `NB_cls` (GPU) | Ước lượng = thời gian/epoch đo ở pilot × 50 (thường vừa trong một phiên) |
+| Eval test một lần + metric | Colab `NB_cls` | 5 phút |
+| Kéo run về máy, vẽ calibration | Máy (terminal rclone + `NB_cpu`) | 1–3 phút |
 
 > ⚠️ Chưa kiểm chứng trên GPU — xác minh trong pilot P2/P5b. Phần đã kiểm chứng trên CPU khi viết docs: dựng `PanDerm_Base_FT` và nạp pretrain bằng code `classification/` thật; tạo CSV nhãn từ ground truth thật của ISIC 2017; `evaluate_cls.py` (pytest).
 
@@ -58,6 +60,8 @@ Val/test (không TTA): `Resize(256)` (bilinear) → `CenterCrop(224)` → chuẩ
 ## 4. Code
 
 ### 4.1. `scripts/evaluate_cls.py`
+
+📁 **Tạo trên máy cá nhân:** `<repo>/scripts/evaluate_cls.py`
 
 ```python
 # file: scripts/evaluate_cls.py
@@ -123,6 +127,8 @@ if __name__ == "__main__":
 
 ### 4.2. `scripts/annotator_agreement.py` (dùng ở P4)
 
+📁 **Tạo trên máy cá nhân:** `<repo>/scripts/annotator_agreement.py`
+
 ```python
 # file: scripts/annotator_agreement.py
 """Độ đồng thuận giữa hai người gán mask (P4): Dice, IoU, tỷ lệ diện tích từng người và chênh lệch.
@@ -176,6 +182,8 @@ if __name__ == "__main__":
 ```
 
 ### 4.3. Test
+
+📁 **Tạo trên máy cá nhân:** `<repo>/tests/test_eval_cls_agreement.py`
 
 ```python
 # file: tests/test_eval_cls_agreement.py
@@ -255,18 +263,18 @@ def test_agreement_missing_file_raises(tmp_path: Path) -> None:
 ```
 
 ```python
-# cell: NB_cpu
-!cd {ROOT}/nckh && python -m pytest -q tests/test_eval_cls_agreement.py
+# cell: NB_cpu (máy cá nhân)
+!cd {REPO} && {PY} -m pytest -q tests/test_eval_cls_agreement.py
 ```
 
 Kỳ vọng: `5 passed`.
 
 ### 4.4. Pilot rồi fine-tune (NB_cls)
 
-Chuẩn bị mỗi phiên: (NB_cpu) cell 4.1a của P2 để pull code → (NB_cls) cell mở đầu 4.1b → `venv_cls` (P2 4.10, phần cài đặt) → tải ISIC 2017 (P3 4.6).
+Đầu mỗi phiên Colab: push code ở máy, rồi chạy trong `NB_cls`: cell setup 4.1b của P2 (có `git pull`) → `venv_cls` (P2 4.10, phần cài đặt) → tải ISIC 2017 vào `/content/data` (P3 4.6, cell `NB_cls`).
 
 ```python
-# cell: NB_cls
+# cell: NB_cls (Colab GPU)
 from nckh.runcard import new_run_id
 os.environ['WANDB_MODE'] = 'disabled'
 TRAIN_CSV = f'{ROOT}/data/manifests/isic2017_cls_trainphase.csv'
@@ -282,7 +290,7 @@ PILOT = f"{ROOT}/runs/{new_run_id('cls_pilot')}/"
 ```
 
 ```python
-# cell: NB_cls
+# cell: NB_cls (Colab GPU)
 RUN = f"{ROOT}/runs/{new_run_id('cls_main')}/"
 os.makedirs(RUN, exist_ok=True)   # tee cần thư mục tồn tại trước
 !cd /content/PanDerm/classification && {VENV}/bin/python run_class_finetuning.py {COMMON} --epochs 50 --exp_name isic2017_ft --wandb_name isic2017_ft_s0 --output_dir {RUN} --csv_path {TRAIN_CSV} 2>&1 | tee {RUN}train_stdout.log | grep -E "Max val|Epoch: \[[0-9]+\] Total|Error"
@@ -297,19 +305,26 @@ Lưu ý `--warmup_epochs 0` ở pilot: chạy 1 epoch thì không thể có 10 e
 Trước khi chạy: ghi vào nhật ký quyết định `RUN`, epoch tốt nhất, `--monitor`, có TTA hay không, ngày giờ. SV A xác nhận đã khóa.
 
 ```python
-# cell: NB_cls
+# cell: NB_cls (Colab GPU)
 EVAL = f"{RUN}eval_test/"
 !{VENV}/bin/python -m nckh.runcard {EVAL} --seed 0 --input best={RUN}checkpoint-best.pth --input labels={ROOT}/data/manifests/isic2017_cls.csv --config monitor=recall --config tta=false
 !cd /content/PanDerm/classification && {VENV}/bin/python run_class_finetuning.py {COMMON} --epochs 50 --exp_name isic2017_test --wandb_name isic2017_test --output_dir {EVAL} --csv_path {ROOT}/data/manifests/isic2017_cls.csv --resume {RUN}checkpoint-best.pth --eval 2>&1 | tail -3
-!cd {ROOT}/nckh && {VENV}/bin/python scripts/evaluate_cls.py --pred-csv {EVAL}test.csv --labels-csv {ROOT}/data/manifests/isic2017_cls.csv --out-dir {EVAL}
+!cd {CODE} && {VENV}/bin/python scripts/evaluate_cls.py --pred-csv {EVAL}test.csv --labels-csv {ROOT}/data/manifests/isic2017_cls.csv --out-dir {EVAL}
 ```
 
 `evaluate_cls.py --labels-csv` dừng với lỗi nếu `test.csv` không có đúng 600 dòng. Đây là hàng rào chặn việc lỡ đọc nhầm file test của pha train.
 
-### 4.6. Đường calibration
+### 4.6. Đường calibration (máy)
+
+Kéo kết quả eval về máy (bỏ checkpoint ~1 GB):
+
+```bash
+# terminal VS Code (máy cá nhân)
+rclone copy gdrive:NCKH_PanDerm/runs/<run_id> ~/nckh_drive/runs/<run_id> --exclude "*.pth" --progress
+```
 
 ```python
-# cell: NB_cpu
+# cell: NB_cpu (máy cá nhân)
 import pandas as pd, matplotlib.pyplot as plt
 from sklearn.calibration import calibration_curve
 EVAL = f"{ROOT}/runs/<cls_main_run_id>/eval_test/"      # thay đúng run_id
@@ -357,16 +372,22 @@ fig.savefig(f"{EVAL}calibration.png", dpi=200)
 
 Không gọi kết quả là "độ chính xác chẩn đoán". Khi viết, dùng cách diễn đạt: "điểm nhóm tham khảo theo nhãn ISIC 2017".
 
-## 7. Lỗi thường gặp trên Colab
+## 7. Lỗi thường gặp (máy / Colab extension)
 
 | Triệu chứng | Cách xử lý |
 |---|---|
+| `AssertionError: Chưa mount Drive` | `Ctrl+Shift+P` → *Colab: Mount Google Drive to Server...*, chạy lại cell setup |
+| Kernel Colab mất kết nối / server bị thu hồi | *Select Kernel → Colab → New Colab Server*, chạy lại cell setup + venv; dữ liệu trên Drive vẫn còn |
+| Colab chạy code cũ | Ở máy `git push`, chạy lại cell setup (có `git pull`) |
+| `userdata.get` / `files.upload` lỗi | Chưa hỗ trợ trong extension; không dùng, file đi qua Drive |
+| `rclone` báo `couldn't fetch token` | `rclone config reconnect gdrive:` |
+| Ở máy không thấy file Colab vừa ghi | Chạy lệnh `rclone copy gdrive:NCKH_PanDerm/... ~/nckh_drive/...` |
 | Hỏi đăng nhập wandb | `os.environ['WANDB_MODE'] = 'disabled'` trước khi chạy |
 | `Error opening file: /content/data/ISIC2017/...` rồi lỗi `NoneType` | Chưa tải ảnh ISIC 2017 trong phiên này, hoặc `--root_path` thiếu `/` cuối |
 | `test.csv` khi train có 600 dòng | Đang dùng nhầm `isic2017_cls.csv`. **Dừng lại**: dừng, ghi vào nhật ký quyết định rằng test đã bị lộ, báo SV A |
 | `CUDA out of memory` | `--batch_size 16 --update_freq 8` (vẫn giữ batch hiệu dụng 128) |
 | `ModuleNotFoundError: open_clip` | Cài lại `classification/requirements.txt` trong `venv_cls` |
-| Runtime ngắt giữa chừng | Chạy lại toàn bộ với một `RUN` mới; ghi chú run cũ là "không hoàn tất" |
+| Server Colab bị ngắt giữa chừng | Chạy lại toàn bộ với một `RUN` mới; ghi chú run cũ là "không hoàn tất" |
 
 ## 8. Checklist bàn giao cho SV A
 
