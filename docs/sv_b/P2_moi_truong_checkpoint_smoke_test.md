@@ -6,29 +6,34 @@
 
 **Mục tiêu (kế hoạch Phase 2):** dựng môi trường sạch cho hai nhánh PanDerm, tải checkpoint Base chính thức, sửa code segmentation để chạy được ViT-B, rồi chạy **smoke test thật** trên 20 ảnh. Smoke test phải kiểm: nạp được checkpoint, đầu ra đúng kích thước, xác suất hữu hạn và có tổng bằng 1, không lỗi khi ảnh có tỷ lệ khác nhau, đo thời gian và VRAM.
 
-| Đầu vào | Đầu ra (trên Drive) |
+| Đầu vào | Đầu ra (vị trí) |
 |---|---|
-| Repo `nckh` (GitHub), PanDerm upstream `fd7a807` | `nckh/` có package `src/nckh/`, `tests/`, `scripts/`, `patches/`, `.gitignore`, 3 notebook |
-| Checkpoint PanDerm_Base (Google Drive ID `17J4MjsZu3gdBP6xAQi_NMDVvH65a00HB`) | `checkpoints/panderm_bb_data6_checkpoint-499.pth` + `checkpoints/SHA256SUMS` |
-| 20 ảnh ISIC 2018 Validation | `runs/<run_id>/bench_seg.json`, `bench_cls.json`, `overlays/*.png`, `cls_probs_smoke.csv`, `run_card.json` |
+| Repo `nckh` (GitHub), PanDerm upstream `fd7a807` | Máy: `<repo>/` có package `src/nckh/`, `tests/`, `scripts/`, `patches/`, `.gitignore`, `notebooks/NB_*.ipynb` |
+| Checkpoint PanDerm_Base (Google Drive ID `17J4MjsZu3gdBP6xAQi_NMDVvH65a00HB`) | Drive (tải trên Colab): `MyDrive/NCKH_PanDerm/checkpoints/panderm_bb_data6_checkpoint-499.pth` + `SHA256SUMS` |
+| 20 ảnh ISIC 2018 Validation | Drive (Colab ghi): `MyDrive/NCKH_PanDerm/runs/<run_id>/bench_seg.json`, `bench_cls.json`, `overlays/*.png`, `cls_probs_smoke.csv`, `run_card.json` → kéo về `~/nckh_drive/runs/<run_id>/` bằng rclone |
 
 ## 2. Chạy ở đâu
 
-| Việc | Notebook | Phần cứng | Thời gian ước tính |
+| Việc | Chạy ở | Phần cứng | Thời gian ước tính |
 |---|---|---|---|
-| Tạo file code, chạy pytest, tải checkpoint | `NB_cpu` | CPU | 15–30 phút lần đầu |
-| Dựng `venv_seg`, soi checkpoint, áp patch, smoke test seg | `NB_seg` | GPU (T4 trở lên) | 10–15 phút cài + 2 phút chạy |
-| Dựng `venv_cls`, smoke test cls | `NB_cls` | GPU | 8–12 phút cài + 1 phút chạy |
+| Tạo file code, chạy pytest | Máy (`NB_cpu` / terminal VS Code) | CPU | 15–30 phút lần đầu |
+| Tải checkpoint lên Drive | Colab `NB_seg` | — | 2–5 phút |
+| Dựng `venv_seg`, soi checkpoint, áp patch, smoke test seg | Colab `NB_seg` | GPU (T4 trở lên) | 10–15 phút cài + 2 phút chạy |
+| Dựng `venv_cls`, smoke test cls | Colab `NB_cls` | GPU | 8–12 phút cài + 1 phút chạy |
+| Kéo `runs/<run_id>` về máy, điền bảng mục 6 | Máy (terminal) | — | 1 phút |
 
-**Tạo 3 notebook một lần:** trên Colab chọn *File → New notebook*, đặt tên `NB_seg`, `NB_cls`, `NB_cpu`. Sau khi có repo trên Drive (mục 4.1), dùng *File → Save a copy in Drive* rồi chuyển file `.ipynb` vào `MyDrive/NCKH_PanDerm/nckh/notebooks/`. Từ đó mở notebook trực tiếp từ thư mục này để mọi thay đổi nằm trong repo.
-Với `NB_seg` và `NB_cls`: *Runtime → Change runtime type → T4 GPU*.
+**Tạo 3 notebook một lần (ở máy):** trong VS Code, `Ctrl+Shift+P` → *Create: New Jupyter Notebook*, lưu thành `<repo>/notebooks/NB_cpu.ipynb`, `<repo>/notebooks/NB_seg.ipynb`, `<repo>/notebooks/NB_cls.ipynb`. Notebook nằm trong repo nên commit như code.
+- `NB_cpu`: *Select Kernel → Python Environments → .venv*.
+- `NB_seg`, `NB_cls`: *Select Kernel → Colab → New Colab Server* → chọn GPU (T4). Mỗi notebook một server riêng để hai venv không đè nhau.
+
+> ⚠️ Chưa kiểm chứng trên extension — xác minh khi chạy P2 (tên menu chọn GPU có thể khác theo phiên bản extension).
 
 ## 3. Giải thích
 
 ### 3.1. Vì sao code GPU phải chạy bằng `!{VENV}/bin/python script.py`
 
-Kernel của notebook Colab luôn là Python mặc định của Colab (3.11/3.12). Venv Python 3.10 tạo bằng `uv` **không** phải kernel. Vì vậy:
-- Cell Python thường (mount Drive, git, tạo `run_id`) chạy trong kernel.
+Kernel Colab (kể cả khi nối qua extension VS Code) luôn là Python mặc định của Colab (3.11/3.12). Venv Python 3.10 tạo bằng `uv` **không** phải kernel. Vì vậy:
+- Cell Python thường (đặt biến, git pull, tạo `run_id`) chạy trong kernel.
 - Mọi việc cần torch/mmseg/timm đúng phiên bản phải chạy dưới dạng **script** gọi bằng python của venv, ví dụ `!{VENV}/bin/python scripts/bench_inference.py ...`.
 
 Đó là lý do smoke test được viết thành `scripts/bench_inference.py` thay vì dán code vào cell.
@@ -92,52 +97,56 @@ Các lớp `fpn1..4` và `norm` là lớp mới của đầu segmentation, khôn
 
 ### 4.1. Cell mở đầu của 3 notebook
 
-**Chỉ `NB_cpu` được chạy lệnh git** (pull, commit, push). `NB_seg` và `NB_cls` chỉ **đọc** code trên Drive. Lý do: ba notebook cùng ghi vào một thư mục `.git` trên Drive có thể làm hỏng repo (`00_tong_quan_va_lo_trinh.md` mục 5.3). Thứ tự mỗi phiên: mở `NB_cpu`, chạy cell 4.1a (pull), rồi mới mở notebook GPU.
+Git chỉ chạy ở máy (`00_tong_quan_va_lo_trinh.md` mục 5). Repo public nên Colab clone/pull không cần token. Thứ tự mỗi phiên: sửa code ở máy → `git push` → mở notebook GPU, chạy cell 4.1b (có `git pull`).
 
-Token GitHub **không bao giờ được ghi vào `.git/config`** trên Drive (ai có quyền xem thư mục Drive cũng đọc được file đó). URL chứa token chỉ được truyền thẳng vào từng lệnh `pull`/`push`, còn remote `origin` luôn là URL sạch.
-
-**4.1a. `NB_cpu`:**
+**4.1a. `NB_cpu` (máy)** — chạy đầu mỗi phiên:
 
 ```python
-# cell: NB_cpu
+# cell: NB_cpu (máy cá nhân)
+# Kernel: chọn .venv của repo (Select Kernel → Python Environments → .venv).
 import os, sys
 from pathlib import Path
-from google.colab import drive, userdata
-drive.mount('/content/drive')
-ROOT = '/content/drive/MyDrive/NCKH_PanDerm'
+REPO = Path.home() / 'Documents' / 'nckh'      # sửa nếu bạn clone repo ở chỗ khác
+ROOT = str(Path.home() / 'nckh_drive')          # bản sao MyDrive/NCKH_PanDerm, đồng bộ bằng rclone
+DATA = str(Path.home() / 'nckh_data')           # ảnh ISIC giải nén trên máy
+PY = sys.executable                             # Python của .venv, dùng trong lệnh "!"
 os.environ['NCKH_ROOT'] = ROOT
-CLEAN_URL = 'https://github.com/NeuroDev204/nckh.git'
-AUTH_URL = f"https://{userdata.get('GH_TOKEN')}@github.com/NeuroDev204/nckh.git"   # chỉ dùng trong lệnh, không lưu
-!mkdir -p {ROOT}
-!test -d {ROOT}/nckh/.git || (git clone -q {AUTH_URL} {ROOT}/nckh && git -C {ROOT}/nckh remote set-url origin {CLEAN_URL})
-%cd {ROOT}/nckh
-!git config user.name "<tên GitHub của bạn>" && git config user.email "<email GitHub của bạn>"
-!git pull -q --rebase {AUTH_URL} main && git log --oneline -1
-# Package nckh chỉ dùng thư viện thuần Python, nên kernel đọc được trực tiếp từ src/ mà không cần cài.
-sys.path.insert(0, f'{ROOT}/nckh/src')
+os.environ['NCKH_LOCAL_DATA'] = DATA
+%cd {REPO}
+!git log --oneline -1
 ```
 
-**4.1b. `NB_seg` và `NB_cls`** (không có git):
+**4.1b. `NB_seg` và `NB_cls` (Colab)** — chạy đầu mỗi phiên, sau khi push code ở máy.
+
+Trước khi chạy: *Select Kernel → Colab → New Colab Server* → chọn GPU (T4). Sau đó `Ctrl+Shift+P` → **Colab: Mount Google Drive to Server...** (extension chèn một cell mount; chạy cell đó và làm theo hướng dẫn đăng nhập).
 
 ```python
-# cell: NB_seg
+# cell: NB_seg (Colab GPU)
 import os, sys
 from pathlib import Path
-from google.colab import drive
-drive.mount('/content/drive')
-ROOT = '/content/drive/MyDrive/NCKH_PanDerm'
+ROOT = '/content/drive/MyDrive/NCKH_PanDerm'   # Drive đã mount bằng lệnh extension
+CODE = '/content/nckh'                          # bản clone chỉ đọc; sửa code ở máy rồi push
+assert os.path.isdir(ROOT), 'Chưa mount Drive: Ctrl+Shift+P → Colab: Mount Google Drive to Server...'
 os.environ['NCKH_ROOT'] = ROOT
-sys.path.insert(0, f'{ROOT}/nckh/src')
-!git -C {ROOT}/nckh log --oneline -1   # chỉ đọc: kiểm tra đúng commit vừa pull ở NB_cpu
+os.environ['NCKH_LOCAL_DATA'] = '/content/data'
+!test -d {CODE}/.git || git clone -q https://github.com/NeuroDev204/nckh.git {CODE}
+!git -C {CODE} pull -q --ff-only && git -C {CODE} log --oneline -1
+sys.path.insert(0, f'{CODE}/src')
 ```
 
-> Lần đầu repo chưa có `src/`: cell vẫn chạy được, dòng `sys.path` không gây lỗi. Nếu repo cũ đã từng chứa token trong `.git/config`, chạy `!git -C {ROOT}/nckh remote set-url origin https://github.com/NeuroDev204/nckh.git` một lần, rồi **thu hồi token đó** trên GitHub và tạo token mới.
+Bản `NB_cls` giống hệt, chỉ đổi nhãn dòng đầu thành `# cell: NB_cls (Colab GPU)`.
 
-### 4.2. Tạo package `nckh` (trong `NB_cpu`)
+> ⚠️ Chưa kiểm chứng trên extension — xác minh khi chạy P2.
 
-Tạo các file dưới đây trong `MyDrive/NCKH_PanDerm/nckh/`. Có thể dùng trình sửa file của Colab (biểu tượng thư mục → chuột phải → *New file*), hoặc tạo trên máy rồi push lên. Khối nào bắt đầu bằng `# file:` thì chép **nguyên văn**, kể cả dòng `# file:` đầu tiên (dòng này là comment, vô hại).
+> Lần đầu repo chưa có `src/`: cell vẫn chạy, dòng `sys.path` không lỗi. Nếu trước đây đã clone repo vào `MyDrive/NCKH_PanDerm/nckh`, có thể xoá thư mục đó để giải phóng Drive; nếu `.git/config` cũ từng chứa token, thu hồi token đó trên GitHub.
+
+### 4.2. Tạo package `nckh` (ở máy)
+
+Tạo các file dưới đây **ở máy**, trong VS Code (*Explorer → New File*), dưới `<repo>/`. Khối nào bắt đầu bằng `# file:` thì chép **nguyên văn**, kể cả dòng `# file:` đầu tiên (dòng này là comment, vô hại).
 
 **`pyproject.toml`**: khai báo package. Phụ thuộc lõi **không có torch**, để cài được vào cả 3 môi trường mà không làm lệch phiên bản torch.
+
+📁 **Tạo trên máy cá nhân:** `<repo>/pyproject.toml`
 
 ```toml
 # file: pyproject.toml
@@ -174,12 +183,16 @@ testpaths = ["tests"]
 
 **`src/nckh/__init__.py`**
 
+📁 **Tạo trên máy cá nhân:** `<repo>/src/nckh/__init__.py`
+
 ```python
 # file: src/nckh/__init__.py
 """Package nckh: code nghiên cứu PanDerm của nhóm."""
 ```
 
-**`src/nckh/paths.py`**: mọi đường dẫn lấy từ biến môi trường, nên cùng một code chạy được trên Colab (`/content/drive/...`) và trong test (`tmp_path`).
+**`src/nckh/paths.py`**: mọi đường dẫn lấy từ biến môi trường, nên cùng một code chạy được ở máy (`~/nckh_drive`), trên Colab (`/content/drive/...`) và trong test (`tmp_path`).
+
+📁 **Tạo trên máy cá nhân:** `<repo>/src/nckh/paths.py`
 
 ```python
 # file: src/nckh/paths.py
@@ -221,6 +234,8 @@ def local_data_root() -> Path:
 ```
 
 **`src/nckh/runcard.py`**: mỗi lần chạy ghi một `run_card.json` (kế hoạch Mục 7). Có CLI `python -m nckh.runcard` để gọi từ cell bằng python của venv; venv thì biết đúng phiên bản torch và GPU.
+
+📁 **Tạo trên máy cá nhân:** `<repo>/src/nckh/runcard.py`
 
 ```python
 # file: src/nckh/runcard.py
@@ -341,6 +356,8 @@ if __name__ == "__main__":
 
 **`.gitignore`** (thay toàn bộ file cũ): chặn ảnh, trọng số, dữ liệu, `runs/`; mở `docs/sv_b/` để commit được hướng dẫn.
 
+📁 **Tạo trên máy cá nhân:** `<repo>/.gitignore`
+
 ```gitignore
 # file: .gitignore
 # Chỉ commit docs của SV B và spec/plan; các docs cũ khác giữ ngoài git như trước.
@@ -363,6 +380,8 @@ runs/
 ```
 
 **`tests/test_paths_runcard.py`**
+
+📁 **Tạo trên máy cá nhân:** `<repo>/tests/test_paths_runcard.py`
 
 ```python
 # file: tests/test_paths_runcard.py
@@ -412,22 +431,23 @@ def test_runcard_cli(tmp_path: Path) -> None:
     assert card["inputs"]["pretrained"]["sha256"] == sha256_file(x)
 ```
 
-Cài và chạy test trong `NB_cpu`:
+Cài và chạy test ở máy (`NB_cpu`):
 
 ```python
-# cell: NB_cpu
-!pip install -q -e "{ROOT}/nckh[demo,test]"
-!cd {ROOT}/nckh && python -m pytest -q tests/test_paths_runcard.py
+# cell: NB_cpu (máy cá nhân)
+%pip install -q -e "{REPO}[demo,test]"
+!cd {REPO} && {PY} -m pytest -q tests/test_paths_runcard.py
 ```
 
 Kỳ vọng: `5 passed`.
 
-### 4.3. Tải checkpoint PanDerm_Base (trong `NB_cpu`)
+### 4.3. Tải checkpoint PanDerm_Base (Colab `NB_seg`, lưu lên Drive)
 
 Đọc điều khoản trước: PanDerm phát hành theo CC BY-NC-ND 4.0, chỉ dùng cho nghiên cứu phi thương mại và phải ghi nguồn.
 
 ```python
-# cell: NB_cpu
+# cell: NB_seg (Colab GPU)
+# Chạy sau cell setup 4.1b. Tải trên Colab vì mạng Colab ↔ Drive nhanh, không tốn băng thông máy.
 CK = f'{ROOT}/checkpoints/panderm_bb_data6_checkpoint-499.pth'
 !mkdir -p {ROOT}/checkpoints
 !test -f {CK} || gdown 17J4MjsZu3gdBP6xAQi_NMDVvH65a00HB -O {CK}
@@ -439,14 +459,14 @@ with open(f'{ROOT}/checkpoints/SHA256SUMS', 'a') as fh:
     fh.write(f'{digest}  panderm_bb_data6_checkpoint-499.pth  # tải {__import__("datetime").date.today()}\n')
 ```
 
-Nếu `gdown` báo vượt quota: mở `https://drive.google.com/file/d/17J4MjsZu3gdBP6xAQi_NMDVvH65a00HB/view` trên trình duyệt, chọn *Add shortcut to Drive* (hoặc *Make a copy*), rồi `cp` từ `MyDrive` sang `{ROOT}/checkpoints/`.
+Nếu `gdown` báo vượt quota: mở `https://drive.google.com/file/d/17J4MjsZu3gdBP6xAQi_NMDVvH65a00HB/view` trên trình duyệt, chọn *Add shortcut to Drive* (hoặc *Make a copy*), rồi `!cp` trong cell Colab từ `/content/drive/MyDrive/<tên file>` sang `{ROOT}/checkpoints/`.
 
 ### 4.4. Dựng `venv_seg` (trong `NB_seg`)
 
 > ⚠️ Chưa kiểm chứng trên GPU — xác minh trong pilot P2. Các lệnh dưới đây đã được thử với bản CPU tương đương (torch 2.1.0 CPU + wheel mmcv 2.1.0 CPU); trên Colab dùng bản cu118.
 
 ```python
-# cell: NB_seg
+# cell: NB_seg (Colab GPU)
 VENV = '/content/venv_seg'
 CK = f'{ROOT}/checkpoints/panderm_bb_data6_checkpoint-499.pth'
 !test -d /content/PanDerm || git clone -q https://github.com/SiyuanYan1/PanDerm.git /content/PanDerm
@@ -459,17 +479,19 @@ CK = f'{ROOT}/checkpoints/panderm_bb_data6_checkpoint-499.pth'
 !uv pip install -q --python {VENV}/bin/python torch==2.1.2 torchvision==0.16.2 --index-url https://download.pytorch.org/whl/cu118
 !uv pip install -q --python {VENV}/bin/python mmengine==0.10.4 mmcv==2.1.0 mmsegmentation==1.2.2 --find-links https://download.openmmlab.com/mmcv/dist/cu118/torch2.1.0/index.html
 !uv pip install -q --python {VENV}/bin/python -r /content/PanDerm/segmentation/requirements.txt openpyxl
-!uv pip install -q --python {VENV}/bin/python -e {ROOT}/nckh
+!uv pip install -q --python {VENV}/bin/python -e {CODE}
 !{VENV}/bin/python -c "import torch, mmcv, mmseg; print('torch', torch.__version__, '| mmcv', mmcv.__version__, '| mmseg', mmseg.__version__, '| GPU', torch.cuda.get_device_name(0) if torch.cuda.is_available() else 'KHÔNG CÓ')"
 ```
 
 Kỳ vọng dòng cuối: `torch 2.1.2+cu118 | mmcv 2.1.0 | mmseg 1.2.2 | GPU Tesla T4` (hoặc tên GPU khác).
 
-Venv nằm trên `/content` nên mất khi runtime bị ngắt; chạy lại cell này (khoảng 5–10 phút). **Không** đặt venv trên Drive: chậm và dễ hỏng. Xoá thư mục `MyDrive/NCKH_PanDerm/.venv-panderm` cũ để giải phóng dung lượng.
+Venv nằm trên `/content` nên mất khi runtime bị ngắt (server Colab bị thu hồi khi ngắt kết nối lâu); chạy lại cell này (khoảng 5–10 phút). **Không** đặt venv trên Drive: chậm và dễ hỏng. Xoá thư mục `MyDrive/NCKH_PanDerm/.venv-panderm` cũ để giải phóng dung lượng.
 
 ### 4.5. Soi key checkpoint (trong `NB_seg`)
 
 **`scripts/inspect_checkpoint.py`**
+
+📁 **Tạo trên máy cá nhân:** `<repo>/scripts/inspect_checkpoint.py`
 
 ```python
 # file: scripts/inspect_checkpoint.py
@@ -522,6 +544,8 @@ if __name__ == "__main__":
 
 **`tests/test_inspect_checkpoint.py`**
 
+📁 **Tạo trên máy cá nhân:** `<repo>/tests/test_inspect_checkpoint.py`
+
 ```python
 # file: tests/test_inspect_checkpoint.py
 import sys
@@ -558,8 +582,8 @@ def test_summarize_flags_missing_prefix() -> None:
 ```
 
 ```python
-# cell: NB_seg
-!{VENV}/bin/python {ROOT}/nckh/scripts/inspect_checkpoint.py {CK}
+# cell: NB_seg (Colab GPU)
+!{VENV}/bin/python {CODE}/scripts/inspect_checkpoint.py {CK}
 ```
 
 | Bạn thấy `verdict` | Làm gì |
@@ -707,8 +731,8 @@ index 0b23f31..ddbf374 100644
 ```
 
 ```python
-# cell: NB_seg
-PATCH = f'{ROOT}/nckh/patches/panderm_base_seg.patch'
+# cell: NB_seg (Colab GPU)
+PATCH = f'{CODE}/patches/panderm_base_seg.patch'
 # Kiểm tra theo chiều ngược trước, để chạy lại cell này nhiều lần cũng không áp patch hai lần.
 !cd /content/PanDerm && (git apply --reverse --check {PATCH} 2>/dev/null && echo "Patch đã áp từ trước") || (git apply {PATCH} && echo "Đã áp patch")
 !cd /content/PanDerm && git diff --stat
@@ -719,6 +743,8 @@ Kỳ vọng: `git diff --stat` liệt kê 4 file `segmentation/models/cae_config
 ### 4.7. Module suy luận `nckh.infer`
 
 **`src/nckh/infer.py`**: dùng chung cho smoke test (P2), suy luận UQ (P6), robustness (P8) và demo (P9).
+
+📁 **Tạo trên máy cá nhân:** `<repo>/src/nckh/infer.py`
 
 ```python
 # file: src/nckh/infer.py
@@ -913,6 +939,8 @@ class ClsPredictor:
 
 **`tests/test_infer.py`**: chạy được trên CPU với model giả, không cần PanDerm.
 
+📁 **Tạo trên máy cá nhân:** `<repo>/tests/test_infer.py`
+
 ```python
 # file: tests/test_infer.py
 import numpy as np
@@ -1016,6 +1044,8 @@ def test_map_pretrained_cls_keys() -> None:
 ### 4.8. Script smoke test + benchmark
 
 **`scripts/bench_inference.py`**
+
+📁 **Tạo trên máy cá nhân:** `<repo>/scripts/bench_inference.py`
 
 ```python
 # file: scripts/bench_inference.py
@@ -1148,6 +1178,8 @@ if __name__ == "__main__":
 
 **`tests/test_bench.py`**
 
+📁 **Tạo trên máy cá nhân:** `<repo>/tests/test_bench.py`
+
 ```python
 # file: tests/test_bench.py
 import json
@@ -1210,13 +1242,13 @@ def test_benchmark_rejects_empty_image_list(tmp_path: Path) -> None:
 ### 4.9. Chạy smoke test segmentation (trong `NB_seg`)
 
 ```python
-# cell: NB_seg
+# cell: NB_seg (Colab GPU)
 # 20 ảnh ISIC 2018 Validation (0,24 GB) chỉ để smoke test; dữ liệu đầy đủ chuẩn bị ở P3.
 !mkdir -p /content/smoke && cd /content/smoke && test -d ISIC2018_Task1-2_Validation_Input || (wget -q https://isic-archive.s3.amazonaws.com/challenges/2018/ISIC2018_Task1-2_Validation_Input.zip && unzip -q ISIC2018_Task1-2_Validation_Input.zip && rm ISIC2018_Task1-2_Validation_Input.zip)
 from nckh.runcard import new_run_id
 RUN = f"{ROOT}/runs/{new_run_id('smoke_seg')}"
-!cd /content && {VENV}/bin/python {ROOT}/nckh/scripts/bench_inference.py --task seg --panderm-dir /content/PanDerm/segmentation --pretrained {CK} --images "/content/smoke/ISIC2018_Task1-2_Validation_Input/*.jpg" --n 20 --save-overlays 10 --out-dir {RUN}
-!{VENV}/bin/python -m nckh.runcard {RUN} --seed 0 --input pretrained={CK} --input patch={ROOT}/nckh/patches/panderm_base_seg.patch --config task=smoke_seg --config n=20
+!cd /content && {VENV}/bin/python {CODE}/scripts/bench_inference.py --task seg --panderm-dir /content/PanDerm/segmentation --pretrained {CK} --images "/content/smoke/ISIC2018_Task1-2_Validation_Input/*.jpg" --n 20 --save-overlays 10 --out-dir {RUN}
+!{VENV}/bin/python -m nckh.runcard {RUN} --seed 0 --input pretrained={CK} --input patch={CODE}/patches/panderm_base_seg.patch --config task=smoke_seg --config n=20
 ```
 
 Kỳ vọng trong log:
@@ -1232,7 +1264,7 @@ Mở vài file trong `{RUN}/overlays/` để chắc ảnh đọc đúng màu và
 > ⚠️ Chưa kiểm chứng trên GPU — xác minh trong pilot P2. `ClsPredictor.from_checkpoint` đã được thử trên CPU với code `classification/` thật và một checkpoint pretrain giả có prefix `encoder.`: độ phủ blocks 100%, xác suất cộng lại bằng 1.
 
 ```python
-# cell: NB_cls
+# cell: NB_cls (Colab GPU)
 VENV = '/content/venv_cls'
 CK = f'{ROOT}/checkpoints/panderm_bb_data6_checkpoint-499.pth'
 !test -d /content/PanDerm || git clone -q https://github.com/SiyuanYan1/PanDerm.git /content/PanDerm
@@ -1243,13 +1275,13 @@ CK = f'{ROOT}/checkpoints/panderm_bb_data6_checkpoint-499.pth'
 !uv pip install -q --python {VENV}/bin/python torch==2.4.1 torchvision==0.19.1 torchaudio==2.4.1 --index-url https://download.pytorch.org/whl/cu118
 # timm ghim 0.9.16: modeling_finetune.py dùng timm.models.layers / timm.models.registry.
 !uv pip install -q --python {VENV}/bin/python -r /content/PanDerm/classification/requirements.txt timm==0.9.16
-!uv pip install -q --python {VENV}/bin/python -e {ROOT}/nckh
+!uv pip install -q --python {VENV}/bin/python -e {CODE}
 !{VENV}/bin/python -c "import torch, timm; print('torch', torch.__version__, '| timm', timm.__version__, '| GPU', torch.cuda.get_device_name(0) if torch.cuda.is_available() else 'KHÔNG CÓ')"
 
 !mkdir -p /content/smoke && cd /content/smoke && test -d ISIC2018_Task1-2_Validation_Input || (wget -q https://isic-archive.s3.amazonaws.com/challenges/2018/ISIC2018_Task1-2_Validation_Input.zip && unzip -q ISIC2018_Task1-2_Validation_Input.zip && rm ISIC2018_Task1-2_Validation_Input.zip)
 from nckh.runcard import new_run_id
 RUN = f"{ROOT}/runs/{new_run_id('smoke_cls')}"
-!cd /content && {VENV}/bin/python {ROOT}/nckh/scripts/bench_inference.py --task cls --panderm-dir /content/PanDerm/classification --pretrained {CK} --images "/content/smoke/ISIC2018_Task1-2_Validation_Input/*.jpg" --n 20 --out-dir {RUN}
+!cd /content && {VENV}/bin/python {CODE}/scripts/bench_inference.py --task cls --panderm-dir /content/PanDerm/classification --pretrained {CK} --images "/content/smoke/ISIC2018_Task1-2_Validation_Input/*.jpg" --n 20 --out-dir {RUN}
 !{VENV}/bin/python -m nckh.runcard {RUN} --seed 0 --input pretrained={CK} --config task=smoke_cls --config n=20
 ```
 
@@ -1260,35 +1292,42 @@ Kỳ vọng:
 
 Ở bước này đầu phân loại còn ngẫu nhiên, nên xác suất xấp xỉ 1/3 mỗi lớp là bình thường.
 
+Kéo kết quả về máy để xem overlay và điền mục 6 (làm cho cả run `smoke_seg` lẫn `smoke_cls`):
+
+```bash
+# terminal VS Code (máy cá nhân)
+rclone copy gdrive:NCKH_PanDerm/runs/<run_id> ~/nckh_drive/runs/<run_id> --progress
+```
+
 ### 4.11. Pilot 1 epoch
 
 Pilot train 1 epoch cần dữ liệu ISIC 2018 đúng layout của loader (P3), nên được làm ở **P5a mục 4.2**, cùng với phép thử ngắt runtime rồi resume.
 
 ### 4.12. Commit cuối phiên
 
-```python
-# cell: NB_cpu
-%cd {ROOT}/nckh
-!git add pyproject.toml .gitignore src tests scripts patches notebooks
-!git status --short
-!git commit -q -m "P2: package nckh, infer, smoke test, patch PanDerm Base" && git push -q {AUTH_URL} HEAD:main && git log --oneline -1
+```bash
+# terminal VS Code (máy cá nhân)
+cd <repo>
+git add pyproject.toml .gitignore src tests scripts patches notebooks
+git status --short
+git commit -m "P2: package nckh, infer, smoke test, patch PanDerm Base" && git push && git log --oneline -1
 ```
 
 ## 5. Test
 
 | Test | Kiểm tra gì | Chạy ở |
 |---|---|---|
-| `tests/test_paths_runcard.py` (5) | Đọc `NCKH_ROOT`; SHA-256 đúng giá trị chuẩn của "abc"; định dạng `run_id`; run card đủ 9 khóa; CLI | NB_cpu |
-| `tests/test_inspect_checkpoint.py` (3) | Nhận ra ViT-B/ViT-L, checkpoint bị bọc, thiếu prefix | NB_cpu |
-| `tests/test_infer.py` (8) | Shape/dải giá trị tiền xử lý; std 0,228; giữ vùng lớn nhất + lấp lỗ; mask rỗng giữ rỗng; resize về kích thước gốc; xác suất tổng 1; đổi tên key pretrain | NB_cpu (cần torch; Colab có sẵn) |
-| `tests/test_bench.py` (3) | Báo cáo JSON, overlay, kiểm tra xác suất, từ chối danh sách ảnh rỗng | NB_cpu |
+| `tests/test_paths_runcard.py` (5) | Đọc `NCKH_ROOT`; SHA-256 đúng giá trị chuẩn của "abc"; định dạng `run_id`; run card đủ 9 khóa; CLI | Máy (NB_cpu) |
+| `tests/test_inspect_checkpoint.py` (3) | Nhận ra ViT-B/ViT-L, checkpoint bị bọc, thiếu prefix | Máy (NB_cpu) |
+| `tests/test_infer.py` (8) | Shape/dải giá trị tiền xử lý; std 0,228; giữ vùng lớn nhất + lấp lỗ; mask rỗng giữ rỗng; resize về kích thước gốc; xác suất tổng 1; đổi tên key pretrain | Máy (NB_cpu) (cần torch CPU trong .venv — 00 mục 6b) |
+| `tests/test_bench.py` (3) | Báo cáo JSON, overlay, kiểm tra xác suất, từ chối danh sách ảnh rỗng | Máy (NB_cpu) |
 
 ```python
-# cell: NB_cpu
-!cd {ROOT}/nckh && python -m pytest -q
+# cell: NB_cpu (máy cá nhân)
+!cd {REPO} && {PY} -m pytest -q
 ```
 
-Kỳ vọng: `19 passed`. Nếu kernel không có torch, `test_infer.py` và `test_bench.py` sẽ `skipped`. Đó không phải lỗi.
+Kỳ vọng: `19 passed`. Nếu .venv không có torch, `test_infer.py` và `test_bench.py` sẽ `skipped`. Đó không phải lỗi.
 
 **Sanity check trên dữ liệu thật** (đã có trong 4.9/4.10): độ phủ trọng số ≥ 90%, `SMOKE TEST OK`, overlay đúng màu và đúng chiều, `cls_probs_smoke.csv` có 20 dòng.
 
@@ -1303,7 +1342,7 @@ Kỳ vọng: `19 passed`. Nếu kernel không có torch, `test_infer.py` và `te
 
 Số ms/ảnh ở đây tính cho batch 1, bao gồm cả tiền xử lý. Dùng số này để ước lượng thời gian suy luận toàn bộ ảnh UQ ở P6 (số ảnh × ms/ảnh).
 
-## 7. Lỗi thường gặp trên Colab
+## 7. Lỗi thường gặp (máy / Colab extension)
 
 | Triệu chứng | Nguyên nhân | Cách xử lý |
 |---|---|---|
@@ -1312,19 +1351,24 @@ Số ms/ảnh ở đây tính cho batch 1, bao gồm cả tiền xử lý. Dùng
 | `ModuleNotFoundError: pkg_resources` | setuptools ≥ 81 | `uv pip install "setuptools<81"` (đã có trong 4.4) |
 | `CAE is not in the mmseg::model registry` | Gọi `CAEv2_seg` mà chưa import `models.cae_backbone` | Dùng `SegPredictor.from_checkpoint` (đã import sẵn) |
 | `RuntimeError: Only x% of backbone weights matched` | Checkpoint sai bản, hoặc prefix khác `encoder.` | Chạy lại 4.5 và làm theo bảng |
-| `torch.cuda.is_available()` = False | Runtime chưa bật GPU hoặc hết quota GPU | *Runtime → Change runtime type → T4 GPU*; nếu hết quota thì làm phần CPU (P3, P6 với dữ liệu giả) trong lúc chờ |
-| Mất venv sau khi ngắt kết nối | `/content` bị xoá khi runtime reset | Chạy lại cell setup; dữ liệu trên Drive vẫn còn |
+| `torch.cuda.is_available()` = False | Server Colab được tạo không có GPU hoặc hết quota GPU | *Select Kernel → Colab → New Colab Server* và chọn GPU; nếu hết quota thì làm phần ở máy (P3, P6 với dữ liệu giả) trong lúc chờ |
+| Mất venv sau khi ngắt kết nối | `/content` bị xoá khi server bị thu hồi | Chạy lại cell setup; dữ liệu trên Drive vẫn còn |
 | `gdown` báo quota | File Drive công khai bị giới hạn lượt tải | Xem cách xử lý ở 4.3 |
-| `git push`/`pull` hỏi mật khẩu | Token hết hạn hoặc chưa bật *Notebook access* | Tạo token mới, cập nhật Colab Secrets; chạy lại 4.1a |
-| `.git/index.lock` tồn tại | Hai notebook cùng chạy git, hoặc lệnh git bị ngắt | Chỉ chạy git ở NB_cpu; xoá `{ROOT}/nckh/.git/index.lock` khi chắc không còn lệnh git nào chạy |
-| `ModuleNotFoundError: nckh` trong kernel | Chưa chạy cell 4.1 (dòng `sys.path`) | Chạy lại cell 4.1 |
+| `ModuleNotFoundError: nckh` trong kernel Colab | Chưa chạy cell 4.1b (dòng `sys.path`) | Chạy lại cell 4.1b |
+| `ModuleNotFoundError: nckh` ở máy | Kernel không phải `.venv` hoặc chưa `pip install -e` | Chọn kernel `.venv`; chạy lại cell cài ở 4.2 |
+| `AssertionError: Chưa mount Drive` | Server Colab mới chưa mount | `Ctrl+Shift+P` → *Colab: Mount Google Drive to Server...*, chạy lại cell setup |
+| Kernel Colab mất kết nối / server bị thu hồi | Hết thời gian phiên miễn phí hoặc mạng | *Select Kernel → Colab → New Colab Server*, chạy lại cell setup + venv; dữ liệu trên Drive vẫn còn |
+| Colab chạy code cũ | Quên `git push` ở máy trước khi chạy cell setup | Ở máy `git push`, chạy lại cell setup (có `git pull`) |
+| `userdata.get` / `files.upload` lỗi | Chưa hỗ trợ trong extension | Không dùng; repo public nên không cần token, file đi qua Drive |
+| `rclone` báo `couldn't fetch token` | Token OAuth hết hạn | `rclone config reconnect gdrive:` |
+| Ở máy không thấy file Colab vừa ghi | Chưa kéo về | Chạy lệnh `rclone copy gdrive:NCKH_PanDerm/... ~/nckh_drive/...` |
 | `ModuleNotFoundError: open_clip` khi chạy cls | `classification/models/__init__.py` import `open_clip` | Đã có trong `classification/requirements.txt`; kiểm tra lại cell 4.10 |
 
 ## 8. Checklist bàn giao cho SV A
 
 - [ ] `checkpoints/SHA256SUMS` có dòng của `panderm_bb_data6_checkpoint-499.pth` (ngày tải, link nguồn).
-- [ ] `python -m pytest -q` trong `NB_cpu`: 19 passed (hoặc skipped vì thiếu torch, ghi rõ).
+- [ ] `python -m pytest -q` ở máy (`NB_cpu`): 19 passed (hoặc skipped vì thiếu torch, ghi rõ).
 - [ ] `inspect_checkpoint.py` cho verdict ViT-B; độ phủ ViT ≥ 90% ở cả seg lẫn cls.
-- [ ] `runs/<run_id>/bench_seg.json`, `bench_cls.json`, `overlays/`, `run_card.json` có trên Drive; bảng mục 6 đã điền.
+- [ ] `runs/<run_id>/bench_seg.json`, `bench_cls.json`, `overlays/`, `run_card.json` có trên Drive và đã kéo về `~/nckh_drive/runs/`; bảng mục 6 đã điền.
 - [ ] Nhật ký quyết định có dòng về torch 2.1.2 cho segmentation (mục 3.2) và timm 0.9.16 cho classification.
 - [ ] Code đã push lên GitHub; SV A clone về, chạy `pytest` và chạy lại được một smoke test theo hướng dẫn này (kế hoạch Phase 2, điều kiện đạt cuối cùng).
