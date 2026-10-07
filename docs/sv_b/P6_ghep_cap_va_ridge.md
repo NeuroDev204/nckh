@@ -4,21 +4,23 @@
 
 **Mục tiêu (kế hoạch Phase 6):** từ ảnh dermoscopy tại lần khám t (mask PanDerm, hình dạng mask, xác suất 3 nhóm tham khảo) và khoảng thời gian Δt, dự báo **thay đổi tỷ lệ diện tích mask** Δa ở lần chụp kế tiếp. So sánh với baseline "không thay đổi" (Δa = 0) trên participant test.
 
-| Đầu vào | Đầu ra (`runs/<run_id>/`) |
-|---|---|
-| Metadata + ảnh UQ (chỉ khi qua cổng Go/No-Go), `configs/uq_column_map.yaml` | `uq_manifest.csv` (có `split`, `readable`), `pairs.csv`, `pairs_excluded.csv`, `flow.json` |
-| Checkpoint fine-tune seg (P5a), cls (P5b) | `masks/*.png`, `seg_features.csv`, `cls_probs.csv`, `*_failed.csv` |
-| — | `features.csv`, `alpha_selection.csv`, `ridge.joblib`, `predictions_val.csv`, `ridge_summary.json`, `run_card.json`; sau khi khóa: `predictions_test.csv` |
+| Đầu vào | Đầu ra (`runs/<run_id>/`) | Sinh ở |
+|---|---|---|
+| Metadata + ảnh UQ (chỉ khi qua cổng Go/No-Go), `<repo>/configs/uq_column_map.yaml` | `uq_manifest.csv` (có `split`, `readable`), `pairs.csv`, `pairs_excluded.csv`, `flow.json` | Máy: `~/nckh_drive/runs/<run_id>/` → đẩy lên Drive bằng rclone |
+| Checkpoint fine-tune seg (P5a), cls (P5b) | `masks/*.png`, `seg_features.csv`, `cls_probs.csv`, `*_failed.csv` | Colab `NB_seg`/`NB_cls` ghi vào `MyDrive/NCKH_PanDerm/runs/<run_id>/` → kéo về máy |
+| — | `features.csv`, `alpha_selection.csv`, `ridge.joblib`, `predictions_val.csv`, `ridge_summary.json`, `run_card.json`; sau khi khóa: `predictions_test.csv` | Máy: `~/nckh_drive/runs/<run_id>/ridge/`, `ridge_test/` |
 
 ## 2. Chạy ở đâu
 
-| Việc | Notebook | Ghi chú |
+| Việc | Chạy ở | Ghi chú |
 |---|---|---|
-| Viết module, test, chạy pipeline trên dữ liệu **giả** | NB_cpu | Làm ngay, không cần UQ |
-| `build_pairs.py` trên UQ thật | NB_cpu | Chỉ sau Go/No-Go |
-| `infer_images.py --task seg` | NB_seg (GPU) | ms/ảnh từ benchmark P2 × số ảnh UQ = thời gian ước tính |
-| `infer_images.py --task cls` | NB_cls (GPU) | Như trên |
-| `train_ridge.py` | NB_cpu | Vài giây; Ridge không cần GPU |
+| Viết module, test, chạy pipeline trên dữ liệu **giả** | Máy (`NB_cpu`) | Làm ngay, không cần UQ; `infer_images.py --fake` không cần GPU |
+| `build_pairs.py` trên UQ thật | Máy (`NB_cpu`) | Chỉ sau Go/No-Go |
+| Đẩy run lên Drive | Máy (terminal, rclone) | Để Colab đọc `uq_manifest.csv` |
+| `infer_images.py --task seg` | Colab `NB_seg` (GPU) | ms/ảnh từ benchmark P2 × số ảnh UQ = thời gian ước tính |
+| `infer_images.py --task cls` | Colab `NB_cls` (GPU) | Như trên |
+| Kéo kết quả suy luận về máy | Máy (terminal, rclone) | |
+| `train_ridge.py` | Máy (`NB_cpu`) | Vài giây; Ridge không cần GPU |
 
 > ⚠️ Chưa kiểm chứng trên GPU — xác minh trong pilot P2. `SegPredictor`/`ClsPredictor.from_checkpoint` đã được thử trên CPU với code PanDerm thật và checkpoint giả. Toàn bộ phần CPU (ghép cặp, đặc trưng, Ridge, các script) đã chạy pytest và chạy đầu-cuối trên dữ liệu giả.
 
@@ -33,6 +35,7 @@ Chỉ tạo `data/uq/` trên Drive khi **cả 5** điều kiện của kế ho�
 - [ ] Có thứ tự thời gian đáng tin cậy để lập cặp t → t+1.
 - [ ] Có `participant_id` để chia tập chống rò rỉ.
 - [ ] Đủ cặp sau lọc cho train/val/test theo participant (đếm bằng `build_pairs.py`).
+- [ ] Quyền lưu bản sao trên máy cá nhân của thành viên nhóm (`~/nckh_drive/data/uq`); nếu không có, ghi rõ chỉ xử lý trên Colab/Drive và không chạy rclone thư mục `uq` về máy (khi đó chạy `build_pairs.py`/`train_ridge.py` ở mục 4.7 trong `NB_seg` bằng `{VENV}/bin/python {CODE}/scripts/...`).
 
 Nếu điều kiện đầu tiên chưa rõ: **không** tải UQ lên. Toàn bộ code của phase này vẫn hoàn thành và kiểm thử được bằng dữ liệu giả (mục 4.6).
 
@@ -94,6 +97,8 @@ Cặp có mask rỗng ở t hoặc t+1 (`empty_mask`), thiếu kết quả suy l
 ## 4. Code
 
 ### 4.1. `src/nckh/pairs.py`
+
+📁 **Tạo trên máy cá nhân:** `<repo>/src/nckh/pairs.py`
 
 ```python
 # file: src/nckh/pairs.py
@@ -186,6 +191,8 @@ def stratified_audit_sample(pairs: pd.DataFrame, n_pairs: int, strata_cols: list
 
 ### 4.2. `src/nckh/features.py`
 
+📁 **Tạo trên máy cá nhân:** `<repo>/src/nckh/features.py`
+
 ```python
 # file: src/nckh/features.py
 """Đặc trưng tại thời điểm t và target Δa cho Ridge.
@@ -234,6 +241,8 @@ def build_feature_table(pairs: pd.DataFrame, per_image: pd.DataFrame) -> pd.Data
 ```
 
 ### 4.3. `src/nckh/forecast.py`
+
+📁 **Tạo trên máy cá nhân:** `<repo>/src/nckh/forecast.py`
 
 ```python
 # file: src/nckh/forecast.py
@@ -302,6 +311,8 @@ def validate_delta_days(value: object) -> float:
 `validate_delta_days` dùng chung cho demo P9: từ chối `True` (vì trong Python `True == 1`), chuỗi rỗng, `"6 tháng"`, `"nan"`, `"inf"`, số âm, số 0.
 
 ### 4.4. Scripts
+
+📁 **Tạo trên máy cá nhân:** `<repo>/scripts/make_fake_uq.py`
 
 ```python
 # file: scripts/make_fake_uq.py
@@ -377,6 +388,8 @@ if __name__ == "__main__":
     main()
 ```
 
+📁 **Tạo trên máy cá nhân:** `<repo>/scripts/build_pairs.py`
+
 ```python
 # file: scripts/build_pairs.py
 """Đọc metadata UQ → kiểm tra ảnh → chia tập theo participant → ghép cặp t→t+1 → ghi manifest, cặp, flow.
@@ -441,6 +454,8 @@ def main(argv: list[str] | None = None) -> None:
 if __name__ == "__main__":
     main()
 ```
+
+📁 **Tạo trên máy cá nhân:** `<repo>/scripts/infer_images.py`
 
 ```python
 # file: scripts/infer_images.py
@@ -545,6 +560,8 @@ if __name__ == "__main__":
     main()
 ```
 
+📁 **Tạo trên máy cá nhân:** `<repo>/scripts/train_ridge.py`
+
 ```python
 # file: scripts/train_ridge.py
 """Dựng bảng đặc trưng → chọn alpha trên val → fit Ridge trên train → dự báo val (và test khi được phép).
@@ -632,6 +649,8 @@ if __name__ == "__main__":
 ```
 
 ### 4.5. Test
+
+📁 **Tạo trên máy cá nhân:** `<repo>/tests/test_pairs.py`
 
 ```python
 # file: tests/test_pairs.py
@@ -773,6 +792,8 @@ def test_same_visit_within_one_day_excluded() -> None:
     assert _reasons(excluded) == {"b": "same_visit"}
 ```
 
+📁 **Tạo trên máy cá nhân:** `<repo>/tests/test_features.py`
+
 ```python
 # file: tests/test_features.py
 import numpy as np
@@ -848,6 +869,8 @@ def test_feature_table_nonfinite_reason() -> None:
                       "c": (0.15, 0.6, 0.5, False, 0.3, 0.6, 0.1)})
     assert build_feature_table(_pairs(), per)["exclude_reason"].tolist() == ["nonfinite_feature", ""]
 ```
+
+📁 **Tạo trên máy cá nhân:** `<repo>/tests/test_forecast.py`
 
 ```python
 # file: tests/test_forecast.py
@@ -929,6 +952,8 @@ def test_ridge_beats_baseline_on_learnable_synthetic() -> None:
     mae_base = np.abs(baseline_delta(len(val)) - val[TARGET_COLUMN]).mean()
     assert mae_ridge < mae_base
 ```
+
+📁 **Tạo trên máy cá nhân:** `<repo>/tests/test_pipeline_fake.py`
 
 ```python
 # file: tests/test_pipeline_fake.py
@@ -1013,19 +1038,19 @@ def test_test_predictions_require_open_test_flag(fake_run: Path, tmp_path: Path)
     assert feats.loc[feats["split"] != "test", "delta_area"].notna().any()
 ```
 
-### 4.6. Chạy thử trên dữ liệu GIẢ (NB_cpu)
+### 4.6. Chạy thử trên dữ liệu GIẢ (máy, NB_cpu)
 
 ```python
-# cell: NB_cpu
+# cell: NB_cpu (máy cá nhân)
 from nckh.runcard import new_run_id
-FAKE = '/content/fake_uq'
+FAKE = '/tmp/fake_uq'
 RUN = f"{ROOT}/runs/{new_run_id('p6_fake')}"
-%cd {ROOT}/nckh
-!python scripts/make_fake_uq.py --out-dir {FAKE} --participants 30 --seed 2026
-!python scripts/build_pairs.py --metadata {FAKE}/metadata.csv --column-map {FAKE}/fake_column_map.yaml --data-root {FAKE} --out-dir {RUN} --seed 2026
-!python scripts/infer_images.py --task seg --manifest {RUN}/uq_manifest.csv --data-root {FAKE} --out-dir {RUN} --fake
-!python scripts/infer_images.py --task cls --manifest {RUN}/uq_manifest.csv --data-root {FAKE} --out-dir {RUN} --fake
-!python scripts/train_ridge.py --pairs {RUN}/pairs.csv --seg-features {RUN}/seg_features.csv --cls-probs {RUN}/cls_probs.csv --out-dir {RUN}
+%cd {REPO}
+!{PY} scripts/make_fake_uq.py --out-dir {FAKE} --participants 30 --seed 2026
+!{PY} scripts/build_pairs.py --metadata {FAKE}/metadata.csv --column-map {FAKE}/fake_column_map.yaml --data-root {FAKE} --out-dir {RUN} --seed 2026
+!{PY} scripts/infer_images.py --task seg --manifest {RUN}/uq_manifest.csv --data-root {FAKE} --out-dir {RUN} --fake
+!{PY} scripts/infer_images.py --task cls --manifest {RUN}/uq_manifest.csv --data-root {FAKE} --out-dir {RUN} --fake
+!{PY} scripts/train_ridge.py --pairs {RUN}/pairs.csv --seg-features {RUN}/seg_features.csv --cls-probs {RUN}/cls_probs.csv --out-dir {RUN}
 ```
 
 **Kết quả mẫu trên dữ liệu GIẢ** (khi viết hướng dẫn, seed 2026; chỉ để bạn đối chiếu là code chạy đúng, **không** phải kết quả nghiên cứu):
@@ -1038,41 +1063,62 @@ Phiên bản thư viện khác có thể làm các số MAE lệch nhẹ. Số c
 
 ### 4.7. Chạy với UQ thật (sau Go/No-Go)
 
+Lấy metadata + ảnh UQ từ Drive về máy (chỉ khi checklist 3.1 cho phép lưu trên máy):
+
+```bash
+# terminal VS Code (máy cá nhân)
+rclone copy gdrive:NCKH_PanDerm/data/uq ~/nckh_drive/data/uq --progress
+```
+
 ```python
-# cell: NB_cpu
+# cell: NB_cpu (máy cá nhân)
 UQ = f"{ROOT}/data/uq"
 RUN = f"{ROOT}/runs/{new_run_id('p6_uq')}"
-!cd {ROOT}/nckh && python scripts/build_pairs.py --metadata {UQ}/metadata.csv --column-map configs/uq_column_map.yaml --data-root {UQ} --out-dir {RUN} --seed 2026
-print(RUN)   # chép giá trị này sang NB_seg/NB_cls
+!cd {REPO} && {PY} scripts/build_pairs.py --metadata {UQ}/metadata.csv --column-map configs/uq_column_map.yaml --data-root {UQ} --out-dir {RUN} --seed 2026
+print(Path(RUN).name)   # run_id: dùng ở lệnh rclone và cell NB_seg/NB_cls
 ```
 
 Gửi `flow.json` và `pairs_excluded.csv` cho SV A **trước khi** chạy bước tiếp theo (kế hoạch: cặp bị loại được thống kê trước khi mở test).
 
+Đẩy run lên Drive cho Colab:
+
+```bash
+# terminal VS Code (máy cá nhân)
+rclone copy ~/nckh_drive/runs/<p6_uq_run_id> gdrive:NCKH_PanDerm/runs/<p6_uq_run_id> --progress
+```
+
 ```python
-# cell: NB_seg
-RUN = "<dán đường dẫn RUN từ NB_cpu>"
+# cell: NB_seg (Colab GPU)
+RUN = f"{ROOT}/runs/<p6_uq_run_id>"
 SEG_FT = f"{ROOT}/runs/<seg_main_run_id>/0/model_best_0.ckpt"
 # Ảnh UQ nằm trên Drive; nếu nhiều ảnh, copy sang /content trước cho nhanh: !rsync -a {ROOT}/data/uq/ /content/uq/
-!cd /content && {VENV}/bin/python {ROOT}/nckh/scripts/infer_images.py --task seg --manifest {RUN}/uq_manifest.csv --data-root {ROOT}/data/uq --out-dir {RUN} --panderm-dir /content/PanDerm/segmentation --pretrained {CK} --finetuned {SEG_FT}
+!cd /content && {VENV}/bin/python {CODE}/scripts/infer_images.py --task seg --manifest {RUN}/uq_manifest.csv --data-root {ROOT}/data/uq --out-dir {RUN} --panderm-dir /content/PanDerm/segmentation --pretrained {CK} --finetuned {SEG_FT}
 ```
 
 ```python
-# cell: NB_cls
-RUN = "<dán đường dẫn RUN từ NB_cpu>"
+# cell: NB_cls (Colab GPU)
+RUN = f"{ROOT}/runs/<p6_uq_run_id>"
 CLS_FT = f"{ROOT}/runs/<cls_main_run_id>/checkpoint-best.pth"
-!cd /content && {VENV}/bin/python {ROOT}/nckh/scripts/infer_images.py --task cls --manifest {RUN}/uq_manifest.csv --data-root {ROOT}/data/uq --out-dir {RUN} --panderm-dir /content/PanDerm/classification --finetuned {CLS_FT}
+!cd /content && {VENV}/bin/python {CODE}/scripts/infer_images.py --task cls --manifest {RUN}/uq_manifest.csv --data-root {ROOT}/data/uq --out-dir {RUN} --panderm-dir /content/PanDerm/classification --finetuned {CLS_FT}
+```
+
+Kéo kết quả suy luận về máy:
+
+```bash
+# terminal VS Code (máy cá nhân)
+rclone copy gdrive:NCKH_PanDerm/runs/<p6_uq_run_id> ~/nckh_drive/runs/<p6_uq_run_id> --progress
 ```
 
 ```python
-# cell: NB_cpu
+# cell: NB_cpu (máy cá nhân)
 # Lần 1: chỉ train + val (chọn alpha, xem MAE val). Gửi ridge_summary.json cho SV A.
-!cd {ROOT}/nckh && python scripts/train_ridge.py --pairs {RUN}/pairs.csv --seg-features {RUN}/seg_features.csv --cls-probs {RUN}/cls_probs.csv --out-dir {RUN}/ridge
+!cd {REPO} && {PY} scripts/train_ridge.py --pairs {RUN}/pairs.csv --seg-features {RUN}/seg_features.csv --cls-probs {RUN}/cls_probs.csv --out-dir {RUN}/ridge
 ```
 
 ```python
-# cell: NB_cpu
+# cell: NB_cpu (máy cá nhân)
 # Lần 2 — ĐÚNG MỘT LẦN, sau khi khóa protocol và SV A xác nhận. Script sẽ hỏi; gõ: mo test
-!cd {ROOT}/nckh && python scripts/train_ridge.py --pairs {RUN}/pairs.csv --seg-features {RUN}/seg_features.csv --cls-probs {RUN}/cls_probs.csv --out-dir {RUN}/ridge_test --open-test
+!cd {REPO} && {PY} scripts/train_ridge.py --pairs {RUN}/pairs.csv --seg-features {RUN}/seg_features.csv --cls-probs {RUN}/cls_probs.csv --out-dir {RUN}/ridge_test --open-test
 ```
 
 Lần 2 ghi vào thư mục mới (`ridge_test`), nên run lần 1 được giữ nguyên làm bằng chứng. Dữ liệu và seed giống nhau nên alpha và mô hình phải trùng lần 1: so `ridge_summary.json` hai lần.
@@ -1080,7 +1126,7 @@ Lần 2 ghi vào thư mục mới (`ridge_test`), nên run lần 1 được gi�
 ### 4.8. Mức B: đánh giá trên mask thủ công (khi có audit P4)
 
 ```python
-# cell: NB_cpu
+# cell: NB_cpu (máy cá nhân)
 import joblib, numpy as np, pandas as pd
 from PIL import Image
 from nckh.features import build_feature_table, mask_features
@@ -1109,8 +1155,8 @@ print("Baseline:", regression_metrics(ok.delta_area, np.zeros(len(ok))))
 ## 5. Test
 
 ```python
-# cell: NB_cpu
-!cd {ROOT}/nckh && python -m pytest -q tests/test_pairs.py tests/test_features.py tests/test_forecast.py tests/test_pipeline_fake.py
+# cell: NB_cpu (máy cá nhân)
+!cd {REPO} && {PY} -m pytest -q tests/test_pairs.py tests/test_features.py tests/test_forecast.py tests/test_pipeline_fake.py
 ```
 
 Kỳ vọng: `47 passed` (13 + 8 + 20 + 6).
@@ -1142,16 +1188,22 @@ Kỳ vọng: `47 passed` (13 + 8 + 20 + 6).
 
 Kết quả test (MAE/RMSE/bias + CI) tính ở **P7** bằng `evaluate_forecast.py`.
 
-## 7. Lỗi thường gặp trên Colab
+## 7. Lỗi thường gặp (máy / Colab extension)
 
 | Triệu chứng | Cách xử lý |
 |---|---|
+| `AssertionError: Chưa mount Drive` | `Ctrl+Shift+P` → *Colab: Mount Google Drive to Server...*, chạy lại cell setup |
+| Kernel Colab mất kết nối / server bị thu hồi | *Select Kernel → Colab → New Colab Server*, chạy lại cell setup + venv; dữ liệu trên Drive vẫn còn |
+| Colab chạy code cũ | Ở máy `git push`, chạy lại cell setup (có `git pull`) |
+| `userdata.get` / `files.upload` lỗi | Chưa hỗ trợ trong extension; không dùng, file đi qua Drive |
+| `rclone` báo `couldn't fetch token` | `rclone config reconnect gdrive:` |
+| Colab báo không thấy `uq_manifest.csv` / ở máy không thấy `seg_features.csv` | Chưa chạy lệnh rclone đẩy lên / kéo về ở mục 4.7 |
 | `SystemExit: Chưa điền tên cột gốc …` | Điền `configs/uq_column_map.yaml` (P3 mục 4.7) |
 | `ValueError: Thiếu cột trong metadata.csv` | Tên cột trong YAML sai so với file thật |
 | Rất nhiều `missing_timestamp` | Ngày không theo ISO-8601 (ví dụ `05/01/2020`): đặt `captured_at_format: "%d/%m/%Y"` (hoặc mẫu đúng) trong `configs/uq_column_map.yaml` sau khi SV A xác nhận định dạng |
 | Nhiều `same_visit` | Bình thường nếu mỗi buổi khám chụp nhiều ảnh; báo số này trong bảng flow |
 | `Không đủ cặp dùng được: train=…, val=0` | Quá ít participant có ≥ 2 lần chụp; báo SV A (tiêu chí No-Go) |
-| Suy luận UQ rất chậm | Copy ảnh sang `/content` trước; kiểm tra GPU đã bật |
+| Suy luận UQ rất chậm | Copy ảnh sang `/content` trước; kiểm tra server Colab có GPU |
 | Nhiều `empty_mask` | Mask PanDerm kém trên UQ (chuyển miền): báo trong audit P4, không tự hạ ngưỡng |
 
 ## 8. Checklist bàn giao cho SV A
