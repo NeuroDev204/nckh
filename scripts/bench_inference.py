@@ -1,11 +1,11 @@
 # file: scripts/bench_inference.py
 """Smoke test + benchmark suy luận PanDerm (seg hoặc cls) trên một nhóm ảnh nhỏ.
 
-Chạy bằng Python của venv tương ứng (venv_seg / venv_cls), không phải kernel Colab.
+Chạy bằng Python của venv tương ứng (venv_seg / venv_cls), không phải Python của .venv.
 Ví dụ:
-  /content/venv_seg/bin/python scripts/bench_inference.py --task seg \
-      --panderm-dir /content/PanDerm/segmentation --pretrained $ROOT/checkpoints/panderm_bb_data6_checkpoint-499.pth \
-      --images "/content/data/ISIC2018/Validation_Data/*.jpg" --n 20 --out-dir $ROOT/runs/<run_id>
+  ~/venvs/venv_seg/bin/python scripts/bench_inference.py --task seg \
+      --panderm-dir ~/PanDerm/segmentation --pretrained ~/nckh_root/checkpoints/panderm_bb_data6_checkpoint-499.pth \
+      --images "$HOME/nckh_data/ISIC2018/Validation_Data/*.jpg" --n 20 --out-dir ~/nckh_root/runs/<run_id>
 """
 import argparse
 import csv
@@ -100,7 +100,7 @@ def main(argv: list[str] | None = None) -> None:
     ap.add_argument("--panderm-dir", type=Path, required=True, help="PanDerm/segmentation hoặc PanDerm/classification")
     ap.add_argument("--pretrained", type=Path, help="checkpoint pretrain PanDerm Base")
     ap.add_argument("--finetuned", type=Path, help="checkpoint fine-tune (bỏ trống khi smoke test P2)")
-    ap.add_argument("--images", required=True, help='glob, ví dụ "/content/data/ISIC2018/Validation_Data/*.jpg"')
+    ap.add_argument("--images", required=True, help='glob, ví dụ "$HOME/nckh_data/ISIC2018/Validation_Data/*.jpg"')
     ap.add_argument("--n", type=int, default=20)
     ap.add_argument("--warmup", type=int, default=3)
     ap.add_argument("--save-overlays", type=int, default=10)

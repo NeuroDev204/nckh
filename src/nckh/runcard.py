@@ -98,7 +98,7 @@ def _key_values(items: list[str]) -> dict[str, str]:
 
 
 def main(argv: list[str] | None = None) -> None:
-    # CLI để gọi từ cell Colab bằng python của venv, tránh phải escape dấu ngoặc nhọn trong lệnh "!".
+    # CLI để gọi bằng python của venv seg/cls (khác kernel), tránh phải escape dấu ngoặc nhọn trong lệnh "!".
     ap = argparse.ArgumentParser(description="Ghi run_card.json cho một thư mục run")
     ap.add_argument("run_dir", type=Path)
     ap.add_argument("--seed", type=int, required=True)

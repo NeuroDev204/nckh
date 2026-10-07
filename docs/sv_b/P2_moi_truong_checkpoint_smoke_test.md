@@ -204,8 +204,8 @@ có thể đổi NCKH_ROOT mà không phải import lại.
 import os
 from pathlib import Path
 
-DEFAULT_ROOT = "/content/drive/MyDrive/NCKH_PanDerm"
-DEFAULT_LOCAL_DATA = "/content/data"
+DEFAULT_ROOT = str(Path.home() / "nckh_root")
+DEFAULT_LOCAL_DATA = str(Path.home() / "nckh_data")
 
 
 def project_root() -> Path:
@@ -229,7 +229,7 @@ def runs_dir() -> Path:
 
 
 def local_data_root() -> Path:
-    # Ảnh giải nén nằm trên đĩa /content của Colab (nhanh) chứ không trên Drive.
+    # Ảnh giải nén để riêng khỏi NCKH_ROOT: nặng hàng chục GB, tải lại được, không cần sao lưu cùng runs/.
     return Path(os.environ.get("NCKH_LOCAL_DATA", DEFAULT_LOCAL_DATA))
 ```
 
@@ -338,7 +338,7 @@ def _key_values(items: list[str]) -> dict[str, str]:
 
 
 def main(argv: list[str] | None = None) -> None:
-    # CLI để gọi từ cell Colab bằng python của venv, tránh phải escape dấu ngoặc nhọn trong lệnh "!".
+    # CLI để gọi bằng python của venv seg/cls (khác kernel), tránh phải escape dấu ngoặc nhọn trong lệnh "!".
     ap = argparse.ArgumentParser(description="Ghi run_card.json cho một thư mục run")
     ap.add_argument("run_dir", type=Path)
     ap.add_argument("--seed", type=int, required=True)
@@ -396,7 +396,7 @@ import json
 from datetime import datetime
 from pathlib import Path
 
-from nckh.paths import project_root, runs_dir
+from nckh.paths import local_data_root, project_root, runs_dir
 from nckh.runcard import new_run_id, sha256_file, write_run_card
 
 
@@ -404,6 +404,13 @@ def test_project_root_reads_env(monkeypatch, tmp_path: Path) -> None:
     monkeypatch.setenv("NCKH_ROOT", str(tmp_path))
     assert project_root() == tmp_path
     assert runs_dir() == tmp_path / "runs"
+
+
+def test_defaults_are_local_home(monkeypatch) -> None:
+    monkeypatch.delenv("NCKH_ROOT", raising=False)
+    monkeypatch.delenv("NCKH_LOCAL_DATA", raising=False)
+    assert project_root() == Path.home() / "nckh_root"
+    assert local_data_root() == Path.home() / "nckh_data"
 
 
 def test_sha256_known(tmp_path: Path) -> None:
@@ -506,7 +513,7 @@ Venv nằm trên `/content` nên mất khi runtime bị ngắt (server Colab b�
 # file: scripts/inspect_checkpoint.py
 """Soi cấu trúc key của checkpoint PanDerm trước khi áp patch.
 
-Chạy: /content/venv_seg/bin/python scripts/inspect_checkpoint.py $ROOT/checkpoints/panderm_bb_data6_checkpoint-499.pth
+Chạy: ~/venvs/venv_seg/bin/python scripts/inspect_checkpoint.py ~/nckh_root/checkpoints/panderm_bb_data6_checkpoint-499.pth
 """
 import json
 import sys
@@ -1063,11 +1070,11 @@ def test_map_pretrained_cls_keys() -> None:
 # file: scripts/bench_inference.py
 """Smoke test + benchmark suy luận PanDerm (seg hoặc cls) trên một nhóm ảnh nhỏ.
 
-Chạy bằng Python của venv tương ứng (venv_seg / venv_cls), không phải kernel Colab.
+Chạy bằng Python của venv tương ứng (venv_seg / venv_cls), không phải Python của .venv.
 Ví dụ:
-  /content/venv_seg/bin/python scripts/bench_inference.py --task seg \
-      --panderm-dir /content/PanDerm/segmentation --pretrained $ROOT/checkpoints/panderm_bb_data6_checkpoint-499.pth \
-      --images "/content/data/ISIC2018/Validation_Data/*.jpg" --n 20 --out-dir $ROOT/runs/<run_id>
+  ~/venvs/venv_seg/bin/python scripts/bench_inference.py --task seg \
+      --panderm-dir ~/PanDerm/segmentation --pretrained ~/nckh_root/checkpoints/panderm_bb_data6_checkpoint-499.pth \
+      --images "$HOME/nckh_data/ISIC2018/Validation_Data/*.jpg" --n 20 --out-dir ~/nckh_root/runs/<run_id>
 """
 import argparse
 import csv
@@ -1162,7 +1169,7 @@ def main(argv: list[str] | None = None) -> None:
     ap.add_argument("--panderm-dir", type=Path, required=True, help="PanDerm/segmentation hoặc PanDerm/classification")
     ap.add_argument("--pretrained", type=Path, help="checkpoint pretrain PanDerm Base")
     ap.add_argument("--finetuned", type=Path, help="checkpoint fine-tune (bỏ trống khi smoke test P2)")
-    ap.add_argument("--images", required=True, help='glob, ví dụ "/content/data/ISIC2018/Validation_Data/*.jpg"')
+    ap.add_argument("--images", required=True, help='glob, ví dụ "$HOME/nckh_data/ISIC2018/Validation_Data/*.jpg"')
     ap.add_argument("--n", type=int, default=20)
     ap.add_argument("--warmup", type=int, default=3)
     ap.add_argument("--save-overlays", type=int, default=10)

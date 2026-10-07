@@ -1,6 +1,6 @@
 """
 Soi cấu trúc key của checkpoint Panderm trước khi áp patch
-Chạy: /content/venv_seg/bin/python scripts/inspect_checkpoint.py $ROOT/checkpoints/panderm_bb_data6_checkpoint-499.pth
+Chạy: ~/venvs/venv_seg/bin/python scripts/inspect_checkpoint.py ~/nckh_root/checkpoints/panderm_bb_data6_checkpoint-499.pth
 """
 
 import json

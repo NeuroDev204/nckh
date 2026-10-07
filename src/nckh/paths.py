@@ -7,8 +7,8 @@ có thể đổi NCKH_ROOT mà không phải import lại.
 import os
 from pathlib import Path
 
-DEFAULT_ROOT = "/content/drive/MyDrive/NCKH_PanDerm"
-DEFAULT_LOCAL_DATA = "/content/data"
+DEFAULT_ROOT = str(Path.home() / "nckh_root")
+DEFAULT_LOCAL_DATA = str(Path.home() / "nckh_data")
 
 
 def project_root() -> Path:
@@ -32,5 +32,5 @@ def runs_dir() -> Path:
 
 
 def local_data_root() -> Path:
-    # Ảnh giải nén nằm trên đĩa /content của Colab (nhanh) chứ không trên Drive.
+    # Ảnh giải nén để riêng khỏi NCKH_ROOT: nặng hàng chục GB, tải lại được, không cần sao lưu cùng runs/.
     return Path(os.environ.get("NCKH_LOCAL_DATA", DEFAULT_LOCAL_DATA))
