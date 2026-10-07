@@ -37,16 +37,23 @@ Bốn phase này do SV A dẫn dắt. SV B không chạy huấn luyện ở đâ
 
 **SV A chủ trì:** đọc điều khoản UQ, hỏi đơn vị lưu trữ/giảng viên, lập data dictionary, biên bản Go/No-Go.
 
-**SV B làm:** khi (và chỉ khi) SV A xác nhận có quyền tải và xử lý trên Colab/Drive, kiểm tra **cấu trúc kỹ thuật** của gói dữ liệu và đề xuất bản đồ cột sang schema chuẩn của pipeline:
+**SV B làm:** khi (và chỉ khi) SV A xác nhận có quyền tải và xử lý trên Colab/Drive (và lưu bản sao trên máy cá nhân nếu điều khoản cho phép), kiểm tra **cấu trúc kỹ thuật** của gói dữ liệu và đề xuất bản đồ cột sang schema chuẩn của pipeline:
 
 `participant_id, lesion_id, image_id, image_path, captured_at, modality`
 
 > Nếu chưa có văn bản cho phép xử lý trên đám mây: **không** tải UQ lên Drive. Dùng dữ liệu giả ở P6 để phát triển trước.
 
-Cell kiểm tra cấu trúc (chạy sau khi gói UQ đã nằm ở `data/uq/` trên Drive):
+Cell kiểm tra cấu trúc chạy **trên máy** (`NB_cpu`, sau cell setup P2 4.1a), sau khi gói UQ đã nằm ở `data/uq/` trên Drive và được kéo về máy:
+
+```bash
+# terminal VS Code (máy cá nhân)
+rclone copy gdrive:NCKH_PanDerm/data/uq ~/nckh_drive/data/uq --progress
+```
+
+Nếu điều khoản không cho lưu trên máy: chạy cell này trong `NB_seg` (Colab) thay vì `NB_cpu`; nội dung giữ nguyên vì `ROOT` trỏ tới Drive.
 
 ```python
-# cell: NB_cpu
+# cell: NB_cpu (máy cá nhân)
 from pathlib import Path
 from collections import Counter
 import pandas as pd
@@ -89,7 +96,7 @@ meta.head(3).T
 1. **Chọn mẫu audit** có phân tầng theo Δt và diện tích mask sơ bộ, có seed, để audit không chỉ gồm ảnh dễ. Hàm `stratified_audit_sample` (viết ở P6, `src/nckh/pairs.py`) chia cặp thành các ô theo tứ phân vị của từng cột rồi lấy đều mỗi ô:
 
 ```python
-# cell: NB_cpu
+# cell: NB_cpu (máy cá nhân)
 import pandas as pd
 from nckh.pairs import stratified_audit_sample
 feat = pd.read_csv(f'{ROOT}/runs/<run_id_P6>/ridge/features.csv')    # bảng cặp + area_ratio_t sơ bộ từ P6 (target test đã bị che)
@@ -99,7 +106,7 @@ audit.to_csv(f'{ROOT}/data/uq/audit/audit_pairs.csv', index=False)
 print(audit['stratum'].value_counts())
 ```
 
-   Lưu `audit_pairs.csv` và seed. **Không** dùng các ảnh này để fine-tune hay chọn checkpoint.
+   Lưu `audit_pairs.csv` và seed. **Không** dùng các ảnh này để fine-tune hay chọn checkpoint. File được ghi ở máy (`~/nckh_drive/data/uq/audit/`); đẩy lên Drive cho SV A bằng `rclone copy ~/nckh_drive/data/uq/audit gdrive:NCKH_PanDerm/data/uq/audit`.
 
 2. **Gán độc lập** một phần ngẫu nhiên đã định trước của tập audit (ví dụ 20 ảnh, chọn bằng `audit.sample(n=20, random_state=2026)`), **không xem** mask của SV A.
    - Công cụ gợi ý: CVAT hoặc labelme. Xuất **mask nhị phân PNG** (0 = nền, 255 = tổn thương), cùng kích thước ảnh gốc, tên `<image_id>.png`.
@@ -109,12 +116,13 @@ print(audit['stratum'].value_counts())
 3. **Tính độ đồng thuận** bằng `scripts/annotator_agreement.py` (mã nguồn và test ở `P5b_classification_isic2017.md` mục 4.2):
 
 ```python
-# cell: NB_cpu
+# cell: NB_cpu (máy cá nhân)
 from nckh.runcard import new_run_id
 RUN = f"{ROOT}/runs/{new_run_id('audit_agreement')}"
-!cd {ROOT}/nckh && python scripts/annotator_agreement.py --dir-a {ROOT}/data/uq/audit/annotator_A --dir-b {ROOT}/data/uq/audit/annotator_B --out {RUN}/agreement.csv
+!cd {REPO} && {PY} scripts/annotator_agreement.py --dir-a {ROOT}/data/uq/audit/annotator_A --dir-b {ROOT}/data/uq/audit/annotator_B --out {RUN}/agreement.csv
 ```
 
+   Trước khi chạy, kéo mask của hai người gán về máy: `rclone copy gdrive:NCKH_PanDerm/data/uq/audit ~/nckh_drive/data/uq/audit` (terminal VS Code).
    Script chỉ so các ảnh có ở **cả hai** thư mục. Nếu lệch tên file, nó dừng và liệt kê; khi đó hãy copy riêng phần ảnh chung vào hai thư mục con trước khi chạy.
 
 4. **Không xoá** mask độc lập sau buổi thống nhất. Mask thống nhất lưu ở `data/uq/audit/consensus/`; hai thư mục độc lập là bằng chứng inter-annotator agreement.
@@ -133,7 +141,7 @@ RUN = f"{ROOT}/runs/{new_run_id('audit_agreement')}"
 
 **SV B làm:** viết **phụ lục kỹ thuật** và đoạn mô tả triển khai trong Methods, lấy số liệu **từ run card và file kết quả**, không gõ tay. Dàn ý phụ lục:
 
-1. **Môi trường:** Colab, loại GPU thật đã dùng (từ run card), Python, ba môi trường (seg/cls/cpu) và lý do tách.
+1. **Môi trường:** máy cá nhân (VS Code, .venv Python 3.10, CPU) cho xử lý dữ liệu/đánh giá; Colab nối qua extension VS Code (loại GPU thật từ run card) cho train/suy luận; ba môi trường (seg/cls trên Colab, cpu trên máy) và lý do tách.
 2. **Phiên bản:** bảng phiên bản gói lấy từ `run_card.json` → `packages` của từng run chính; commit PanDerm upstream `fd7a807` + patch đã áp.
 3. **Checkpoint và hash:** checkpoint pretrained (nguồn, ngày tải, SHA-256), checkpoint fine-tune seg/cls (run_id, SHA-256), `ridge.joblib` (SHA-256 của `pairs.csv` lưu bên trong).
 4. **Run card:** danh sách run_id của mọi kết quả trong bài, mỗi run gắn với bảng/hình nào.

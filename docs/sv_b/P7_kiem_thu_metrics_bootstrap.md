@@ -4,15 +4,22 @@
 
 **Mục tiêu (kế hoạch Phase 7):** gom mọi phép kiểm tra dữ liệu/hệ thống thành bộ test chạy được bằng một lệnh; chốt cách tính metric chính/phụ cho 3 nhánh; tính khoảng tin cậy bootstrap đúng đơn vị lấy mẫu; so Ridge với baseline bằng **paired bootstrap** theo participant.
 
-| Đầu vào | Đầu ra |
-|---|---|
-| `predictions_val.csv`, `predictions_test.csv` (P6) | `eval_forecast/forecast_metrics.json`, `eval_forecast/forecast_by_dt_bin.csv` |
-| `seg_metrics.json` (P5a), `cls_metrics.json` (P5b) | Bảng kết quả tổng (điền ở mục 6, sinh tự động ở P10) |
-| Toàn bộ `tests/` | Log `pytest` lưu vào `runs/<run_id>/pytest.log` |
+| Đầu vào | Đầu ra | Sinh ở |
+|---|---|---|
+| `predictions_val.csv`, `predictions_test.csv` (P6) | `eval_forecast/forecast_metrics.json`, `eval_forecast/forecast_by_dt_bin.csv` | Máy: `~/nckh_drive/runs/<p6_uq_run_id>/eval_forecast/` |
+| `seg_metrics.json` (P5a), `cls_metrics.json` (P5b) | Bảng kết quả tổng (điền ở mục 6, sinh tự động ở P10) | Máy |
+| Toàn bộ `<repo>/tests/` | Log `pytest` lưu vào `runs/<run_id>/pytest.log` | Máy: `~/nckh_drive/runs/<run_id>/pytest.log` |
 
 ## 2. Chạy ở đâu
 
-Tất cả chạy trên **NB_cpu**. Một lần `evaluate_forecast.py` mất vài giây đến vài chục giây (2.000 lần bootstrap).
+Tất cả chạy **trên máy** (`NB_cpu`, chạy cell setup P2 4.1a trước). Một lần `evaluate_forecast.py` mất vài giây đến vài chục giây (2.000 lần bootstrap). Biến `RUN` là run P6 trên UQ ở máy: `RUN = f"{ROOT}/runs/<p6_uq_run_id>"`.
+
+Run P6 (`ridge/`, `ridge_test/`) đã nằm sẵn ở máy. Các run P5a/P5b (`seg_metrics.json`, `cls_metrics.json`) do Colab ghi, nên kéo về trước nếu chưa làm:
+
+```bash
+# terminal VS Code (máy cá nhân)
+rclone copy gdrive:NCKH_PanDerm/runs/<run_id> ~/nckh_drive/runs/<run_id> --exclude "*.ckpt" --exclude "*.pth" --progress
+```
 
 ## 3. Giải thích
 
@@ -58,7 +65,7 @@ Ví dụ thật trên **dữ liệu giả** (P6 mục 4.6, chỉ có 4 participa
 2. **Độ bất đồng diện tích giữa hai người gán** ở P4: trung vị `area_diff` trong `agreement.csv`. Ý nghĩa: thay đổi nhỏ hơn mức hai người gán đã lệch nhau thì không phân biệt được với nhiễu đo.
 
 ```python
-# cell: NB_cpu
+# cell: NB_cpu (máy cá nhân)
 import pandas as pd
 val = pd.read_csv(f"{RUN}/ridge/predictions_val.csv")
 print("Phương án 1 — trung vị |Δa| val:", round(val.delta_area.abs().median(), 4))
@@ -80,6 +87,8 @@ Nếu chạy 3 seed cho segmentation/classification (P5a/P5b):
 `src/nckh/metrics.py` đã tạo ở P5a (mục 4.1). Phase này chỉ thêm script đánh giá dự báo.
 
 ### 4.2. `scripts/evaluate_forecast.py`
+
+📁 **Tạo trên máy cá nhân:** `<repo>/scripts/evaluate_forecast.py`
 
 ```python
 # file: scripts/evaluate_forecast.py
@@ -164,6 +173,8 @@ if __name__ == "__main__":
 
 ### 4.3. Test
 
+📁 **Tạo trên máy cá nhân:** `<repo>/tests/test_evaluate_forecast.py`
+
 ```python
 # file: tests/test_evaluate_forecast.py
 import json
@@ -229,9 +240,9 @@ def test_bin_min_size(tmp_path: Path) -> None:
 ### 4.4. Chạy
 
 ```python
-# cell: NB_cpu
+# cell: NB_cpu (máy cá nhân)
 EPS = 0.005   # ← giá trị đã chốt trong protocol (mục 3.4), KHÔNG chọn lại sau khi xem test
-!cd {ROOT}/nckh && python scripts/evaluate_forecast.py --predictions {RUN}/ridge_test/predictions_test.csv --out-dir {RUN}/eval_forecast --stable-eps {EPS}
+!cd {REPO} && {PY} scripts/evaluate_forecast.py --predictions {RUN}/ridge_test/predictions_test.csv --out-dir {RUN}/eval_forecast --stable-eps {EPS}
 !cat {RUN}/eval_forecast/forecast_by_dt_bin.csv
 ```
 
@@ -240,10 +251,10 @@ Chạy thêm trên `predictions_val.csv` (thư mục `eval_forecast_val`) để 
 ### 4.5. Chạy toàn bộ test và lưu log
 
 ```python
-# cell: NB_cpu
+# cell: NB_cpu (máy cá nhân)
 from nckh.runcard import new_run_id
 LOG = f"{ROOT}/runs/{new_run_id('pytest')}"
-!mkdir -p {LOG} && cd {ROOT}/nckh && python -m pytest -q 2>&1 | tee {LOG}/pytest.log | tail -3
+!mkdir -p {LOG} && cd {REPO} && {PY} -m pytest -q 2>&1 | tee {LOG}/pytest.log | tail -3
 ```
 
 ## 5. Test
@@ -296,10 +307,12 @@ Bảng kết quả theo kế hoạch Mục 10. **Không điền trước số k�
 | Ridge — mức B (thủ công) | [điền sau khi chạy] | MAE / RMSE / bias | [điền sau khi chạy] | [điền sau khi chạy] | Tách riêng, mẫu nhỏ |
 | Độ bền ảnh | [điền sau khi chạy] | ΔDice / ΔMacro-F1 / ΔMAE | [điền sau khi chạy] | [điền sau khi chạy] | Từng phép suy giảm (P8) |
 
-## 7. Lỗi thường gặp trên Colab
+## 7. Lỗi thường gặp (máy / Colab extension)
 
 | Triệu chứng | Cách xử lý |
 |---|---|
+| `rclone` báo `couldn't fetch token` | `rclone config reconnect gdrive:` |
+| Ở máy không thấy file Colab vừa ghi (`seg_metrics.json`, `cls_metrics.json`) | Chạy lệnh `rclone copy gdrive:NCKH_PanDerm/runs/<run_id> ~/nckh_drive/runs/<run_id>` |
 | `ValueError: File có nhiều split` | Đang đưa file trộn val+test; dùng đúng `predictions_test.csv` |
 | CI rất rộng | Ít participant test; báo cỡ mẫu hiệu dụng, gọi kết quả là thăm dò (kế hoạch Phase 1) |
 | Cảnh báo `n lần bootstrap không tính được thống kê` | Thường do AUROC khi một lần lặp thiếu lớp; báo `n_failed` trong bảng |
