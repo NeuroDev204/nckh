@@ -4,19 +4,20 @@
 
 **Mục tiêu (kế hoạch Phase 8):** đo xem segmentation, phân loại tham khảo và dự báo Δa thay đổi bao nhiêu khi ảnh đầu vào bị: lệch sáng, mờ, lệch cân bằng trắng, có lông che. Mỗi phép thử so **cùng ảnh** ở bản sạch và bản suy giảm, **cùng tham chiếu**, bằng paired bootstrap. Ngoài ra thử Ben Graham/Gamma như tiền xử lý phụ, **chỉ chọn trên val**.
 
-| Đầu vào | Đầu ra |
-|---|---|
-| Checkpoint đã khóa (P5a, P5b), `ridge.joblib` (P6) | `runs/<p8_run>/robustness.json` dạng `{mức: {metric: {estimate, ci_low, ci_high, …}}}` |
-| ISIC 2018 test, ISIC 2017 test, cặp UQ test | `seg_<mức>.csv`, `forecast_<mức>.csv` (từng ảnh/cặp), `enhancement_val.json` |
+| Đầu vào | Đầu ra | Sinh ở |
+|---|---|---|
+| Checkpoint đã khóa (P5a, P5b), `ridge.joblib` (P6) | `runs/<p8_run>/robustness.json` dạng `{mức: {metric: {estimate, ci_low, ci_high, …}}}` | Seg/cls: Colab ghi vào `MyDrive/NCKH_PanDerm/runs/<p8_run>/` → kéo về máy. Forecast: máy, `~/nckh_drive/runs/<p6_uq_run_id>/p8_forecast/` |
+| ISIC 2018 test, ISIC 2017 test, cặp UQ test | `seg_<mức>.csv`, `forecast_<mức>.csv` (từng ảnh/cặp), `enhancement_val.json` | Như trên |
 
 ## 2. Chạy ở đâu
 
-| Việc | Notebook | Ghi chú |
+| Việc | Chạy ở | Ghi chú |
 |---|---|---|
-| Tạo `degrade.py`, `make_degraded.py`, `evaluate_robustness.py`, test | NB_cpu | |
-| Sinh ảnh suy giảm | Notebook có GPU đang dùng (CPU làm) | ~0,25 s/ảnh 3000×2000 cho mức lông; các mức khác nhanh hơn |
-| Suy luận lại PanDerm trên ảnh suy giảm | NB_seg, NB_cls | 10 mức × số ảnh test × ms/ảnh (P2) |
-| `evaluate_robustness.py` | Bất kỳ (CPU) | Vài giây mỗi mức |
+| Tạo `degrade.py`, `make_degraded.py`, `evaluate_robustness.py`, test | Máy (`NB_cpu`) | |
+| Sinh ảnh suy giảm + suy luận lại PanDerm (ISIC 2018/2017) | Colab `NB_seg`, `NB_cls` | Ảnh suy giảm sinh ngay trên `/content` (CPU của server), không upload từ máy. ~0,25 s/ảnh 3000×2000 cho mức lông; 10 mức × số ảnh test × ms/ảnh (P2) |
+| Đánh giá seg/cls từng mức | Colab, trong cùng vòng lặp | Vài giây mỗi mức; `robustness.json` ghi lên Drive |
+| Dự báo UQ: ảnh t suy giảm + suy luận | Colab `NB_seg`, `NB_cls` | Thư mục `{RUN}/p8_degraded` trên Drive |
+| `evaluate_robustness.py forecast` | Máy (`NB_cpu`) sau khi kéo về | Vài giây mỗi mức |
 
 > ⚠️ Chưa kiểm chứng trên GPU — xác minh trong pilot P2. Phần CPU (sinh ảnh, đánh giá, ghi JSON) đã chạy pytest và chạy thử đầu-cuối trên dữ liệu giả.
 
@@ -62,6 +63,8 @@ Seed của từng ảnh = 2026 + CRC32(image_id), nên chạy lại hay chạy s
 ## 4. Code
 
 ### 4.1. `src/nckh/degrade.py`
+
+📁 **Tạo trên máy cá nhân:** `<repo>/src/nckh/degrade.py`
 
 ```python
 # file: src/nckh/degrade.py
@@ -180,6 +183,8 @@ ENHANCEMENTS: dict[str, Callable[[np.ndarray], np.ndarray]] = {
 
 ### 4.2. `scripts/make_degraded.py`
 
+📁 **Tạo trên máy cá nhân:** `<repo>/scripts/make_degraded.py`
+
 ```python
 # file: scripts/make_degraded.py
 """Sinh ảnh suy giảm (hoặc ảnh tiền xử lý tương phản) cho MỘT mức, từ ảnh của MỘT split.
@@ -247,6 +252,8 @@ if __name__ == "__main__":
 ```
 
 ### 4.3. `scripts/evaluate_robustness.py`
+
+📁 **Tạo trên máy cá nhân:** `<repo>/scripts/evaluate_robustness.py`
 
 ```python
 # file: scripts/evaluate_robustness.py
@@ -388,6 +395,8 @@ if __name__ == "__main__":
 
 ### 4.4. Test
 
+📁 **Tạo trên máy cá nhân:** `<repo>/tests/test_degrade.py`
+
 ```python
 # file: tests/test_degrade.py
 import sys
@@ -501,6 +510,8 @@ def test_make_degraded_writes_images_and_manifest(tmp_path: Path) -> None:
     assert (tmp_path / "o" / "a.png").exists()
 ```
 
+📁 **Tạo trên máy cá nhân:** `<repo>/tests/test_robustness.py`
+
 ```python
 # file: tests/test_robustness.py
 import json
@@ -582,10 +593,10 @@ def test_update_robustness_json_merges_levels(tmp_path: Path) -> None:
 
 ### 4.5. Segmentation: ISIC 2018 test, vòng lặp theo mức (NB_seg)
 
-Chuẩn bị: pull code ở NB_cpu (P2 4.1a), cell mở đầu 4.1b, `venv_seg`, patch, dữ liệu ISIC 2018 (P2/P3).
+Chuẩn bị: push code ở máy, cell setup Colab (P2 4.1b), `venv_seg`, patch, dữ liệu ISIC 2018 trên `/content/data` (P5a mục 4.4).
 
 ```python
-# cell: NB_seg
+# cell: NB_seg (Colab GPU)
 from nckh.runcard import new_run_id
 P8 = f"{ROOT}/runs/{new_run_id('p8_seg')}"
 SEG_FT = f"{ROOT}/runs/<seg_main_run_id>/0/model_best_0.ckpt"
@@ -593,18 +604,18 @@ MAN = f"{ROOT}/data/manifests/isic2018_seg.csv"
 SEG = f"--task seg --panderm-dir /content/PanDerm/segmentation --pretrained {CK} --finetuned {SEG_FT}"
 # 1) Mask trên ảnh SẠCH của test (một lần)
 !python -c "import pandas as pd; m=pd.read_csv('{MAN}'); m[(m.split=='test')&m.exclude_reason.isna()].to_csv('/content/isic18_test.csv', index=False)"
-!cd /content && {VENV}/bin/python {ROOT}/nckh/scripts/infer_images.py {SEG} --manifest /content/isic18_test.csv --data-root /content/data --out-dir /content/clean_seg
+!cd /content && {VENV}/bin/python {CODE}/scripts/infer_images.py {SEG} --manifest /content/isic18_test.csv --data-root /content/data --out-dir /content/clean_seg
 ```
 
 ```python
-# cell: NB_seg
+# cell: NB_seg (Colab GPU)
 LEVELS = ["brightness_0.8", "brightness_1.2", "blur_1.0", "blur_1.5", "wb_r1.1_b0.9", "wb_r0.9_b1.1",
           "wb_r1.2_b0.8", "wb_r0.8_b1.2", "hair_0.01", "hair_0.03"]
 for lv in LEVELS:
     D = f"/content/degraded/{lv}"
-    !cd /content && {VENV}/bin/python {ROOT}/nckh/scripts/make_degraded.py --manifest /content/isic18_test.csv --data-root /content/data --split test --level {lv} --out-dir {D}
-    !cd /content && {VENV}/bin/python {ROOT}/nckh/scripts/infer_images.py {SEG} --manifest {D}/degraded_manifest.csv --data-root {D} --out-dir {D}/out
-    !{VENV}/bin/python {ROOT}/nckh/scripts/evaluate_robustness.py seg --level {lv} --robustness-json {P8}/robustness.json --out-dir {P8} --clean /content/clean_seg/masks --degraded {D}/out/masks --gt-dir /content/data/ISIC2018/Test_GroundTruth | grep -E '"dice_(clean|degraded)"'
+    !cd /content && {VENV}/bin/python {CODE}/scripts/make_degraded.py --manifest /content/isic18_test.csv --data-root /content/data --split test --level {lv} --out-dir {D}
+    !cd /content && {VENV}/bin/python {CODE}/scripts/infer_images.py {SEG} --manifest {D}/degraded_manifest.csv --data-root {D} --out-dir {D}/out
+    !{VENV}/bin/python {CODE}/scripts/evaluate_robustness.py seg --level {lv} --robustness-json {P8}/robustness.json --out-dir {P8} --clean /content/clean_seg/masks --degraded {D}/out/masks --gt-dir /content/data/ISIC2018/Test_GroundTruth | grep -E '"dice_(clean|degraded)"'
     !rm -rf {D}   # xoá ngay để không đầy đĩa /content
 ```
 
@@ -613,7 +624,7 @@ Nếu runtime ngắt giữa vòng lặp: `robustness.json` đã lưu các mức 
 ### 4.6. Phân loại: ISIC 2017 test (NB_cls)
 
 ```python
-# cell: NB_cls
+# cell: NB_cls (Colab GPU)
 from nckh.runcard import new_run_id
 from nckh.degrade import DEGRADATION_LEVELS
 LEVELS = list(DEGRADATION_LEVELS)
@@ -622,12 +633,12 @@ CLS_FT = f"{ROOT}/runs/<cls_main_run_id>/checkpoint-best.pth"
 LAB = f"{ROOT}/data/manifests/isic2017_cls.csv"
 !python -c "import pandas as pd; from pathlib import Path; m=pd.read_csv('{LAB}'); m=m[m.split=='test']; m.assign(image_id=m.image.map(lambda s: Path(s).stem)).to_csv('/content/isic17_test.csv', index=False)"
 CLS = f"--task cls --panderm-dir /content/PanDerm/classification --finetuned {CLS_FT}"
-!cd /content && {VENV}/bin/python {ROOT}/nckh/scripts/infer_images.py {CLS} --manifest /content/isic17_test.csv --path-col image --data-root /content/data/ISIC2017 --out-dir /content/clean_cls
+!cd /content && {VENV}/bin/python {CODE}/scripts/infer_images.py {CLS} --manifest /content/isic17_test.csv --path-col image --data-root /content/data/ISIC2017 --out-dir /content/clean_cls
 for lv in LEVELS:
     D = f"/content/degraded17/{lv}"
-    !cd /content && {VENV}/bin/python {ROOT}/nckh/scripts/make_degraded.py --manifest /content/isic17_test.csv --path-col image --data-root /content/data/ISIC2017 --split test --level {lv} --out-dir {D}
-    !cd /content && {VENV}/bin/python {ROOT}/nckh/scripts/infer_images.py {CLS} --manifest {D}/degraded_manifest.csv --data-root {D} --out-dir {D}/out
-    !{VENV}/bin/python {ROOT}/nckh/scripts/evaluate_robustness.py cls --level {lv} --robustness-json {P8C}/robustness.json --out-dir {P8C} --clean /content/clean_cls/cls_probs.csv --degraded {D}/out --labels-csv {LAB} | grep macro_f1_
+    !cd /content && {VENV}/bin/python {CODE}/scripts/make_degraded.py --manifest /content/isic17_test.csv --path-col image --data-root /content/data/ISIC2017 --split test --level {lv} --out-dir {D}
+    !cd /content && {VENV}/bin/python {CODE}/scripts/infer_images.py {CLS} --manifest {D}/degraded_manifest.csv --data-root {D} --out-dir {D}/out
+    !{VENV}/bin/python {CODE}/scripts/evaluate_robustness.py cls --level {lv} --robustness-json {P8C}/robustness.json --out-dir {P8C} --clean /content/clean_cls/cls_probs.csv --degraded {D}/out --labels-csv {LAB} | grep macro_f1_
     !rm -rf {D}
 ```
 
@@ -635,24 +646,44 @@ for lv in LEVELS:
 
 ### 4.7. Dự báo: chỉ ảnh t của cặp UQ test bị suy giảm
 
+> Nếu điều khoản UQ **không** cho lưu trên máy (P6 mục 3.1): chạy các cell `NB_cpu` dưới đây trong `NB_seg` trên Colab, thay `{REPO}` bằng `{CODE}` và `{PY}` bằng `{VENV}/bin/python`, bỏ các lệnh rclone kéo/đẩy thư mục UQ; kết quả nằm trên Drive.
+
+Tạo danh sách ảnh t ở máy (`features.csv` của run P6 đã có ở máy):
+
 ```python
-# cell: NB_cpu
-RUN = "<run P6 trên UQ>"
+# cell: NB_cpu (máy cá nhân)
+import pandas as pd
+RUN = f"{ROOT}/runs/<p6_uq_run_id>"
 f = pd.read_csv(f"{RUN}/ridge_test/features.csv")   # chỉ run đã mở test mới có target của cặp test
 t = f[f.usable & (f.split == 'test')][['image_id_t', 'image_path_t']].drop_duplicates()
 t.rename(columns={'image_id_t': 'image_id', 'image_path_t': 'image_path'}).assign(split='test').to_csv(f"{RUN}/p8_t_images.csv", index=False)
 ```
 
-Sau đó, với mỗi mức (`D = {RUN}/p8_degraded/<mức>`):
-1. Chạy `make_degraded.py --manifest {RUN}/p8_t_images.csv --data-root {ROOT}/data/uq --split test --level <mức> --out-dir {RUN}/p8_degraded/<mức>`.
-2. Chạy `infer_images.py` **seg** (NB_seg) **và** **cls** (NB_cls) trên `{D}/degraded_manifest.csv`, cùng `--out-dir {D}/out`. Thư mục `D` nằm trên Drive để hai notebook dùng chung.
-3. Chạy (NB_cpu):
+Đẩy danh sách ảnh t lên Drive:
+
+```bash
+# terminal VS Code (máy cá nhân)
+rclone copyto ~/nckh_drive/runs/<p6_uq_run_id>/p8_t_images.csv gdrive:NCKH_PanDerm/runs/<p6_uq_run_id>/p8_t_images.csv
+```
+
+Sau đó, trên Colab với `RUN = f"{ROOT}/runs/<p6_uq_run_id>"`, với mỗi mức (`D = {RUN}/p8_degraded/<mức>`):
+1. (Colab `NB_seg`) Chạy `{VENV}/bin/python {CODE}/scripts/make_degraded.py --manifest {RUN}/p8_t_images.csv --data-root {ROOT}/data/uq --split test --level <mức> --out-dir {RUN}/p8_degraded/<mức>`.
+2. Chạy `{CODE}/scripts/infer_images.py` **seg** (Colab `NB_seg`) **và** **cls** (Colab `NB_cls`) trên `{D}/degraded_manifest.csv`, cùng `--out-dir {D}/out`. Thư mục `D` nằm trên Drive để hai notebook dùng chung.
+
+Kéo kết quả về máy:
+
+```bash
+# terminal VS Code (máy cá nhân)
+rclone copy gdrive:NCKH_PanDerm/runs/<p6_uq_run_id>/p8_degraded ~/nckh_drive/runs/<p6_uq_run_id>/p8_degraded --progress
+```
+
+3. Chạy ở máy (`NB_cpu`):
 
 ```python
-# cell: NB_cpu
+# cell: NB_cpu (máy cá nhân)
 P8F = f"{RUN}/p8_forecast"          # cố định cho mọi mức
 lv, D = "hair_0.03", f"{RUN}/p8_degraded/hair_0.03"   # đổi theo từng mức
-!cd {ROOT}/nckh && python scripts/evaluate_robustness.py forecast --level {lv} --robustness-json {P8F}/robustness.json --out-dir {P8F} --clean {RUN}/ridge_test/features.csv --degraded {D}/out --ridge {RUN}/ridge_test/ridge.joblib
+!cd {REPO} && {PY} scripts/evaluate_robustness.py forecast --level {lv} --robustness-json {P8F}/robustness.json --out-dir {P8F} --clean {RUN}/ridge_test/features.csv --degraded {D}/out --ridge {RUN}/ridge_test/ridge.joblib
 ```
 
 `n_unpredictable_degraded` cho biết có bao nhiêu ảnh t bị suy giảm đến mức mask rỗng, không dự báo được. Báo con số này cạnh ΔMAE.
@@ -660,14 +691,14 @@ lv, D = "hair_0.03", f"{RUN}/p8_degraded/hair_0.03"   # đổi theo từng mức
 ### 4.8. Ben Graham / Gamma trên val (NB_seg)
 
 ```python
-# cell: NB_seg
+# cell: NB_seg (Colab GPU)
 !python -c "import pandas as pd; m=pd.read_csv('{MAN}'); m[(m.split=='val')&m.exclude_reason.isna()].to_csv('/content/isic18_val.csv', index=False)"
-!cd /content && {VENV}/bin/python {ROOT}/nckh/scripts/infer_images.py {SEG} --manifest /content/isic18_val.csv --data-root /content/data --out-dir /content/clean_val
+!cd /content && {VENV}/bin/python {CODE}/scripts/infer_images.py {SEG} --manifest /content/isic18_val.csv --data-root /content/data --out-dir /content/clean_val
 for en in ["ben_graham_10", "gamma_0.8", "gamma_1.2"]:
     D = f"/content/enh/{en}"
-    !cd /content && {VENV}/bin/python {ROOT}/nckh/scripts/make_degraded.py --manifest /content/isic18_val.csv --data-root /content/data --split val --allow-non-test --level {en} --out-dir {D}
-    !cd /content && {VENV}/bin/python {ROOT}/nckh/scripts/infer_images.py {SEG} --manifest {D}/degraded_manifest.csv --data-root {D} --out-dir {D}/out
-    !{VENV}/bin/python {ROOT}/nckh/scripts/evaluate_robustness.py seg --level {en} --robustness-json {P8}/enhancement_val.json --out-dir {P8} --clean /content/clean_val/masks --degraded {D}/out/masks --gt-dir /content/data/ISIC2018/Validation_GroundTruth | grep -E '"dice_'
+    !cd /content && {VENV}/bin/python {CODE}/scripts/make_degraded.py --manifest /content/isic18_val.csv --data-root /content/data --split val --allow-non-test --level {en} --out-dir {D}
+    !cd /content && {VENV}/bin/python {CODE}/scripts/infer_images.py {SEG} --manifest {D}/degraded_manifest.csv --data-root {D} --out-dir {D}/out
+    !{VENV}/bin/python {CODE}/scripts/evaluate_robustness.py seg --level {en} --robustness-json {P8}/enhancement_val.json --out-dir {P8} --clean /content/clean_val/masks --degraded {D}/out/masks --gt-dir /content/data/ISIC2018/Validation_GroundTruth | grep -E '"dice_'
 ```
 
 Trong `enhancement_val.json`, `delta_dice` > 0 nghĩa là tiền xử lý **tốt hơn** RGB thường trên val. Chọn tối đa một biến thể có CI hoàn toàn > 0, ghi vào nhật ký quyết định, rồi mới chạy biến thể đó trên test (giống vòng lặp 4.5, với `--level <biến thể>` và `--allow-non-test` không cần vì split là test).
@@ -675,8 +706,8 @@ Trong `enhancement_val.json`, `delta_dice` > 0 nghĩa là tiền xử lý **tố
 ## 5. Test
 
 ```python
-# cell: NB_cpu
-!cd {ROOT}/nckh && python -m pytest -q tests/test_degrade.py tests/test_robustness.py
+# cell: NB_cpu (máy cá nhân)
+!cd {REPO} && {PY} -m pytest -q tests/test_degrade.py tests/test_robustness.py
 ```
 
 Kỳ vọng: `37 passed` (33 + 4).
@@ -714,10 +745,16 @@ Kỳ vọng: `37 passed` (33 + 4).
 
 Biểu đồ robustness sinh tự động bởi `make_figures.py` (P10) từ `robustness.json`.
 
-## 7. Lỗi thường gặp trên Colab
+## 7. Lỗi thường gặp (máy / Colab extension)
 
 | Triệu chứng | Cách xử lý |
 |---|---|
+| `AssertionError: Chưa mount Drive` | `Ctrl+Shift+P` → *Colab: Mount Google Drive to Server...*, chạy lại cell setup |
+| Kernel Colab mất kết nối / server bị thu hồi | *Select Kernel → Colab → New Colab Server*, chạy lại cell setup + venv; `robustness.json` trên Drive giữ các mức đã xong |
+| Colab chạy code cũ | Ở máy `git push`, chạy lại cell setup (có `git pull`) |
+| `userdata.get` / `files.upload` lỗi | Chưa hỗ trợ trong extension; không dùng, file đi qua Drive |
+| `rclone` báo `couldn't fetch token` | `rclone config reconnect gdrive:` |
+| Ở máy không thấy `p8_degraded/<mức>/out` | Chưa chạy lệnh rclone kéo về ở mục 4.7 |
 | `make_degraded` thoát mã 2 | Đúng thiết kế: chỉ split test; dùng `--allow-non-test` **chỉ** cho tiền xử lý trên val |
 | `ValueError: Thiếu mask sạch/suy giảm` | Chạy `infer_images` sạch chưa đủ ảnh hoặc sai thư mục `--clean` |
 | `ValueError: Chỉ ghép được …` (cls) | Manifest suy giảm và nhãn lệch tên ảnh; dùng đúng `/content/isic17_test.csv` |
@@ -727,7 +764,7 @@ Biểu đồ robustness sinh tự động bởi `make_figures.py` (P10) từ `ro
 ## 8. Checklist bàn giao cho SV A
 
 - [ ] SV A đã duyệt danh sách mức (đúng bảng 8.1) trước khi chạy.
-- [ ] `robustness.json` cho seg, cls, forecast (3 run) và `enhancement_val.json` trên Drive.
+- [ ] `robustness.json` cho seg, cls, forecast (3 run) và `enhancement_val.json` trên Drive (forecast ở máy, đẩy lên Drive bằng rclone nếu SV A cần).
 - [ ] Bảng mục 6 đã điền, kể cả các mức không làm metric thay đổi đáng kể.
 - [ ] Quyết định về Ben Graham/Gamma (chọn hoặc không) ghi vào nhật ký **trước** khi đụng test.
 - [ ] Ghi rõ trong báo cáo: lông là vật cản tổng hợp; σ blur tính trên ảnh gốc.

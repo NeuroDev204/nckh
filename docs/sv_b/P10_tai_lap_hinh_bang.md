@@ -4,14 +4,21 @@
 
 **Mục tiêu (kế hoạch Phase 10 + Mục 7):** mọi bảng và hình trong bài báo được **sinh bằng script** từ file kết quả, truy ngược được tới một `run_id`. Phân tích lỗi theo quy tắc chọn ví dụ định trước. Một người **chưa** chạy thí nghiệm chính (SV A) phải tái lập được kết quả từ môi trường sạch.
 
-| Đầu vào | Đầu ra (`runs/<p10_run>/`) |
-|---|---|
-| `seg_metrics.json`, `cls_metrics.json`, `forecast_metrics.json`, `flow.json`, `robustness.json`, `predictions_test.csv` | `tables/table_{seg,cls,forecast,flow,robustness}.{csv,md}` |
-| `seg_per_image.csv`, overlay P5a, `predictions_test.csv` | `figures/{pred_vs_obs,residual_vs_dt,robustness}.png`, `examples_seg.csv`, `examples_forecast.csv` |
+| Đầu vào | Đầu ra (`runs/<p10_run>/`) | Sinh ở |
+|---|---|---|
+| `seg_metrics.json`, `cls_metrics.json`, `forecast_metrics.json`, `flow.json`, `robustness.json`, `predictions_test.csv` | `tables/table_{seg,cls,forecast,flow,robustness}.{csv,md}` | Máy: `~/nckh_drive/runs/<p10_run>/tables/` |
+| `seg_per_image.csv`, overlay P5a, `predictions_test.csv` | `figures/{pred_vs_obs,residual_vs_dt,robustness}.png`, `examples_seg.csv`, `examples_forecast.csv` | Máy: `~/nckh_drive/runs/<p10_run>/` |
 
 ## 2. Chạy ở đâu
 
-Toàn bộ trên **NB_cpu**. Mỗi lệnh chạy vài giây.
+Toàn bộ **trên máy** (`NB_cpu`, chạy cell setup P2 4.1a trước). Mỗi lệnh chạy vài giây.
+
+Kéo các run cần dùng về máy (P5a/P5b/P8 do Colab ghi; P6/P7 đã ở máy), bỏ checkpoint:
+
+```bash
+# terminal VS Code (máy cá nhân)
+rclone copy gdrive:NCKH_PanDerm/runs/<run_id> ~/nckh_drive/runs/<run_id> --exclude "*.ckpt" --exclude "*.pth" --progress
+```
 
 ## 3. Giải thích
 
@@ -57,6 +64,8 @@ Với mỗi ví dụ, ghi nguyên nhân **quan sát được**: blur, lông, tư
 ## 4. Code
 
 ### 4.1. `scripts/make_tables.py`
+
+📁 **Tạo trên máy cá nhân:** `<repo>/scripts/make_tables.py`
 
 ```python
 # file: scripts/make_tables.py
@@ -178,6 +187,8 @@ if __name__ == "__main__":
 
 ### 4.2. `scripts/make_figures.py`
 
+📁 **Tạo trên máy cá nhân:** `<repo>/scripts/make_figures.py`
+
 ```python
 # file: scripts/make_figures.py
 """Sinh hình cho bài báo từ file dự báo và robustness.json; chọn ví dụ phân tích lỗi theo quy tắc định trước.
@@ -277,6 +288,8 @@ if __name__ == "__main__":
 
 ### 4.3. Test
 
+📁 **Tạo trên máy cá nhân:** `<repo>/tests/test_tables_figures.py`
+
 ```python
 # file: tests/test_tables_figures.py
 import json
@@ -357,22 +370,22 @@ def test_select_examples_groups_and_seed() -> None:
 ### 4.4. Chạy
 
 ```python
-# cell: NB_cpu
+# cell: NB_cpu (máy cá nhân)
 from nckh.runcard import new_run_id
 P10 = f"{ROOT}/runs/{new_run_id('p10')}"
 SEG = f"{ROOT}/runs/<seg_main_run_id>/eval"
 CLS = f"{ROOT}/runs/<cls_main_run_id>/eval_test"
 UQ = f"{ROOT}/runs/<p6_uq_run_id>"
 ROB = f"{ROOT}/runs/<p8_seg_run_id>/robustness.json"      # lặp lại make_tables/figures cho p8_cls, p8_forecast nếu muốn tách
-!cd {ROOT}/nckh && python scripts/make_tables.py --seg {SEG}/seg_metrics.json --cls {CLS}/cls_metrics.json --forecast {UQ}/eval_forecast/forecast_metrics.json --flow {UQ}/flow.json --robustness {ROB} --out-dir {P10}/tables
-!cd {ROOT}/nckh && python scripts/make_figures.py --predictions {UQ}/ridge_test/predictions_test.csv --robustness {ROB} --out-dir {P10}/figures
-!python -m nckh.runcard {P10} --seed 2026 --input seg={SEG}/seg_metrics.json --input cls={CLS}/cls_metrics.json --input forecast={UQ}/eval_forecast/forecast_metrics.json --input predictions={UQ}/ridge_test/predictions_test.csv --input robustness={ROB}
+!cd {REPO} && {PY} scripts/make_tables.py --seg {SEG}/seg_metrics.json --cls {CLS}/cls_metrics.json --forecast {UQ}/eval_forecast/forecast_metrics.json --flow {UQ}/flow.json --robustness {ROB} --out-dir {P10}/tables
+!cd {REPO} && {PY} scripts/make_figures.py --predictions {UQ}/ridge_test/predictions_test.csv --robustness {ROB} --out-dir {P10}/figures
+!{PY} -m nckh.runcard {P10} --seed 2026 --input seg={SEG}/seg_metrics.json --input cls={CLS}/cls_metrics.json --input forecast={UQ}/eval_forecast/forecast_metrics.json --input predictions={UQ}/ridge_test/predictions_test.csv --input robustness={ROB}
 ```
 
 ```python
-# cell: NB_cpu
+# cell: NB_cpu (máy cá nhân)
 import sys, pandas as pd
-sys.path.insert(0, f"{ROOT}/nckh/scripts")
+sys.path.insert(0, f"{REPO}/scripts")
 from make_figures import select_examples
 seg = pd.read_csv(f"{SEG}/seg_per_image.csv")
 select_examples(seg, "dice", n=3, seed=2026).to_csv(f"{P10}/examples_seg.csv", index=False)
@@ -386,12 +399,12 @@ Overlay của từng ảnh ví dụ segmentation nằm ở `runs/<seg_main>/resu
 
 ### 4.5. Kiểm tra tái lập cuối (kế hoạch Mục 7), do SV A làm
 
-Từ một runtime Colab **mới**, chỉ làm theo docs:
+Từ một máy **mới** (clone repo, làm `00` mục 6b) và một server Colab **mới**, chỉ làm theo docs:
 
-1. **Đọc manifest:** chạy P3 mục 4.6, rồi so SHA-256 `isic2018_seg.csv` với giá trị ghi trong protocol.
-2. **Nạp checkpoint:** dựng `venv_seg` (P2 4.4), áp patch (P2 4.6), chạy `bench_inference.py --finetuned <model_best_0.ckpt>` trên 20 ảnh val. Kỳ vọng `SMOKE TEST OK`.
-3. **Chạy một inference mẫu:** demo P9 với một ảnh ISIC val, ghi lại tỷ lệ mask và xác suất.
-4. **Tạo một metric nhỏ:** `evaluate_seg.py` trên file xlsx của run chính. Kỳ vọng Dice/IoU **trùng** `seg_metrics.json` (cùng seed bootstrap). Chạy `evaluate_forecast.py` trên `predictions_test.csv`: kỳ vọng MAE trùng.
+1. **Đọc manifest (máy):** chạy P3 mục 4.6, rồi so SHA-256 `isic2018_seg.csv` với giá trị ghi trong protocol.
+2. **Nạp checkpoint (Colab `NB_seg`):** cell setup P2 4.1b, dựng `venv_seg` (P2 4.4), áp patch (P2 4.6), chạy `bench_inference.py --finetuned <model_best_0.ckpt>` trên 20 ảnh val. Kỳ vọng `SMOKE TEST OK`.
+3. **Chạy một inference mẫu (Colab `NB_seg`):** demo P9 mục 4.5 với một ảnh ISIC val, ghi lại tỷ lệ mask và xác suất.
+4. **Tạo một metric nhỏ (máy, sau khi kéo run về):** `evaluate_seg.py` trên file xlsx của run chính. Kỳ vọng Dice/IoU **trùng** `seg_metrics.json` (cùng seed bootstrap). Chạy `evaluate_forecast.py` trên `predictions_test.csv`: kỳ vọng MAE trùng.
 5. **Xác nhận định dạng bảng cuối:** chạy mục 4.4 vào một `run_id` mới, rồi `diff` các file `table_*.md` với bản của SV B. Kỳ vọng giống hệt.
 
 Nếu bước nào không tái lập được: sửa docs, hoặc ghi giới hạn vào bài **trước** khi nộp.
@@ -399,11 +412,11 @@ Nếu bước nào không tái lập được: sửa docs, hoặc ghi giới h�
 ## 5. Test
 
 ```python
-# cell: NB_cpu
-!cd {ROOT}/nckh && python -m pytest -q
+# cell: NB_cpu (máy cá nhân)
+!cd {REPO} && {PY} -m pytest -q
 ```
 
-Kỳ vọng cho **toàn bộ dự án**: `156 passed` (hoặc một phần `skipped` nếu kernel không có torch).
+Kỳ vọng cho **toàn bộ dự án**: `156 passed` (hoặc một phần `skipped` nếu `.venv` không có torch).
 
 | File | Số test |
 |---|---:|
@@ -426,13 +439,15 @@ Test P10 kiểm: bảng sinh đúng từ JSON (định dạng `0.015 [0.010, 0.0
 | `table_*.md` của SV A và SV B giống hệt | [điền sau khi chạy] |
 | Thời gian SV A dựng lại môi trường | [điền sau khi chạy] |
 
-## 7. Lỗi thường gặp trên Colab
+## 7. Lỗi thường gặp (máy / Colab extension)
 
 | Triệu chứng | Cách xử lý |
 |---|---|
 | Bảng ghi "chưa có dữ liệu" | Sai đường dẫn JSON; kiểm tra `run_id` |
 | Số trong bảng khác lần trước | So run card hai lần: phiên bản gói, seed, SHA-256 đầu vào |
-| `ModuleNotFoundError: matplotlib` | `pip install -e "{ROOT}/nckh[demo]"` (extras `demo` có matplotlib) |
+| `ModuleNotFoundError: matplotlib` | `%pip install -e "{REPO}[demo]"` trong `NB_cpu` (extras `demo` có matplotlib) |
+| `rclone` báo `couldn't fetch token` | `rclone config reconnect gdrive:` |
+| Ở máy không thấy file Colab vừa ghi | Chạy lệnh `rclone copy gdrive:NCKH_PanDerm/runs/<run_id> ~/nckh_drive/runs/<run_id>` |
 | Chữ tiếng Việt trong hình lỗi font | Font mặc định DejaVu Sans của matplotlib hỗ trợ tiếng Việt; nếu đổi font, chọn font có dấu |
 
 ## 8. Checklist bàn giao cho SV A (trước khi nộp)

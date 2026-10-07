@@ -4,20 +4,21 @@
 
 **Mục tiêu (kế hoạch Phase 5.1):** fine-tune nhánh segmentation PanDerm Base trên ISIC 2018 Task 1. Chọn checkpoint trên validation, đánh giá **đúng một lần** trên test. Mọi bước phải có cấu hình, seed và log để tái lập. Phase này cũng tạo `src/nckh/metrics.py`, module metric dùng chung cho P5b, P6, P7 và P8.
 
-| Đầu vào | Đầu ra (`runs/<run_id>/` trên Drive) |
-|---|---|
-| `/content/data/ISIC2018/...` (P3), manifest + SHA-256 | `0/model_best_0.ckpt` (chọn theo `Val/Jac`), `0/model_checkpoint_0.ckpt` (epoch mới nhất, để resume) |
-| Checkpoint pretrain + patch (P2) | `<log_name>/version_*/metrics.csv` (log từng epoch), `config.json` |
-| — | Sau khi khóa: `count_results_ISIC2018_0_<seed>.xlsx`, `results_ISIC2018/…png` (overlay), `eval/seg_metrics.json`, `eval/seg_per_image.csv`, `run_card.json` |
+| Đầu vào | Đầu ra (`MyDrive/NCKH_PanDerm/runs/<run_id>/`) | Sinh ở |
+|---|---|---|
+| `/content/data/ISIC2018/...` (Colab, P3), manifest + SHA-256 (`{ROOT}/data/manifests/`) | `0/model_best_0.ckpt` (chọn theo `Val/Jac`), `0/model_checkpoint_0.ckpt` (epoch mới nhất, để resume) | Colab `NB_seg` ghi lên Drive |
+| Checkpoint pretrain + patch (P2) | `<log_name>/version_*/metrics.csv` (log từng epoch), `config.json` | Colab `NB_seg` ghi lên Drive |
+| — | Sau khi khóa: `count_results_ISIC2018_0_<seed>.xlsx`, `results_ISIC2018/…png` (overlay), `eval/seg_metrics.json`, `eval/seg_per_image.csv`, `run_card.json` | Colab `NB_seg` ghi lên Drive → kéo về `~/nckh_drive/runs/<run_id>/` (trừ checkpoint) |
 
 ## 2. Chạy ở đâu
 
-| Việc | Notebook | Thời gian ước tính trên T4 |
+| Việc | Chạy ở | Thời gian ước tính trên T4 |
 |---|---|---|
-| Tạo `metrics.py`, `evaluate_seg.py`, test | NB_cpu | 15 phút |
-| Pilot 1 epoch trên 5% train + thử resume | NB_seg (GPU) | 10–15 phút |
-| Fine-tune đầy đủ (100 epoch như upstream) | NB_seg (GPU) | Nhiều giờ, **vượt một phiên Colab miễn phí**: chạy theo đợt và resume. Ước lượng đúng = (thời gian/epoch đo ở pilot) × 100 |
-| Test một lần + `evaluate_seg.py` | NB_seg + NB_cpu | 5–10 phút |
+| Tạo `metrics.py`, `evaluate_seg.py`, test | Máy (`NB_cpu`) | 15 phút |
+| Pilot 1 epoch trên 5% train + thử resume | Colab `NB_seg` (GPU) | 10–15 phút |
+| Fine-tune đầy đủ (100 epoch như upstream) | Colab `NB_seg` (GPU) | Nhiều giờ, **vượt một phiên server Colab miễn phí (qua extension)**: chạy theo đợt và resume. Ước lượng đúng = (thời gian/epoch đo ở pilot) × 100 |
+| Test một lần + `evaluate_seg.py` | Colab `NB_seg` | 5–10 phút |
+| Kéo run về máy để đánh giá/điền bảng | Máy (terminal, rclone) | 1–3 phút |
 
 > ⚠️ Chưa kiểm chứng trên GPU — xác minh trong pilot P2/P5a. Code `run.py` upstream bắt buộc `accelerator='gpu'`, nên không chạy thử trên CPU được khi viết docs. Phần đã kiểm chứng trên CPU: dựng model ViT-B sau patch, nạp checkpoint, forward; `metrics.py` và `evaluate_seg.py` (pytest).
 
@@ -41,7 +42,7 @@
 
 ### 3.2. Vì sao cần resume và patch callback
 
-Một phiên Colab miễn phí có thể bị ngắt sau vài giờ, trong khi 100 epoch trên 2.594 ảnh dài hơn thế. Upstream có cờ `--resume <fold>` để đọc `model_checkpoint_<fold>.ckpt`, nhưng callback tạo ra file này lại không được truyền vào `Trainer`. Patch P2 sửa thành `callbacks=[checkpoint_best, checkpoint_callback]`. Từ đó mỗi epoch lưu:
+Một phiên Colab miễn phí có thể bị ngắt sau vài giờ (khi nối qua extension, ngắt kết nối VS Code lâu cũng làm server bị thu hồi; checkpoint epoch nằm trên Drive nên resume vẫn được), trong khi 100 epoch trên 2.594 ảnh dài hơn thế. Upstream có cờ `--resume <fold>` để đọc `model_checkpoint_<fold>.ckpt`, nhưng callback tạo ra file này lại không được truyền vào `Trainer`. Patch P2 sửa thành `callbacks=[checkpoint_best, checkpoint_callback]`. Từ đó mỗi epoch lưu:
 - `model_best_0.ckpt`: tốt nhất theo `Val/Jac`, dùng cho test;
 - `model_checkpoint_0.ckpt`: epoch mới nhất, dùng để resume, giữ cả optimizer và scheduler.
 
@@ -63,6 +64,8 @@ Cả hai nằm trong `--save_name` trên **Drive**, nên không mất khi runtim
 ## 4. Code
 
 ### 4.1. `src/nckh/metrics.py` (dùng chung cho cả dự án)
+
+📁 **Tạo trên máy cá nhân:** `<repo>/src/nckh/metrics.py`
 
 ```python
 # file: src/nckh/metrics.py
@@ -190,6 +193,8 @@ def paired_bootstrap_diff(df: pd.DataFrame, group_col: str, stat_fn_a: Callable[
 
 ### 4.2. `scripts/evaluate_seg.py`
 
+📁 **Tạo trên máy cá nhân:** `<repo>/scripts/evaluate_seg.py`
+
 ```python
 # file: scripts/evaluate_seg.py
 """Tổng hợp Dice/IoU từ file kết quả từng ảnh của PanDerm segmentation + CI bootstrap theo ảnh.
@@ -235,6 +240,8 @@ if __name__ == "__main__":
 ```
 
 ### 4.3. Test
+
+📁 **Tạo trên máy cá nhân:** `<repo>/tests/test_metrics.py`
 
 ```python
 # file: tests/test_metrics.py
@@ -341,31 +348,38 @@ def test_evaluate_seg_xlsx(tmp_path: Path) -> None:
 ```
 
 ```python
-# cell: NB_cpu
-!cd {ROOT}/nckh && python -m pytest -q tests/test_metrics.py
+# cell: NB_cpu (máy cá nhân)
+!cd {REPO} && {PY} -m pytest -q tests/test_metrics.py
 ```
 
 Kỳ vọng: `11 passed`.
 
 ### 4.4. Chuẩn bị mỗi phiên NB_seg
 
-Chạy lần lượt: (ở NB_cpu) cell 4.1a của P2 để pull code → (ở NB_seg) cell mở đầu 4.1b của P2 → cell dựng `venv_seg` (P2 mục 4.4) → cell áp patch (P2 mục 4.6) → tải ISIC 2018 (P3 mục 4.6, có thể chạy ngay trong NB_seg bằng `python` của kernel).
+Đầu mỗi phiên Colab: push code ở máy, rồi chạy lần lượt trong `NB_seg`: cell setup 4.1b của P2 (có `git pull`) → cell dựng `venv_seg` (P2 mục 4.4) → cell áp patch (P2 mục 4.6) → tải ISIC 2018 vào `/content/data` bằng Python của `venv_seg` (đã cài `-e nckh`):
+
+```python
+# cell: NB_seg (Colab GPU)
+!cd {CODE} && {VENV}/bin/python scripts/prepare_isic2018.py --zips-dir /content/zips --data-root /content/data --delete-zips
+```
 
 ### 4.5. Pilot: 1 epoch trên 5% train + thử resume
 
 ```python
-# cell: NB_seg
+# cell: NB_seg (Colab GPU)
 from nckh.runcard import new_run_id
 PILOT = f"{ROOT}/runs/{new_run_id('seg_pilot')}/"   # dấu / cuối là bắt buộc
+print(PILOT)   # ghi lại: restart kernel sẽ mất biến này
 os.environ['PANDERM_CKPT'] = CK
 os.environ['WANDB_MODE'] = 'disabled'
 !cd /content/PanDerm/segmentation && {VENV}/bin/python run.py --workers 2 --gpu "0," --batch_size 8 --test_batch_size 4 --epoch 2 --lr 1e-4 --weight_decay 0.05 --model cae_seg --size 224 --dataset ISIC2018 --parent_path /content/data/ --save_name {PILOT} --seed 0 --smoke_test --percent 5 2>&1 | tee /content/pilot.log | grep --line-buffered -E "Matched|Val/|Error"
 ```
 
-Khi thấy epoch 0 đã xong (log có `Val/Dice`), dừng cell bằng nút ■, hoặc *Runtime → Restart session* để giả lập bị ngắt. Sau đó chạy lại cell mở đầu (4.1b của P2) và `venv_seg`, rồi chạy:
+Khi thấy epoch 0 đã xong (log có `Val/Dice`), dừng cell bằng nút ■, hoặc restart kernel Colab (nút *Restart* trên thanh notebook) để giả lập bị ngắt. Sau đó chạy lại cell mở đầu (4.1b của P2) và `venv_seg`, rồi chạy (nếu đã restart kernel thì bỏ dấu `#` ở dòng `PILOT` và dán giá trị đã in):
 
 ```python
-# cell: NB_seg
+# cell: NB_seg (Colab GPU)
+# PILOT = "<giá trị đã in ở cell trên>"
 !ls -la {PILOT}0/
 !cd /content/PanDerm/segmentation && {VENV}/bin/python run.py --workers 2 --gpu "0," --batch_size 8 --test_batch_size 4 --epoch 2 --lr 1e-4 --weight_decay 0.05 --model cae_seg --size 224 --dataset ISIC2018 --parent_path /content/data/ --save_name {PILOT} --seed 0 --smoke_test --percent 5 --resume 0 2>&1 | grep -E "loading checkpoint|Restoring|Epoch 1|Error" | head
 ```
@@ -383,7 +397,7 @@ Pilot **không** dùng để báo cáo hiệu năng. Nhờ patch P2, train xong 
 ### 4.6. Fine-tune chính (nhiều phiên, có resume)
 
 ```python
-# cell: NB_seg
+# cell: NB_seg (Colab GPU)
 SEED = 0                                              # 0, rồi 1, 2 nếu chạy 3 seed
 BATCH = 8                                             # giảm 4 nếu OOM — dùng cùng giá trị ở mục 4.7
 RUN = f"{ROOT}/runs/20261020-090000_seg_main_s{SEED}/"  # ĐẶT MỘT LẦN cho mỗi seed, giữ nguyên qua mọi phiên resume
@@ -402,10 +416,10 @@ os.environ['WANDB_MODE'] = 'disabled'
 - **3 seed (nếu đủ tài nguyên và dung lượng Drive, mục 4.8):** đổi `SEED = 1` rồi `SEED = 2`. Mỗi seed có `RUN` riêng (đuôi `_s{SEED}`), và mọi đường dẫn bên dưới đều dùng `{SEED}`. Báo mean ± SD qua 3 seed, tách khỏi CI bootstrap của từng seed.
 - Patch P2 tắt bộ đếm phiên bản của Lightning (`enable_version_counter=False`), nên khi resume file checkpoint được ghi đè đúng tên, không sinh `model_*-v1.ckpt`. Nếu vẫn thấy file `-v1`, nghĩa là patch chưa được áp: dừng lại và kiểm tra.
 
-Theo dõi đường cong học:
+Theo dõi đường cong học (chạy trong `NB_seg`, vì log đang được ghi trên Drive trong lúc train và `RUN` đã có trong phiên):
 
 ```python
-# cell: NB_cpu
+# cell: NB_seg (Colab GPU)
 import pandas as pd, glob
 log = sorted(glob.glob(f"{RUN}**/metrics.csv", recursive=True))[-1]
 m = pd.read_csv(log)
@@ -420,15 +434,22 @@ Trước khi chạy test:
 3. SV A xác nhận đã khóa protocol.
 
 ```python
-# cell: NB_seg
+# cell: NB_seg (Colab GPU)
 !ls -la {RUN}{SEED}/                                   # kỳ vọng: model_best_0.ckpt, model_checkpoint_0.ckpt, không có file -v1
 !cp {RUN}config.json {RUN}config_train.json            # --evaluate ghi đè config.json bằng tham số mặc định
 !{VENV}/bin/python -m nckh.runcard {RUN}eval --seed {SEED} --input best={RUN}{SEED}/model_best_0.ckpt --input manifest={ROOT}/data/manifests/isic2018_seg.csv --config batch_size={BATCH} --config epochs=100 --config select=Val/Jac
 !cd /content/PanDerm/segmentation && {VENV}/bin/python run.py --workers 2 --gpu "0," --test_batch_size 4 --model cae_seg --size 224 --dataset ISIC2018 --parent_path /content/data/ --save_name {RUN} --seed {SEED} --smoke_test --evaluate --save_results 2>&1 | grep -E "Writing|saved|Error"
-!cd {ROOT}/nckh && {VENV}/bin/python scripts/evaluate_seg.py --results-xlsx {RUN}count_results_ISIC2018_0_{SEED}.xlsx --out-dir {RUN}eval
+!cd {CODE} && {VENV}/bin/python scripts/evaluate_seg.py --results-xlsx {RUN}count_results_ISIC2018_0_{SEED}.xlsx --out-dir {RUN}eval
 ```
 
 `--save_results` ghi ảnh overlay (viền xanh = dự đoán, viền đỏ = GT) vào `{RUN}results_ISIC2018_{SEED}/`. Dùng các ảnh này cho phân tích lỗi ở P10.
+
+Kéo kết quả đánh giá về máy (bỏ checkpoint để không tải ~1,8 GB/file):
+
+```bash
+# terminal VS Code (máy cá nhân)
+rclone copy gdrive:NCKH_PanDerm/runs/<run_id> ~/nckh_drive/runs/<run_id> --exclude "*.ckpt" --progress
+```
 
 ### 4.8. Dung lượng Drive cho checkpoint (đọc trước khi train)
 
@@ -445,7 +466,7 @@ Model segmentation có **160,7 triệu tham số** (đếm trên model ViT-B sau
 Drive miễn phí 15 GB: chỉ train **một seed tại một thời điểm**, và thu gọn ngay khi seed đó xong. **Sau khi đã chạy `--evaluate`** (mục 4.7) và ghi run card:
 
 ```python
-# cell: NB_seg
+# cell: NB_seg (Colab GPU)
 !rm -rf {PILOT}                                          # nếu còn thư mục pilot
 !rm -f {RUN}{SEED}/model_checkpoint_0.ckpt               # checkpoint để resume, không còn cần
 # Bỏ trạng thái optimizer khỏi checkpoint best (~1,8 GB → ~0,6 GB); test_worker và nckh.infer chỉ đọc "state_dict".
@@ -488,10 +509,16 @@ SHA-256 của file best **trước** khi thu gọn đã nằm trong `eval/run_ca
 
 Không so trực tiếp với bảng xếp hạng ISIC 2018 hay bài PanDerm (kế hoạch 5.3): split, độ phân giải metric và hậu xử lý đều khác.
 
-## 7. Lỗi thường gặp trên Colab
+## 7. Lỗi thường gặp (máy / Colab extension)
 
 | Triệu chứng | Cách xử lý |
 |---|---|
+| `AssertionError: Chưa mount Drive` | `Ctrl+Shift+P` → *Colab: Mount Google Drive to Server...*, chạy lại cell setup |
+| Kernel Colab mất kết nối / server bị thu hồi | *Select Kernel → Colab → New Colab Server*, chạy lại mục 4.4 rồi cell train (tự resume); dữ liệu trên Drive vẫn còn |
+| Colab chạy code cũ | Ở máy `git push`, chạy lại cell setup (có `git pull`) |
+| `userdata.get` / `files.upload` lỗi | Chưa hỗ trợ trong extension; không dùng, file đi qua Drive |
+| `rclone` báo `couldn't fetch token` | `rclone config reconnect gdrive:` |
+| Ở máy không thấy file Colab vừa ghi | Chạy lệnh `rclone copy gdrive:NCKH_PanDerm/... ~/nckh_drive/...` |
 | `wandb: ERROR api_key not configured` | Thiếu `--smoke_test`, hoặc chưa đặt `WANDB_MODE=disabled` |
 | `FileNotFoundError: ...ISIC2018/...` hoặc `=> Loading train dataset with 0 images` | `--parent_path` thiếu `/` cuối, hoặc chưa chạy P3 trong phiên này |
 | `CUDA out of memory` | Giảm `--batch_size 4`; ghi vào run card |
