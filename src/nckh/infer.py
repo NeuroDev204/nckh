@@ -1,35 +1,38 @@
-"""Suy luận PanDerm cho segmentation và classification
-torch chỉ được import bên trong hàm: package nckh phải cài được runtime CPU không
-có torch
-Tiền xử lý bám đúng code upstream để xác suất/mask suy luận khớp với lúc đánh giá
-- seg: datasets/dataset_seg.py -> resize 224x224 bicubic, Normalizer(0.5,0.5).
-- cls: run_class_finetuning.py (val_trans) -> Resize(256) bilinear, CenterCrop(224),
-Normalize(mean=(0.485, 0.456, 0.406), std=(0.228, 0.224, 0.225)
+# file: src/nckh/infer.py
+"""Suy luận PanDerm Base cho segmentation và classification.
 
+torch chỉ được import bên trong hàm: package nckh phải cài được ở runtime CPU không có torch.
+Tiền xử lý bám đúng code upstream để xác suất/mask khi suy luận khớp với lúc đánh giá:
+- seg: datasets/dataset_seg.py → resize 224x224 bicubic, Normalize(0.5, 0.5).
+- cls: run_class_finetuning.py (val_trans) → Resize(256) bilinear, CenterCrop(224),
+  Normalize(mean=(0.485, 0.456, 0.406), std=(0.228, 0.224, 0.225)).
 """
-
 import logging
 import os
 import sys
 from pathlib import Path
 
 import numpy as np
-from PIL import ndimage
+from PIL import Image
+from scipy import ndimage
 from skimage.measure import label
 
 logger = logging.getLogger(__name__)
 
 SEG_SIZE = 224
 CLS_MEAN = (0.485, 0.456, 0.406)
-CLS_STD = (0.228, 0.224, 0.225)
+CLS_STD = (0.228, 0.224, 0.225)  # upstream ghi 0.228, giữ nguyên để khớp lúc fine-tune
 CLS_LABELS = ("melanoma", "nevus", "seborrheic_keratosis")
+
 
 def seg_preprocess(rgb: np.ndarray) -> "torch.Tensor":
     import torch
-    #upstream dùng cv2.INTER_CUBIC; PIL BICUBIC lệch rất nhỏ (đo lại Dice trong pilot P2)
+
+    # Upstream dùng cv2.INTER_CUBIC; PIL BICUBIC lệch rất nhỏ (đo lại Dice trong pilot P2).
     img = Image.fromarray(rgb).resize((SEG_SIZE, SEG_SIZE), Image.BICUBIC)
-    x = torch.from_numpy(np.asarray(img, dtype=np.float32)/ 255.0).permute(2, 0, 1)
-    return ((x - 0.5)/ 0.5).unsqueeze(0)
+    x = torch.from_numpy(np.asarray(img, dtype=np.float32) / 255.0).permute(2, 0, 1)
+    return ((x - 0.5) / 0.5).unsqueeze(0)
+
 
 def cls_preprocess(rgb: np.ndarray) -> "torch.Tensor":
     from torchvision import transforms
@@ -40,12 +43,12 @@ def cls_preprocess(rgb: np.ndarray) -> "torch.Tensor":
         transforms.ToTensor(),
         transforms.Normalize(CLS_MEAN, CLS_STD),
     ])
-
     return tf(Image.fromarray(rgb)).unsqueeze(0)
 
+
 def largest_component(mask: np.ndarray) -> np.ndarray:
-    #giống largestConnectComponent của upstram (8- liên thông + lấp lỗ),
-    # nhưng mask rỗng giữ nguyên rỗng thay vì biến thành toàn ảnh
+    # Giống largestConnectComponent của upstream (8-liên thông + lấp lỗ),
+    # nhưng mask rỗng giữ nguyên rỗng thay vì biến thành toàn ảnh.
     labeled, num = label(mask.astype(bool), background=0, return_num=True)
     if num == 0:
         return np.zeros(mask.shape, dtype=bool)
@@ -53,14 +56,16 @@ def largest_component(mask: np.ndarray) -> np.ndarray:
     sizes[0] = 0
     return ndimage.binary_fill_holes(labeled == sizes.argmax())
 
+
 def seg_logits_to_mask(logits: "torch.Tensor", out_hw: tuple[int, int]) -> np.ndarray:
     pred = logits[0].argmax(dim=0).cpu().numpy().astype(bool)
     pred = largest_component(pred)
-    resized = Image.fromarray(pred.astype(np.unit8) * 255).resize((out_hw[1], out_hw[0]), Image.NEAREST)
+    resized = Image.fromarray(pred.astype(np.uint8) * 255).resize((out_hw[1], out_hw[0]), Image.NEAREST)
     return np.asarray(resized) > 127
 
+
 def map_pretrained_cls_keys(state_dict: dict, num_layers: int) -> dict:
-    """ đổi tên key checkpoint pretrain PanDerm theo đúng run_class_finetuning.py (dòng ~455-530)"""
+    """Đổi tên key checkpoint pretrain PanDerm theo đúng run_class_finetuning.py (dòng ~455–530)."""
     if set(state_dict) <= {"model", "state_dict", "module"}:
         state_dict = next(iter(state_dict.values()))
     mapped = {}
@@ -70,47 +75,57 @@ def map_pretrained_cls_keys(state_dict: dict, num_layers: int) -> dict:
         if key.startswith("encoder."):
             key = key[len("encoder."):]
         if key.startswith("norm."):
-            #model fine-tune dùng mean pooling nên lớp norm cuối cùng tên là fc_norm.
-            key = "fx_norm." + key[len("norm."):]
+            # Model fine-tune dùng mean pooling nên lớp norm cuối tên là fc_norm.
+            key = "fc_norm." + key[len("norm."):]
         mapped[key] = value
-        shared = mapped.pop("rel_pos_bias.relative_position_bias_table", None)
-        if shared is not None:
-            for i in range(num_layers):
-                mapped[f"blocks.{i}.attn.relative_position_bias_table"] = shared.clone()
-        return mapped
-class _InDIr:
-    """chdir tạm thời (contextlib.chdir) chỉ có từ python 3.11, venv PanDerm là 3.10"""
+    shared = mapped.pop("rel_pos_bias.relative_position_bias_table", None)
+    if shared is not None:
+        for i in range(num_layers):
+            mapped[f"blocks.{i}.attn.relative_position_bias_table"] = shared.clone()
+    return mapped
+
+
+class _InDir:
+    """chdir tạm thời (contextlib.chdir chỉ có từ Python 3.11, venv PanDerm là 3.10)."""
+
     def __init__(self, path: Path) -> None:
         self.path, self.old = path, None
+
     def __enter__(self) -> None:
         self.old = os.getcwd()
         os.chdir(self.path)
+
     def __exit__(self, *exc: object) -> None:
         os.chdir(self.old)
+
 
 def _add_to_sys_path(path: Path) -> None:
     if str(path) not in sys.path:
         sys.path.insert(0, str(path))
+
+
 class SegPredictor:
     def __init__(self, model: "torch.nn.Module", device: str = "cpu") -> None:
         self.model = model.to(device).eval()
         self.device = device
+
     @classmethod
-    def from_checkpoint(cls, panderm_seg_dir:Path, pretrained_path: Path,
-                        fituned_ckpt: Path | None = None, device: str = "cuda"
-                        ) -> "SegPredictor":
+    def from_checkpoint(cls, panderm_seg_dir: Path, pretrained_path: Path,
+                        finetuned_ckpt: Path | None = None, device: str = "cuda") -> "SegPredictor":
         import torch
+
         seg_dir = Path(panderm_seg_dir).resolve()
-        #CAEv2_seg đọc pretrained qua biến môi trường (patch P2) và đọc config bằng dường dẫn tương đối.
-        os.environ("PANDERM_CKPT") = str(Path(pretrained_path).resolve())
-        with _InDIr(seg_dir):
-            import models.cae_backbone 
+        # CAEv2_seg đọc pretrained qua biến môi trường (patch P2) và đọc config bằng đường dẫn tương đối.
+        os.environ["PANDERM_CKPT"] = str(Path(pretrained_path).resolve())
+        _add_to_sys_path(seg_dir)
+        with _InDir(seg_dir):
+            import models.cae_backbone  # noqa: F401  (đăng ký backbone "CAE" vào registry của mmseg, như run.py)
             from models.cae_seg import CAEv2_seg
             model = CAEv2_seg()
         if finetuned_ckpt is not None:
             state = torch.load(finetuned_ckpt, map_location="cpu")["state_dict"]
             # Checkpoint Lightning bọc CAEv2_seg trong thuộc tính "model".
-            state = {k[len("model."):]: v for k, v in state.items() if startswith("model.")}
+            state = {k[len("model."):]: v for k, v in state.items() if k.startswith("model.")}
             model.load_state_dict(state, strict=True)
         else:
             logger.warning("Không có checkpoint fine-tune: decode head còn khởi tạo ngẫu nhiên (chỉ dùng cho smoke test)")
@@ -122,6 +137,8 @@ class SegPredictor:
         with torch.no_grad():
             logits = self.model(seg_preprocess(rgb).to(self.device))
         return seg_logits_to_mask(logits, rgb.shape[:2])
+
+
 class ClsPredictor:
     def __init__(self, model: "torch.nn.Module", device: str = "cpu") -> None:
         self.model = model.to(device).eval()
