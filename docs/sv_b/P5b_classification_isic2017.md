@@ -4,23 +4,24 @@
 
 **Mục tiêu (kế hoạch Phase 5.2):** fine-tune nhánh phân loại PanDerm Base cho 3 nhóm tham khảo (melanoma, nevus, seborrheic keratosis). Chọn checkpoint trên validation, đánh giá test **một lần**, lưu xác suất từng ảnh để tính lại mọi metric. Đầu ra là **điểm/xác suất theo nhãn dữ liệu**, không phải chẩn đoán.
 
-| Đầu vào | Đầu ra (`MyDrive/NCKH_PanDerm/runs/<run_id>/`) | Sinh ở |
+| Đầu vào | Đầu ra (`~/nckh_root/runs/<run_id>/`) | Sinh ở |
 |---|---|---|
-| `/content/data/ISIC2017/ISIC-2017_*_Data/` (Colab, P3) | `checkpoint-best.pth` (chọn theo val) | Colab `NB_cls` ghi lên Drive |
-| `{ROOT}/data/manifests/isic2017_cls_trainphase.csv` (khi train), `isic2017_cls.csv` (khi test) | `val.csv` (xác suất val của epoch gần nhất), `log.txt`, `train_stdout.log` | Colab `NB_cls` ghi lên Drive |
-| Checkpoint pretrain (P2) | Sau khi khóa: `eval_test/test.csv`, `eval_test/cls_metrics.json`, `run_card.json` | Colab `NB_cls` ghi lên Drive → kéo về `~/nckh_drive/runs/<run_id>/` |
-| — | `eval_test/calibration.png` | Máy, trong `~/nckh_drive/runs/<run_id>/eval_test/` |
+| `~/nckh_data/ISIC2017/ISIC-2017_*_Data/` (P3) | `checkpoint-best.pth` (chọn theo val) | Máy GPU (`venv_cls`) |
+| `~/nckh_root/data/manifests/isic2017_cls_trainphase.csv` (khi train), `isic2017_cls.csv` (khi test) | `val.csv` (xác suất val của epoch gần nhất), `log.txt`, `train_stdout.log` | Máy GPU (`venv_cls`) |
+| Checkpoint pretrain (P2) | Sau khi khóa: `eval_test/test.csv`, `eval_test/cls_metrics.json`, `run_card.json` | Máy GPU (`venv_cls`); chép về laptop theo `00` mục 5.2 (bỏ checkpoint) |
+| — | `eval_test/calibration.png` | `nb_cpu`, trong `~/nckh_root/runs/<run_id>/eval_test/` |
 
 ## 2. Chạy ở đâu
 
 | Việc | Chạy ở | Thời gian ước tính |
 |---|---|---|
-| Tạo `evaluate_cls.py`, `annotator_agreement.py`, test | Máy (`NB_cpu`) | 10 phút |
-| Tải ISIC 2017 (P3) | Colab `NB_cls` | 10–25 phút mỗi phiên |
-| Pilot 1 epoch | Colab `NB_cls` (GPU) | 5–10 phút |
-| Fine-tune 50 epoch | Colab `NB_cls` (GPU) | Ước lượng = thời gian/epoch đo ở pilot × 50 (thường vừa trong một phiên) |
-| Eval test một lần + metric | Colab `NB_cls` | 5 phút |
-| Kéo run về máy, vẽ calibration | Máy (terminal rclone + `NB_cpu`) | 1–3 phút |
+| Tạo `evaluate_cls.py`, `annotator_agreement.py`, test | Laptop (`nb_cpu`) | 10 phút |
+| Pilot 1 epoch | Máy GPU (terminal, `venv_cls`) | 5–10 phút |
+| Fine-tune 50 epoch | Máy GPU (terminal trong `tmux`, `venv_cls`) | Ước lượng = thời gian/epoch đo ở pilot × 50 |
+| Eval test một lần + metric | Máy GPU (terminal, `venv_cls`) | 5 phút |
+| Vẽ calibration | `nb_cpu` (máy GPU, hoặc laptop sau khi chép run về) | 1 phút |
+
+Cần sẵn: `venv_cls` (P2 4.10), checkpoint pretrain (P2 4.3), ISIC 2017 trong `~/nckh_data` và CSV nhãn trong `~/nckh_root/data/manifests` (P3).
 
 > ⚠️ Chưa kiểm chứng trên GPU — xác minh trong pilot P2/P5b. Phần đã kiểm chứng trên CPU khi viết docs: dựng `PanDerm_Base_FT` và nạp pretrain bằng code `classification/` thật; tạo CSV nhãn từ ground truth thật của ISIC 2017; `evaluate_cls.py` (pytest).
 
@@ -40,11 +41,11 @@ Giữ cấu hình khuyến nghị của README upstream: LR 5e-4, 50 epoch, warm
 |---|---|---|
 | `--model` | `PanDerm_Base_FT` | Đề cương chốt Base |
 | `--nb_classes` | `3` | mel / nev / sk |
-| `--batch_size 32 --update_freq 4` | batch hiệu dụng 128 = khuyến nghị upstream | T4 không chứa nổi batch 128 một lần |
+| `--batch_size 32 --update_freq 4` | batch hiệu dụng 128 = khuyến nghị upstream | GPU 16 GB không chứa nổi batch 128 một lần |
 | `--weights` | bật | Mất cân bằng lớp (nevus ≈ 69% train). Sampler chỉ áp dụng cho train (dòng ~323 upstream) |
 | `--monitor` | `recall` | Recall macro = balanced accuracy = metric chính. **Phải ghi trong protocol P0 trước khi chạy** |
 | `--TTA` | **không dùng** (khuyến nghị) | `TTAHandler` của upstream dùng augmentation ngẫu nhiên không seed, nên kết quả test thay đổi giữa các lần chạy; ngoài ra transform test khi bật TTA khác val. Nếu protocol vẫn chọn TTA thì dùng TTA cho cả val lẫn test và ghi rõ |
-| `--no_auto_resume` | giữ như upstream | Upstream chỉ lưu `checkpoint-best.pth`, không có checkpoint theo epoch, nên không resume được. 50 epoch thường vừa một phiên; nếu bị ngắt thì chạy lại từ đầu |
+| `--no_auto_resume` | giữ như upstream | Upstream chỉ lưu `checkpoint-best.pth`, không có checkpoint theo epoch, nên không resume được. Chạy trong `tmux`; nếu bị dừng giữa chừng thì chạy lại từ đầu với `RUN` mới |
 | `WANDB_MODE=disabled` | — | Script luôn gọi `wandb.init` |
 
 ### 3.3. Tiền xử lý lúc đánh giá
@@ -263,68 +264,74 @@ def test_agreement_missing_file_raises(tmp_path: Path) -> None:
 ```
 
 ```python
-# cell: NB_cpu (máy cá nhân)
+# cell: nb_cpu
 !cd {REPO} && {PY} -m pytest -q tests/test_eval_cls_agreement.py
 ```
 
 Kỳ vọng: `5 passed`.
 
-### 4.4. Pilot rồi fine-tune (NB_cls)
+### 4.4. Pilot rồi fine-tune
 
-Đầu mỗi phiên Colab: push code ở máy, rồi chạy trong `NB_cls`: cell setup 4.1b của P2 (có `git pull`) → `venv_cls` (P2 4.10, các dòng cài đặt) → tải ISIC 2017 vào `/content/data` (P3 4.6, cell `NB_cls`).
+Mỗi terminal mới đặt các biến dùng chung (`git pull` repo trên máy GPU trước):
 
-```python
-# cell: NB_cls (Colab GPU)
-from nckh.runcard import new_run_id
-os.environ['WANDB_MODE'] = 'disabled'
-TRAIN_CSV = f'{ROOT}/data/manifests/isic2017_cls_trainphase.csv'
-COMMON = (f"--model PanDerm_Base_FT --pretrained_checkpoint {CK} --nb_classes 3 --batch_size 32 --update_freq 4 "
-          f"--lr 5e-4 --warmup_epochs 10 --layer_decay 0.65 --drop_path 0.2 --weight_decay 0.05 --mixup 0.8 --cutmix 1.0 "
-          f"--weights --monitor recall --sin_pos_emb --no_auto_resume --imagenet_default_mean_and_std "
-          f"--root_path /content/data/ISIC2017/ --seed 0")
-
-# Pilot: 1 epoch, 10% train. Chỉ để đo thời gian/VRAM và chắc chắn mọi thứ chạy.
-PILOT = f"{ROOT}/runs/{new_run_id('cls_pilot')}/"
-!cd /content/PanDerm/classification && {VENV}/bin/python run_class_finetuning.py {COMMON} --epochs 1 --warmup_epochs 0 --percent_data 0.1 --exp_name pilot --wandb_name pilot --output_dir {PILOT} --csv_path {TRAIN_CSV} 2>&1 | tail -5
-!wc -l {PILOT}test.csv   # kỳ vọng 151 dòng (150 ảnh val + header): đúng là bản sao val, không phải test thật
+```bash
+# terminal (máy GPU, venv_cls)
+cd ~/PanDerm/classification
+PY=~/venvs/venv_cls/bin/python
+export WANDB_MODE=disabled
+CK=~/nckh_root/checkpoints/panderm_bb_data6_checkpoint-499.pth
+TRAIN_CSV=~/nckh_root/data/manifests/isic2017_cls_trainphase.csv
+COMMON="--model PanDerm_Base_FT --pretrained_checkpoint $CK --nb_classes 3 --batch_size 32 --update_freq 4 \
+ --lr 5e-4 --warmup_epochs 10 --layer_decay 0.65 --drop_path 0.2 --weight_decay 0.05 --mixup 0.8 --cutmix 1.0 \
+ --weights --monitor recall --sin_pos_emb --no_auto_resume --imagenet_default_mean_and_std \
+ --root_path $HOME/nckh_data/ISIC2017/ --seed 0"
+new_run() { echo ~/nckh_root/runs/$($PY -c "from nckh.runcard import new_run_id; print(new_run_id('$1'))")/; }
 ```
 
-```python
-# cell: NB_cls (Colab GPU)
-RUN = f"{ROOT}/runs/{new_run_id('cls_main')}/"
-os.makedirs(RUN, exist_ok=True)   # tee cần thư mục tồn tại trước
-!cd /content/PanDerm/classification && {VENV}/bin/python run_class_finetuning.py {COMMON} --epochs 50 --exp_name isic2017_ft --wandb_name isic2017_ft_s0 --output_dir {RUN} --csv_path {TRAIN_CSV} 2>&1 | tee {RUN}train_stdout.log | grep -E "Max val|Epoch: \[[0-9]+\] Total|Error"
+Pilot: 1 epoch, 10% train. Chỉ để đo thời gian/VRAM và chắc chắn mọi thứ chạy.
+
+```bash
+# terminal (máy GPU, venv_cls)
+PILOT=$(new_run cls_pilot)
+$PY run_class_finetuning.py $COMMON --epochs 1 --warmup_epochs 0 --percent_data 0.1 --exp_name pilot --wandb_name pilot --output_dir $PILOT --csv_path $TRAIN_CSV 2>&1 | tail -5
+wc -l ${PILOT}test.csv   # kỳ vọng 151 dòng (150 ảnh val + header): đúng là bản sao val, không phải test thật
+```
+
+Fine-tune chính trong `tmux` (chạy lại khối biến dùng chung ở trên trong phiên `tmux`):
+
+```bash
+# terminal (máy GPU, venv_cls)
+tmux new -s p5b          # đã có phiên: tmux attach -t p5b
+RUN=$(new_run cls_main); echo $RUN   # ghi lại RUN cho mục 4.5
+mkdir -p $RUN   # tee cần thư mục tồn tại trước
+$PY run_class_finetuning.py $COMMON --epochs 50 --exp_name isic2017_ft --wandb_name isic2017_ft_s0 --output_dir $RUN --csv_path $TRAIN_CSV 2>&1 | tee ${RUN}train_stdout.log | grep -E "Max val|Epoch: \[[0-9]+\] Total|Error"
 ```
 
 Lưu ý `--warmup_epochs 0` ở pilot: chạy 1 epoch thì không thể có 10 epoch warmup. Trong lúc train, theo dõi `Max val mean recall` mỗi epoch.
 
-**Dung lượng:** `checkpoint-best.pth` khoảng 1 GB (model 85,9 triệu tham số + trạng thái optimizer). Xoá thư mục pilot ngay sau khi đo xong (`!rm -rf {PILOT}`); xem bảng dung lượng tổng ở P5a mục 4.8.
+**Dung lượng:** `checkpoint-best.pth` khoảng 1 GB (model 85,9 triệu tham số + trạng thái optimizer). Xoá thư mục pilot ngay sau khi đo xong (`rm -rf $PILOT`); xem bảng dung lượng tổng ở P5a mục 4.8.
 
 ### 4.5. Khóa cấu hình → test thật đúng một lần
 
 Trước khi chạy: ghi vào nhật ký quyết định `RUN`, epoch tốt nhất, `--monitor`, có TTA hay không, ngày giờ. SV A xác nhận đã khóa.
 
-```python
-# cell: NB_cls (Colab GPU)
-EVAL = f"{RUN}eval_test/"
-!{VENV}/bin/python -m nckh.runcard {EVAL} --seed 0 --input best={RUN}checkpoint-best.pth --input labels={ROOT}/data/manifests/isic2017_cls.csv --config monitor=recall --config tta=false
-!cd /content/PanDerm/classification && {VENV}/bin/python run_class_finetuning.py {COMMON} --epochs 50 --exp_name isic2017_test --wandb_name isic2017_test --output_dir {EVAL} --csv_path {ROOT}/data/manifests/isic2017_cls.csv --resume {RUN}checkpoint-best.pth --eval 2>&1 | tail -3
-!cd {CODE} && {VENV}/bin/python scripts/evaluate_cls.py --pred-csv {EVAL}test.csv --labels-csv {ROOT}/data/manifests/isic2017_cls.csv --out-dir {EVAL}
+```bash
+# terminal (máy GPU, venv_cls) — cùng phiên có PY, COMMON, RUN ở trên
+EVAL=${RUN}eval_test/
+LABELS=~/nckh_root/data/manifests/isic2017_cls.csv
+$PY -m nckh.runcard $EVAL --seed 0 --input best=${RUN}checkpoint-best.pth --input labels=$LABELS --config monitor=recall --config tta=false
+$PY run_class_finetuning.py $COMMON --epochs 50 --exp_name isic2017_test --wandb_name isic2017_test --output_dir $EVAL --csv_path $LABELS --resume ${RUN}checkpoint-best.pth --eval 2>&1 | tail -3
+(cd ~/Documents/nckh && $PY scripts/evaluate_cls.py --pred-csv ${EVAL}test.csv --labels-csv $LABELS --out-dir $EVAL)
 ```
 
 `evaluate_cls.py --labels-csv` dừng với lỗi nếu `test.csv` không có đúng 600 dòng. Đây là hàng rào chặn việc lỡ đọc nhầm file test của pha train.
 
-### 4.6. Đường calibration (máy)
+### 4.6. Đường calibration (`nb_cpu`)
 
-Kéo kết quả eval về máy (bỏ checkpoint ~1 GB):
-
-```bash
-# terminal VS Code (máy cá nhân)
-rclone copy gdrive:NCKH_PanDerm/runs/<run_id> ~/nckh_drive/runs/<run_id> --exclude "*.pth" --progress
-```
+Chạy trên máy GPU, hoặc trên laptop sau khi chép run về theo `00` mục 5.2 (bỏ checkpoint ~1 GB).
 
 ```python
-# cell: NB_cpu (máy cá nhân)
+# cell: nb_cpu
 import pandas as pd, matplotlib.pyplot as plt
 from sklearn.calibration import calibration_curve
 EVAL = f"{ROOT}/runs/<cls_main_run_id>/eval_test/"      # thay đúng run_id
@@ -372,27 +379,24 @@ fig.savefig(f"{EVAL}calibration.png", dpi=200)
 
 Không gọi kết quả là "độ chính xác chẩn đoán". Khi viết, dùng cách diễn đạt: "điểm nhóm tham khảo theo nhãn ISIC 2017".
 
-## 7. Lỗi thường gặp (máy / Colab extension)
+## 7. Lỗi thường gặp (máy local)
 
 | Triệu chứng | Cách xử lý |
 |---|---|
-| `AssertionError: Chưa mount Drive` | `Ctrl+Shift+P` → *Colab: Mount Google Drive to Server...*, chạy lại cell setup |
-| Kernel Colab mất kết nối / server bị thu hồi | *Select Kernel → Colab → New Colab Server*, chạy lại cell setup + venv; dữ liệu trên Drive vẫn còn |
-| Colab chạy code cũ | Ở máy `git push`, chạy lại cell setup (có `git pull`) |
-| `userdata.get` / `files.upload` lỗi | Chưa hỗ trợ trong extension; không dùng, file đi qua Drive |
-| `rclone` báo `couldn't fetch token` | `rclone config reconnect gdrive:` |
-| Ở máy không thấy file Colab vừa ghi | Chạy lệnh `rclone copy gdrive:NCKH_PanDerm/... ~/nckh_drive/...` |
-| Hỏi đăng nhập wandb | `os.environ['WANDB_MODE'] = 'disabled'` trước khi chạy |
-| `Error opening file: /content/data/ISIC2017/...` rồi lỗi `NoneType` | Chưa tải ảnh ISIC 2017 trong phiên này, hoặc `--root_path` thiếu `/` cuối |
+| Máy GPU chạy code cũ | Push ở laptop, `git pull` ở máy GPU |
+| Đóng VS Code/terminal làm dừng train | Chạy trong `tmux new -s p5b`; mở lại bằng `tmux attach -t p5b` |
+| `CUDA driver version is insufficient` / `no kernel image` | Driver quá cũ cho wheel cu118: cập nhật driver NVIDIA (≥ 520) |
+| Hỏi đăng nhập wandb | `export WANDB_MODE=disabled` trước khi chạy |
+| `Error opening file: .../nckh_data/ISIC2017/...` rồi lỗi `NoneType` | Máy GPU chưa có ảnh ISIC 2017 (P3), hoặc `--root_path` thiếu `/` cuối |
 | `test.csv` khi train có 600 dòng | Đang dùng nhầm `isic2017_cls.csv`. **Dừng lại**: dừng, ghi vào nhật ký quyết định rằng test đã bị lộ, báo SV A |
-| `CUDA out of memory` | `--batch_size 16 --update_freq 8` (vẫn giữ batch hiệu dụng 128) |
+| `CUDA out of memory` | `--batch_size 16 --update_freq 8` (vẫn giữ batch hiệu dụng 128); ghi vào run card |
 | `ModuleNotFoundError: open_clip` | Cài lại `classification/requirements.txt` trong `venv_cls` |
-| Server Colab bị ngắt giữa chừng | Chạy lại toàn bộ với một `RUN` mới; ghi chú run cũ là "không hoàn tất" |
+| Train bị dừng giữa chừng (máy tắt, `Ctrl+C`) | Chạy lại toàn bộ với một `RUN` mới; ghi chú run cũ là "không hoàn tất" |
 
 ## 8. Checklist bàn giao cho SV A
 
 - [ ] Protocol ghi `--monitor recall` và quyết định về TTA **trước** khi train.
 - [ ] `test.csv` của pha train có 150 dòng (bằng chứng test thật chưa bị mở).
 - [ ] `runs/<cls_main>/checkpoint-best.pth`, `train_stdout.log`, `log.txt`.
-- [ ] `eval_test/test.csv` (600 dòng), `cls_metrics.json`, `run_card.json` trên Drive; `calibration.png` ở máy (`~/nckh_drive/runs/<cls_main>/eval_test/`), đẩy lên Drive nếu SV A cần: `rclone copyto ~/nckh_drive/runs/<cls_main>/eval_test/calibration.png gdrive:NCKH_PanDerm/runs/<cls_main>/eval_test/calibration.png`.
+- [ ] `~/nckh_root/runs/<cls_main>/eval_test/test.csv` (600 dòng), `cls_metrics.json`, `run_card.json`, `calibration.png`.
 - [ ] Bảng mục 6 đã điền. SV A tự tính lại confusion matrix từ `test.csv` và khớp với JSON.
