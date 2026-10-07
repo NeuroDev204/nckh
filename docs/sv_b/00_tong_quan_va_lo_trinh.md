@@ -2,7 +2,8 @@
 
 > Bộ hướng dẫn này dành cho **SV B (Người 2 — mô hình, pipeline, demo)** trong đề tài *"Ứng dụng PanDerm để phân đoạn tổn thương, đưa ra nhóm bệnh tham khảo và dự báo thay đổi tỷ lệ diện tích mask ở lần tái khám kế tiếp từ ảnh dermoscopy"*.
 > Căn cứ: `Ke_hoach_trien_khai_NCKH_PanDerm_2_nguoi.md` (kế hoạch), `De_cuong_PanDerm_du_bao_thay_doi_ton_thuong_da.docx` (đề cương), PanDerm upstream commit `fd7a807` (17/02/2026).
-> Code, git, dữ liệu, test, đánh giá và demo chạy **trên máy cá nhân trong VS Code**. Việc train/chạy model chạy trên **kernel Colab nối từ VS Code bằng extension Google Colab** (không dùng bản web). **Google Drive** là nơi trung chuyển file bền giữa hai bên, đồng bộ bằng `rclone`.
+> Mọi bước chạy **local trong VS Code** trên hai máy cùng bố cục thư mục: **laptop** (code, git, dữ liệu, test, đánh giá, smoke test) và **máy GPU** (fine-tune, suy luận toàn tập, robustness, demo với model thật). Code đi giữa hai máy bằng git; dữ liệu và kết quả bằng `rsync` (mục 5.2).
+> Bản trước của bộ hướng dẫn chạy GPU trên Colab; từ 07/10/2026 mọi bước chạy local.
 
 ## 1. Vai trò của SV B
 
@@ -25,17 +26,17 @@
 | Tuần | Phase | Việc của SV B | File hướng dẫn | Chạy ở | Mốc bàn giao |
 |---|---|---|---|---|---|
 | 1 | P0 | Phản biện protocol (checklist kỹ thuật) | `P0_P1_P4_P11_vai_tro_ho_tro.md` | — | Góp ý protocol v1 |
-| 1–2 | P1 | Kiểm tra cấu trúc/dung lượng UQ (khi có quyền) | `P0_P1_P4_P11_vai_tro_ho_tro.md` | Máy | Bảng cấu trúc UQ |
-| 1–3 | P2 | Môi trường, checkpoint, smoke test **thật**, patch Base, pilot | `P2_moi_truong_checkpoint_smoke_test.md` | Máy + Colab (NB_seg, NB_cls) | Log smoke test, benchmark, run card |
-| 2–4 | P3 | Tải ISIC, manifest, split, unit test dữ liệu | `P3_du_lieu_manifest_split.md` | Máy (+ Colab NB_cls tải ISIC 2017) | Manifest + hash, test leakage = 0 |
-| 3–7 | P4 | Gán độc lập một phần mask audit, tính đồng thuận | `P0_P1_P4_P11_vai_tro_ho_tro.md` | Máy | Bảng Dice giữa người gán |
-| 4–6 | P5a | Fine-tune segmentation ISIC 2018 Task 1 | `P5a_segmentation_isic2018.md` | Colab NB_seg | Checkpoint chọn trên val, Dice/IoU test |
-| 4–6 | P5b | Fine-tune classification ISIC 2017 Task 3 | `P5b_classification_isic2017.md` | Colab NB_cls | Checkpoint, Macro-F1/BAcc/AUROC |
-| 5–9 | P6 | Ghép cặp UQ, suy luận mask/xác suất, Ridge vs baseline | `P6_ghep_cap_va_ridge.md` | Colab (suy luận) + Máy (ghép cặp, Ridge) | `predictions_test.csv`, `ridge.joblib` |
-| 3–10 | P7 | Bộ test, metric, bootstrap | `P7_kiem_thu_metrics_bootstrap.md` | Máy | `forecast_metrics.json` |
-| 8–10 | P8 | Robustness ảnh, Ben Graham/Gamma | `P8_robustness.md` | Colab (suy giảm + suy luận) + Máy (forecast) | `robustness.json` |
-| 10–11 | P9 | Demo Streamlit + kiểm thử end-to-end | `P9_demo_streamlit.md` | Máy (chế độ giả) + Colab NB_seg (model thật) | Demo chạy được, ảnh chụp |
-| 10–12 | P10 | Tái lập, bảng/hình từ script | `P10_tai_lap_hinh_bang.md` | Máy | Bảng/hình bản cuối |
+| 1–2 | P1 | Kiểm tra cấu trúc/dung lượng UQ (khi có quyền) | `P0_P1_P4_P11_vai_tro_ho_tro.md` | Laptop | Bảng cấu trúc UQ |
+| 1–3 | P2 | Môi trường, checkpoint, smoke test **thật**, patch Base, pilot | `P2_moi_truong_checkpoint_smoke_test.md` | Laptop (smoke test) + máy GPU | Log smoke test, benchmark, run card |
+| 2–4 | P3 | Tải ISIC, manifest, split, unit test dữ liệu | `P3_du_lieu_manifest_split.md` | Laptop | Manifest + hash, test leakage = 0 |
+| 3–7 | P4 | Gán độc lập một phần mask audit, tính đồng thuận | `P0_P1_P4_P11_vai_tro_ho_tro.md` | Laptop | Bảng Dice giữa người gán |
+| 4–6 | P5a | Fine-tune segmentation ISIC 2018 Task 1 | `P5a_segmentation_isic2018.md` | Máy GPU (venv_seg) | Checkpoint chọn trên val, Dice/IoU test |
+| 4–6 | P5b | Fine-tune classification ISIC 2017 Task 3 | `P5b_classification_isic2017.md` | Máy GPU (venv_cls) | Checkpoint, Macro-F1/BAcc/AUROC |
+| 5–9 | P6 | Ghép cặp UQ, suy luận mask/xác suất, Ridge vs baseline | `P6_ghep_cap_va_ridge.md` | Máy GPU (suy luận) + .venv (ghép cặp, Ridge) | `predictions_test.csv`, `ridge.joblib` |
+| 3–10 | P7 | Bộ test, metric, bootstrap | `P7_kiem_thu_metrics_bootstrap.md` | Laptop | `forecast_metrics.json` |
+| 8–10 | P8 | Robustness ảnh, Ben Graham/Gamma | `P8_robustness.md` | Máy GPU (suy giảm + suy luận) + .venv (forecast) | `robustness.json` |
+| 10–11 | P9 | Demo Streamlit + kiểm thử end-to-end | `P9_demo_streamlit.md` | Laptop (chế độ giả) / máy GPU (model thật) | Demo chạy được, ảnh chụp |
+| 10–12 | P10 | Tái lập, bảng/hình từ script | `P10_tai_lap_hinh_bang.md` | Laptop | Bảng/hình bản cuối |
 | 12–14 | P11 | Phụ lục kỹ thuật, tài liệu cài đặt | `P0_P1_P4_P11_vai_tro_ho_tro.md` | — | Phụ lục kỹ thuật |
 
 ## 3. Sơ đồ dòng dữ liệu
@@ -65,29 +66,25 @@ flowchart LR
   EVAL --> TAB[P10: bảng/hình]
 ```
 
-## 4. Ba nơi lưu file
+## 4. Bố cục thư mục trên mỗi máy
 
 ```
-<repo>/                         ← MÁY: git clone repo (CODE). Sửa, commit, push tại đây
-~/nckh_data/                    ← MÁY: ảnh ISIC giải nén (NCKH_LOCAL_DATA), tải một lần
-~/nckh_drive/                   ← MÁY: bản sao một phần của Drive (NCKH_ROOT), đồng bộ bằng rclone
-MyDrive/NCKH_PanDerm/           ← DRIVE: cầu nối máy ↔ Colab
+~/Documents/nckh/               ← <repo>: git clone repo. Sửa, commit, push tại đây. Có .venv (CPU)
+~/nckh_root/                    ← NCKH_ROOT
+├── checkpoints/                ← panderm_bb_data6_checkpoint-499.pth + SHA256SUMS
 ├── data/
-│   ├── zips/                   ← CHỈ file GT nhỏ (mask zip, CSV nhãn). KHÔNG để zip ảnh
-│   ├── manifests/              ← manifest, split, hash (tạo ở máy, đẩy lên bằng rclone)
-│   └── uq/                     ← chỉ khi đã có văn bản cho phép
-├── checkpoints/                ← panderm_bb_data6_checkpoint-499.pth + SHA256SUMS (tải trên Colab)
-└── runs/<run_id>/              ← log, run card, checkpoint fine-tune, prediction (Colab ghi, máy kéo về)
-/content/  (COLAB, mất khi server bị thu hồi)
-├── nckh/                       ← git clone chỉ đọc, pull mỗi phiên
-├── data/                       ← ảnh ISIC tải từ S3 mỗi phiên
-├── PanDerm/                    ← upstream fd7a807
-└── venv_seg/, venv_cls/        ← venv GPU, dựng lại mỗi phiên
+│   ├── manifests/              ← manifest, split, hash
+│   └── uq/                     ← chỉ khi đã có văn bản cho phép (P6 mục 3.1)
+└── runs/<run_id>/              ← log, run card, checkpoint fine-tune, prediction
+~/nckh_data/                    ← NCKH_LOCAL_DATA: ảnh ISIC giải nén, smoke/ (P2), degraded/ (P8)
+~/PanDerm/                      ← upstream fd7a807 + patch (P2)
+~/venvs/venv_seg/               ← Python 3.10 cho nhánh segmentation (P2 mục 4.4)
+~/venvs/venv_cls/               ← Python 3.10 cho nhánh classification (P2 mục 4.10)
 ```
 
-`<repo>` là thư mục bạn clone repo về (ví dụ `~/Documents/nckh`). Thư mục `MyDrive/NCKH_PanDerm/nckh/` hay `PanDerm/` cũ trên Drive (nếu có) không còn dùng, có thể xoá.
+Laptop và máy GPU có cùng bố cục. `nckh.paths` mặc định trỏ `~/nckh_root` và `~/nckh_data`, chỉ đặt `NCKH_ROOT`/`NCKH_LOCAL_DATA` khi muốn để chỗ khác. `<repo>` trong docs là `~/Documents/nckh`.
 
-**Dung lượng là ràng buộc thật.** Google Drive miễn phí có 15 GB, trong khi zip ảnh ISIC (kiểm tra ngày 05/10/2026):
+**Dung lượng** zip ảnh ISIC (kiểm tra ngày 05/10/2026):
 
 | File | Dung lượng |
 |---|---:|
@@ -98,68 +95,64 @@ MyDrive/NCKH_PanDerm/           ← DRIVE: cầu nối máy ↔ Colab
 | `ISIC-2017_Test_v2_Data.zip` | 5,8 GB |
 | `ISIC-2017_Validation_Data.zip` | 0,9 GB |
 
-→ Tổng ≈ 27 GB, vượt 15 GB Drive miễn phí. **Quy tắc:** ảnh không bao giờ lên Drive. Máy tải một lần vào `~/nckh_data` (dùng cho P3: manifest, kiểm tra ảnh). Colab tải trực tiếp từ S3 về `/content/data` mỗi phiên (~1–3 phút/GB) để train/suy luận. Hai nơi tải cùng zip nên manifest (lưu **đường dẫn tương đối** so với `data_root` + SHA-256) dùng được ở cả hai.
+→ Tổng ≈ 27 GB zip; mỗi máy tải một lần vào `~/nckh_data` (zip bị xoá sau khi giải nén). Manifest lưu **đường dẫn tương đối** so với `data_root` + SHA-256, nên cùng manifest dùng được trên cả hai máy.
 
-Đọc hàng nghìn ảnh nhỏ trực tiếp từ Drive rất chậm (FUSE). File nhỏ (CSV, checkpoint) đọc thẳng từ Drive thì không sao.
+## 5. Đồng bộ giữa hai máy
 
-## 5. Đồng bộ: code bằng git, file bằng rclone
+### 5.1. Code (git)
 
-### 5.1. Code (git chỉ chạy ở máy)
-
-Repo `NeuroDev204/nckh` để public, nên Colab clone/pull không cần token. Mọi `git add/commit/push` làm trong VS Code ở máy. Trên Colab, `/content/nckh` chỉ đọc: muốn sửa code thì sửa ở máy, push, rồi chạy lại cell setup Colab (có `git pull`).
+Mọi `git add/commit/push` làm trong VS Code. Trên máy kia, `git pull` trước khi chạy.
 
 ```bash
-# terminal VS Code (máy cá nhân)
-cd <repo>
+# terminal (máy local)
+cd ~/Documents/nckh
 git pull --rebase
 git add src scripts tests configs demo notebooks patches pyproject.toml .gitignore
 git commit -m "mô tả ngắn thay đổi" && git push
 ```
 
-### 5.2. File (rclone giữa `~/nckh_drive` và Drive)
+### 5.2. Chuyển sang máy GPU
 
-Kéo kết quả Colab vừa ghi về máy:
-
-```bash
-# terminal VS Code (máy cá nhân)
-rclone copy gdrive:NCKH_PanDerm/runs/<run_id> ~/nckh_drive/runs/<run_id> --progress
-```
-
-Đẩy file tạo ở máy lên cho Colab đọc:
+Code: `git clone`/`git pull` repo trên máy GPU. Dữ liệu và kết quả: chép nguyên hai thư mục, hoặc tải lại bằng lệnh ở P2 mục 4.3 và P3.
 
 ```bash
-# terminal VS Code (máy cá nhân)
-rclone copy ~/nckh_drive/data/manifests gdrive:NCKH_PanDerm/data/manifests --progress
+# terminal (laptop, .venv)
+rsync -a --info=progress2 ~/nckh_root ~/nckh_data <user>@<máy-gpu>:~/
 ```
 
-`rclone copy` chỉ thêm/ghi đè, không xoá ở đích. Kéo theo từng `runs/<run_id>` thay vì cả `runs/` để không tải checkpoint không cần.
+Sau đó làm mục 6b trên máy GPU. Chép kết quả về laptop theo chiều ngược lại cho từng `~/nckh_root/runs/<run_id>`; thêm `--exclude '*.ckpt' --exclude '*.pth'` nếu không cần checkpoint:
+
+```bash
+# terminal (laptop, .venv)
+rsync -a --info=progress2 --exclude '*.ckpt' --exclude '*.pth' <user>@<máy-gpu>:~/nckh_root/runs/<run_id> ~/nckh_root/runs/
+```
 
 ### 5.3. Ba quy tắc tránh xung đột
 
-1. **Push trước khi chạy Colab.** Colab chỉ thấy code đã push.
-2. **Colab không chạy `git commit/push`** và không sửa file trong `/content/nckh`.
+1. **Push trước khi đổi máy.** Máy kia chỉ thấy code đã push.
+2. **Không train cùng một `run_id` trên hai máy.**
 3. **Không `git add -A`/`git add .`**: luôn chỉ rõ thư mục code như trên, để không bao giờ lỡ đưa ảnh hay checkpoint lên.
 
-## 6. Môi trường: máy và Colab
+## 6. Môi trường: ba kernel
 
-Hai nhánh PanDerm cần hai bộ phiên bản PyTorch khác nhau, nên không cài chung một môi trường.
+Hai nhánh PanDerm cần hai bộ phiên bản PyTorch khác nhau, nên không cài chung một môi trường. Mỗi môi trường cài một lần trên mỗi máy và có `ipykernel`, nên chọn thẳng làm kernel notebook.
 
-| Notebook | Chạy ở | Python | Dùng cho | Cài gì |
-|---|---|---|---|---|
-| `notebooks/NB_cpu.ipynb` | Máy, kernel `<repo>/.venv` | 3.10 (`uv`) | P1, P3, P4, P6 (ghép cặp, Ridge), P7, P8 (forecast), P9 (chế độ giả), P10, pytest | `-e .[demo,test]`, `ipykernel`, torch 2.4.1 **CPU** (cho `test_infer.py`, `test_bench.py`) |
-| `notebooks/NB_seg.ipynb` | Colab GPU qua extension | venv 3.10 tạo bằng `uv` tại `/content/venv_seg` | P2, P5a, P6 (mask), P8, P9 (model thật) | torch 2.1.2 + torchvision 0.16.2 (cu118), mmengine 0.10.4, wheel mmcv 2.1.0, mmsegmentation 1.2.2, `segmentation/requirements.txt`, `openpyxl`, `-e nckh`. Lý do dùng torch 2.1.2 thay vì 2.2.1 của README: P2 mục 3.2 |
-| `notebooks/NB_cls.ipynb` | Colab GPU qua extension | venv 3.10 tại `/content/venv_cls` | P2, P5b, P6 (xác suất), P8 | torch 2.4.1 + torchvision 0.19.1 + torchaudio 2.4.1 (cu118), `classification/requirements.txt`, `timm==0.9.16`, `-e nckh` |
+| Notebook | Kernel / Python | Dùng cho | Cài gì |
+|---|---|---|---|
+| `notebooks/nb_cpu.ipynb` | `<repo>/.venv`, 3.10 (`uv`) | P1, P3, P4, P6 (ghép cặp, Ridge), P7, P8 (forecast), P9 (chế độ giả), P10, pytest | `-e .[demo,test]`, `ipykernel`, torch 2.4.1 **CPU** (cho `test_infer.py`, `test_bench.py`) |
+| `notebooks/nb_seg.ipynb` | `~/venvs/venv_seg`, 3.10 (`uv`) | P2, P5a, P6 (mask), P8, P9 (model thật) | torch 2.1.2 + torchvision 0.16.2 (cu118), mmengine 0.10.4, wheel mmcv 2.1.0, mmsegmentation 1.2.2, `segmentation/requirements.txt`, `openpyxl`, `ipykernel`, `-e nckh`. Lý do dùng torch 2.1.2 thay vì 2.2.1 của README: P2 mục 3.2 |
+| `notebooks/nb_cls.ipynb` | `~/venvs/venv_cls`, 3.10 (`uv`) | P2, P5b, P6 (xác suất), P8 | torch 2.4.1 + torchvision 0.19.1 + torchaudio 2.4.1 (cu118), `classification/requirements.txt`, `timm==0.9.16`, `ipykernel`, `-e nckh` |
 
-Package `nckh` của nhóm **không phụ thuộc torch**, nên cài được vào cả ba môi trường mà không làm lệch phiên bản torch. Venv GPU tạo lại mỗi phiên trên `/content` của Colab; `.venv` ở máy tạo một lần.
+Package `nckh` của nhóm **không phụ thuộc torch**, nên cài được vào cả ba môi trường mà không làm lệch phiên bản torch. Logic nằm trong `src/` và `scripts/`; notebook chỉ để xem kết quả. Lệnh train/suy luận dài chạy trong `tmux` ở terminal, để không mất khi đóng VS Code.
 
-## 6b. Cài đặt máy cá nhân (một lần)
+## 6b. Cài đặt mỗi máy (một lần)
 
-1. Cài VS Code và 3 extension: **Python** (`ms-python.python`), **Jupyter** (`ms-toolsai.jupyter`), **Colab** (`google.colab`). Lần đầu chọn kernel Colab sẽ yêu cầu đăng nhập Google (dùng tài khoản có Drive `NCKH_PanDerm`).
+1. Cài VS Code và 2 extension: **Python** (`ms-python.python`), **Jupyter** (`ms-toolsai.jupyter`).
 2. Cài công cụ và tạo môi trường. Lần đầu, `pyproject.toml` chưa có (tạo ở P2 mục 4.2): thay dòng `uv pip install -e ".[demo,test]" ipykernel` bằng `uv pip install ipykernel`, rồi chạy lại dòng gốc sau khi tạo file.
 
 ```bash
-# terminal VS Code (máy cá nhân)
-sudo apt install -y git rclone
+# terminal (máy local)
+sudo apt install -y git tmux
 curl -LsSf https://astral.sh/uv/install.sh | sh
 git clone https://github.com/NeuroDev204/nckh.git ~/Documents/nckh   # = <repo>
 cd ~/Documents/nckh
@@ -167,23 +160,17 @@ uv venv .venv --python 3.10
 source .venv/bin/activate
 uv pip install -e ".[demo,test]" ipykernel
 uv pip install torch==2.4.1 torchvision==0.19.1 --index-url https://download.pytorch.org/whl/cpu
-mkdir -p ~/nckh_drive ~/nckh_data
+mkdir -p ~/nckh_root/{checkpoints,data/manifests,runs} ~/nckh_data ~/venvs
 ```
 
-3. Nối rclone với Drive: `rclone config` → `n` (new remote) → name `gdrive` → storage `drive` → để trống client_id/secret → scope `1` (full access) → `y` mở trình duyệt đăng nhập → không cấu hình Shared Drive. Kiểm tra: `rclone lsd gdrive:NCKH_PanDerm`.
-4. Trong VS Code: *File → Open Folder* → `<repo>`. Mở `notebooks/NB_cpu.ipynb` → *Select Kernel → Python Environments → .venv*.
-5. Biến môi trường cho lệnh chạy trong terminal (notebook đã tự đặt trong cell setup P2 4.1a). 📁 **Tạo trên máy cá nhân:** `<repo>/.env` (không commit; P2 mục 4.2 thêm `.env` vào `.gitignore`):
+Nếu clone repo chỗ khác `~/Documents/nckh`, thay đường dẫn này trong mọi lệnh và biến `REPO` của notebook.
 
-```bash
-# terminal VS Code (máy cá nhân)
-cd <repo>
-printf 'NCKH_ROOT=%s\nNCKH_LOCAL_DATA=%s\n' "$HOME/nckh_drive" "$HOME/nckh_data" > .env
-set -a && source .env && set +a     # chạy mỗi lần mở terminal mới
-```
+3. Trong VS Code: *File → Open Folder* → `<repo>`. Mở `notebooks/nb_cpu.ipynb` → *Select Kernel → Python Environments → .venv*.
+4. Máy GPU: `nvidia-smi` phải chạy được (driver NVIDIA ≥ 520 cho wheel cu118) trước khi làm P2 mục 4.4. Rồi dựng `venv_seg` (P2 mục 4.4) và `venv_cls` (P2 mục 4.10).
 
 ## 7. Nguyên tắc dữ liệu và đạo đức
 
-- **UQ:** chỉ đưa ảnh/metadata UQ lên Drive/Colab khi đã có **văn bản** xác nhận điều khoản cho phép xử lý trên dịch vụ đám mây (xem cổng Go/No-Go trong P6). Trước đó, dùng dữ liệu UQ **giả** (`make_fake_uq.py`) để phát triển pipeline. Bản sao trên máy (`~/nckh_drive/data/uq`) chỉ được giữ khi điều khoản cho phép lưu trên máy cá nhân.
+- **UQ:** chỉ đưa ảnh/metadata UQ vào `~/nckh_root/data/uq` khi đã có **văn bản** xác nhận điều khoản cho phép lưu và xử lý trên máy của thành viên nhóm (xem cổng Go/No-Go trong P6), và chỉ trên những máy được ghi trong văn bản đó. Trước đó, dùng dữ liệu UQ **giả** (`make_fake_uq.py`) để phát triển pipeline. Không tải UQ lên dịch vụ đám mây.
 - **Không commit** ảnh, mask, checkpoint, token, metadata định danh. `.gitignore` (tạo ở P2) chặn sẵn các loại file này.
 - **Test chỉ mở một lần**, sau khi cấu hình đã khóa và ghi vào nhật ký quyết định. Không chọn checkpoint, ngưỡng, alpha, augmentation, TTA hay tiền xử lý bằng test.
 - **Không gọi output là chẩn đoán.** Nhãn là "nhóm tham khảo theo dữ liệu ISIC 2017"; dự báo là "thay đổi tỷ lệ diện tích mask trên ảnh", không phải tăng trưởng sinh học hay tiên lượng.
@@ -212,13 +199,15 @@ Bạn tự tạo toàn bộ các file dưới đây **trên máy**, trong repo `
 | `demo/pipeline.py`, `demo/app.py` | P9 | Máy: `<repo>/demo/pipeline.py`, `<repo>/demo/app.py` | Demo Streamlit |
 | `scripts/make_tables.py`, `scripts/make_figures.py` | P10 | Máy: `<repo>/scripts/make_tables.py`, `<repo>/scripts/make_figures.py` | Bảng/hình từ file kết quả; chọn ví dụ lỗi |
 | `tests/test_*.py` (156 test) | cùng phase với module | Máy: `<repo>/tests/` | pytest, chạy trên CPU < 1 phút |
-| `notebooks/NB_seg.ipynb`, `NB_cls.ipynb`, `NB_cpu.ipynb` | P2 | Máy: `<repo>/notebooks/` (NB_seg/NB_cls mở ở máy, kernel chạy trên Colab) | Notebook mỏng: cell setup + cell gọi script |
+| `notebooks/nb_seg.ipynb`, `nb_cls.ipynb`, `nb_cpu.ipynb` | P2 | Máy: `<repo>/notebooks/`, kernel venv tương ứng (mục 6) | Notebook mỏng: cell setup + cell gọi script, xem kết quả |
+
+Ngoài repo (không commit): `~/PanDerm` (upstream + patch), `~/venvs/venv_seg`, `~/venvs/venv_cls` — dựng ở P2.
 
 Cây thư mục repo khi xong:
 
 ```
 <repo>/
-├── pyproject.toml  .gitignore  .env (không commit)
+├── pyproject.toml  .gitignore
 ├── src/nckh/   __init__.py paths.py runcard.py infer.py isic.py manifest.py metrics.py
 │               pairs.py features.py forecast.py degrade.py
 ├── scripts/    inspect_checkpoint.py bench_inference.py prepare_isic2018.py prepare_isic2017_cls.py
@@ -232,7 +221,7 @@ Cây thư mục repo khi xong:
 │               test_manifest.py test_metrics.py test_eval_cls_agreement.py test_pairs.py test_features.py
 │               test_forecast.py test_pipeline_fake.py test_evaluate_forecast.py test_degrade.py
 │               test_robustness.py test_demo_pipeline.py test_tables_figures.py
-└── notebooks/  NB_cpu.ipynb NB_seg.ipynb NB_cls.ipynb
+└── notebooks/  nb_cpu.ipynb nb_seg.ipynb nb_cls.ipynb
 ```
 
 ## 9. Thứ tự đọc
@@ -240,13 +229,14 @@ Cây thư mục repo khi xong:
 `00` → `P2` → `P3` → `P5a` → `P5b` → `P6` → `P7` → `P8` → `P9` → `P10`.
 Đọc `P0_P1_P4_P11_vai_tro_ho_tro.md` song song khi SV A bắt đầu các phase đó.
 
-Mỗi file phase có cùng khung: **1. Mục tiêu và đầu vào/đầu ra · 2. Chạy ở đâu · 3. Giải thích · 4. Code · 5. Test · 6. Benchmark / đánh giá · 7. Lỗi thường gặp (máy / Colab extension) · 8. Checklist bàn giao cho SV A**.
+Mỗi file phase có cùng khung: **1. Mục tiêu và đầu vào/đầu ra · 2. Chạy ở đâu · 3. Giải thích · 4. Code · 5. Test · 6. Benchmark / đánh giá · 7. Lỗi thường gặp (máy local) · 8. Checklist bàn giao cho SV A**.
 
 Ký hiệu trong docs:
 - `# file: …` — nội dung file bạn tạo trong repo (đã được chạy pytest trước khi đưa vào docs).
 - `📁 **Tạo trên máy cá nhân:** <repo>/…` — vị trí file bạn tạo (ngay trên khối `# file:`).
-- `# cell: NB_cpu (máy cá nhân)` — cell dán vào `NB_cpu`, kernel `.venv` ở máy.
-- `# cell: NB_seg (Colab GPU)` / `# cell: NB_cls (Colab GPU)` — cell dán vào notebook tương ứng, kernel Colab nối qua extension.
-- `# terminal VS Code (máy cá nhân)` — lệnh chạy trong terminal của VS Code ở máy.
+- `# cell: nb_cpu` — cell dán vào `nb_cpu`, kernel `.venv`.
+- `# cell: nb_seg` / `# cell: nb_cls` — cell dán vào notebook tương ứng, kernel `~/venvs/venv_seg` / `~/venvs/venv_cls`.
+- `# terminal (laptop, .venv)` — lệnh chạy trong terminal VS Code ở laptop, Python của `.venv`.
+- `# terminal (máy GPU, venv_seg)` / `# terminal (máy GPU, venv_cls)` / `# terminal (máy GPU, .venv)` — lệnh chạy ở máy GPU với Python tương ứng.
+- `# terminal (máy local)` — lệnh chạy được trên cả hai máy (cài đặt, tải dữ liệu, git).
 - `> ⚠️ Chưa kiểm chứng trên GPU — xác minh trong pilot P2` — phần cần GPU/checkpoint thật, chưa chạy được khi viết docs.
-- `> ⚠️ Chưa kiểm chứng trên extension` — mô tả menu/hành vi extension Colab chưa chạy thử.
