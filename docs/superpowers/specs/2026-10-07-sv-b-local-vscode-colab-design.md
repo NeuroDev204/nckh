@@ -69,7 +69,7 @@ Tất cả file: mục 7 đổi tên thành **"Lỗi thường gặp (máy / Col
 ## 7. Kiểm tra sau khi sửa
 
 - `grep -n "Secrets\|GH_TOKEN\|userdata\|AUTH_URL\|{ROOT}/nckh" docs/sv_b/*.md` chỉ còn trong mục lỗi thường gặp (giải thích vì sao không dùng).
-- Mọi khối `# file:` (54 khối) đều có dòng `📁 **Tạo trên máy cá nhân:**` ngay phía trên.
+- Mọi khối `# file:` (50 khối) đều có dòng `📁 **Tạo trên máy cá nhân:**` ngay phía trên.
 - Mọi khối `# cell:` đều có nhãn nơi chạy.
 - Đọc chéo `00` ↔ từng phase: bảng phân phase khớp mục 2 của từng file.
 - Hành vi extension (mount Drive, terminal, nhiều server) theo User Guide https://github.com/googlecolab/colab-vscode/wiki/User-Guide. Chỗ nào chưa chạy thử thì gắn `> ⚠️ Chưa kiểm chứng trên extension`.

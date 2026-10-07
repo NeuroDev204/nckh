@@ -13,7 +13,7 @@
 ## Global Constraints
 
 - Chỉ sửa `docs/sv_b/*.md` (+ một chỗ trong spec ở Task 8). Không sửa `src/`, `tests/`, `notebooks/`, `pyproject.toml`, `docs/Huong_dan_SV_B_Tuan_1_*.md`, `Ke_hoach_*.md`, `De_cuong_*.docx`.
-- **Không đổi nội dung bên trong khối `# file:`** (54 khối). Chỉ thêm dòng 📁 phía trên và sửa chữ mô tả quanh khối.
+- **Không đổi nội dung bên trong khối `# file:`** (50 khối). Chỉ thêm dòng 📁 phía trên và sửa chữ mô tả quanh khối.
 - Không đổi nội dung kỹ thuật: phiên bản torch/mmcv/timm, metric, split, seed, protocol, số test kỳ vọng.
 - Tiếng Việt, giọng văn và định dạng giữ như file hiện có. Đường dẫn máy dùng `~/nckh_drive`, `~/nckh_data`, `<repo>` (= thư mục clone repo, ví dụ `~/Documents/nckh`). Đường dẫn Colab: `/content/nckh`, `/content/data`, `/content/drive/MyDrive/NCKH_PanDerm`.
 - Remote rclone tên `gdrive`; thư mục Drive `NCKH_PanDerm`.
@@ -28,7 +28,7 @@
 2. Cell máy dùng `!python`/`!pip` → có thể gọi nhầm Python hệ thống thay vì `.venv`. Pin: cell máy dùng `{PY}` / `%pip`; Task 9 Step 4.
 3. Kết quả sinh trên Colab nhưng bước kế tiếp chạy ở máy mà thiếu `rclone copy` kéo về → file không có ở `~/nckh_drive`. Pin: mỗi chuyển Colab→máy trong P2/P5a/P5b/P6/P8 có khối rclone ngay trước cell máy.
 4. Manifest/CSV tạo ở máy nhưng cell Colab đọc từ Drive mà thiếu `rclone copy` đẩy lên → Colab đọc file cũ/không có. Pin: P3, P6, P8 có khối đẩy lên ngay sau khi tạo.
-5. Khối `# file:` thiếu dòng 📁 hoặc nội dung khối bị sửa. Pin: đếm 📁 = 54; Task 9 Step 5 so khối `# file:` với commit `d77cd5f` (trước khi sửa doc).
+5. Khối `# file:` thiếu dòng 📁 hoặc nội dung khối bị sửa. Pin: đếm 📁 = 50; Task 9 Step 5 so khối `# file:` với commit `d77cd5f` (trước khi sửa doc).
 
 ---
 
@@ -731,12 +731,12 @@ Expected: chỉ các hàng `userdata.get` trong bảng mục 7.
 Run: `grep -nE "^# cell: " docs/sv_b/*.md | grep -vE "NB_cpu \(máy cá nhân\)|NB_(seg|cls) \(Colab GPU\)"`
 Expected: không có.
 
-- [ ] **Step 3: Dòng 📁 = 54 và nằm ngay trên khối**
+- [ ] **Step 3: Dòng 📁 = 50 và nằm ngay trên khối**
 
 Run: `echo $(cat docs/sv_b/*.md | grep -c "^# file:") $(cat docs/sv_b/*.md | grep -c "📁 \*\*Tạo trên máy cá nhân:\*\*")`
-Expected: `54 54`.
+Expected: `50 50`.
 Run: `grep -hA3 "📁 \*\*Tạo trên máy cá nhân:\*\*" docs/sv_b/*.md | grep -c "^# file:"`
-Expected: `54`.
+Expected: `50`.
 
 - [ ] **Step 4: Cell máy không dùng /content, python trần, !pip**
 
