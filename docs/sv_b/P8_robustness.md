@@ -646,10 +646,13 @@ for lv in LEVELS:
 
 ### 4.7. Dự báo: chỉ ảnh t của cặp UQ test bị suy giảm
 
+> Nếu điều khoản UQ **không** cho lưu trên máy (P6 mục 3.1): chạy các cell `NB_cpu` dưới đây trong `NB_seg` trên Colab, thay `{REPO}` bằng `{CODE}` và `{PY}` bằng `{VENV}/bin/python`, bỏ các lệnh rclone kéo/đẩy thư mục UQ; kết quả nằm trên Drive.
+
 Tạo danh sách ảnh t ở máy (`features.csv` của run P6 đã có ở máy):
 
 ```python
 # cell: NB_cpu (máy cá nhân)
+import pandas as pd
 RUN = f"{ROOT}/runs/<p6_uq_run_id>"
 f = pd.read_csv(f"{RUN}/ridge_test/features.csv")   # chỉ run đã mở test mới có target của cặp test
 t = f[f.usable & (f.split == 'test')][['image_id_t', 'image_path_t']].drop_duplicates()

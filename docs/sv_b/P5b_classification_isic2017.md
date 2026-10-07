@@ -271,7 +271,7 @@ Kỳ vọng: `5 passed`.
 
 ### 4.4. Pilot rồi fine-tune (NB_cls)
 
-Đầu mỗi phiên Colab: push code ở máy, rồi chạy trong `NB_cls`: cell setup 4.1b của P2 (có `git pull`) → `venv_cls` (P2 4.10, phần cài đặt) → tải ISIC 2017 vào `/content/data` (P3 4.6, cell `NB_cls`).
+Đầu mỗi phiên Colab: push code ở máy, rồi chạy trong `NB_cls`: cell setup 4.1b của P2 (có `git pull`) → `venv_cls` (P2 4.10, các dòng cài đặt) → tải ISIC 2017 vào `/content/data` (P3 4.6, cell `NB_cls`).
 
 ```python
 # cell: NB_cls (Colab GPU)
@@ -394,5 +394,5 @@ Không gọi kết quả là "độ chính xác chẩn đoán". Khi viết, dùn
 - [ ] Protocol ghi `--monitor recall` và quyết định về TTA **trước** khi train.
 - [ ] `test.csv` của pha train có 150 dòng (bằng chứng test thật chưa bị mở).
 - [ ] `runs/<cls_main>/checkpoint-best.pth`, `train_stdout.log`, `log.txt`.
-- [ ] `eval_test/test.csv` (600 dòng), `cls_metrics.json`, `calibration.png`, `run_card.json`.
+- [ ] `eval_test/test.csv` (600 dòng), `cls_metrics.json`, `run_card.json` trên Drive; `calibration.png` ở máy (`~/nckh_drive/runs/<cls_main>/eval_test/`), đẩy lên Drive nếu SV A cần: `rclone copyto ~/nckh_drive/runs/<cls_main>/eval_test/calibration.png gdrive:NCKH_PanDerm/runs/<cls_main>/eval_test/calibration.png`.
 - [ ] Bảng mục 6 đã điền. SV A tự tính lại confusion matrix từ `test.csv` và khớp với JSON.

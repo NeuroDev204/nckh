@@ -379,6 +379,13 @@ data/
 runs/
 ```
 
+Thêm `.env` (file biến môi trường ở `00` mục 6b) vào cuối `.gitignore` để không lỡ commit:
+
+```bash
+# terminal VS Code (máy cá nhân)
+cd <repo> && (grep -qx '.env' .gitignore || echo '.env' >> .gitignore)
+```
+
 **`tests/test_paths_runcard.py`**
 
 📁 **Tạo trên máy cá nhân:** `<repo>/tests/test_paths_runcard.py`
@@ -1251,6 +1258,7 @@ def test_benchmark_rejects_empty_image_list(tmp_path: Path) -> None:
 !mkdir -p /content/smoke && cd /content/smoke && test -d ISIC2018_Task1-2_Validation_Input || (wget -q https://isic-archive.s3.amazonaws.com/challenges/2018/ISIC2018_Task1-2_Validation_Input.zip && unzip -q ISIC2018_Task1-2_Validation_Input.zip && rm ISIC2018_Task1-2_Validation_Input.zip)
 from nckh.runcard import new_run_id
 RUN = f"{ROOT}/runs/{new_run_id('smoke_seg')}"
+print(RUN)   # tên thư mục cuối là <run_id> cho lệnh rclone kéo về
 !cd /content && {VENV}/bin/python {CODE}/scripts/bench_inference.py --task seg --panderm-dir /content/PanDerm/segmentation --pretrained {CK} --images "/content/smoke/ISIC2018_Task1-2_Validation_Input/*.jpg" --n 20 --save-overlays 10 --out-dir {RUN}
 !{VENV}/bin/python -m nckh.runcard {RUN} --seed 0 --input pretrained={CK} --input patch={CODE}/patches/panderm_base_seg.patch --config task=smoke_seg --config n=20
 ```
@@ -1266,6 +1274,8 @@ Mở vài file trong `{RUN}/overlays/` để chắc ảnh đọc đúng màu và
 ### 4.10. Dựng `venv_cls` và smoke test classification (trong `NB_cls`)
 
 > ⚠️ Chưa kiểm chứng trên GPU — xác minh trong pilot P2. `ClsPredictor.from_checkpoint` đã được thử trên CPU với code `classification/` thật và một checkpoint pretrain giả có prefix `encoder.`: độ phủ blocks 100%, xác suất cộng lại bằng 1.
+
+**Phần cài đặt** của cell dưới là từ dòng `VENV = '/content/venv_cls'` đến dòng `!{VENV}/bin/python -c "import torch, timm; …"`; phần sau đó là smoke test. Các phase khác ghi "P2 4.10, các dòng cài đặt" nghĩa là chỉ chạy phần cài đặt này.
 
 ```python
 # cell: NB_cls (Colab GPU)
@@ -1285,6 +1295,7 @@ CK = f'{ROOT}/checkpoints/panderm_bb_data6_checkpoint-499.pth'
 !mkdir -p /content/smoke && cd /content/smoke && test -d ISIC2018_Task1-2_Validation_Input || (wget -q https://isic-archive.s3.amazonaws.com/challenges/2018/ISIC2018_Task1-2_Validation_Input.zip && unzip -q ISIC2018_Task1-2_Validation_Input.zip && rm ISIC2018_Task1-2_Validation_Input.zip)
 from nckh.runcard import new_run_id
 RUN = f"{ROOT}/runs/{new_run_id('smoke_cls')}"
+print(RUN)   # tên thư mục cuối là <run_id> cho lệnh rclone kéo về
 !cd /content && {VENV}/bin/python {CODE}/scripts/bench_inference.py --task cls --panderm-dir /content/PanDerm/classification --pretrained {CK} --images "/content/smoke/ISIC2018_Task1-2_Validation_Input/*.jpg" --n 20 --out-dir {RUN}
 !{VENV}/bin/python -m nckh.runcard {RUN} --seed 0 --input pretrained={CK} --config task=smoke_cls --config n=20
 ```
@@ -1305,7 +1316,7 @@ rclone copy gdrive:NCKH_PanDerm/runs/<run_id> ~/nckh_drive/runs/<run_id> --progr
 
 ### 4.11. Pilot 1 epoch
 
-Pilot train 1 epoch cần dữ liệu ISIC 2018 đúng layout của loader (P3), nên được làm ở **P5a mục 4.2**, cùng với phép thử ngắt runtime rồi resume.
+Pilot train 1 epoch cần dữ liệu ISIC 2018 đúng layout của loader (P3), nên được làm ở **P5a mục 4.5**, cùng với phép thử ngắt runtime rồi resume.
 
 ### 4.12. Commit cuối phiên
 

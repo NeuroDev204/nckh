@@ -92,6 +92,8 @@ meta.head(3).T
 
 **SV A chủ trì:** viết hướng dẫn gán mask một trang (ranh giới, vùng mờ, lông, bọt khí, vật đánh dấu); gán mask cho tập audit (tối đa ~100 ảnh UQ ≈ 50 cặp); dẫn dắt buổi thống nhất.
 
+> Nếu điều khoản UQ **không** cho lưu trên máy (P6 mục 3.1): chạy các cell `NB_cpu` dưới đây trong `NB_seg` trên Colab, thay `{REPO}` bằng `{CODE}` và `{PY}` bằng `{VENV}/bin/python`, bỏ các lệnh rclone kéo/đẩy thư mục UQ; kết quả nằm trên Drive.
+
 **SV B làm:**
 1. **Chọn mẫu audit** có phân tầng theo Δt và diện tích mask sơ bộ, có seed, để audit không chỉ gồm ảnh dễ. Hàm `stratified_audit_sample` (viết ở P6, `src/nckh/pairs.py`) chia cặp thành các ô theo tứ phân vị của từng cột rồi lấy đều mỗi ô:
 
@@ -102,6 +104,8 @@ from nckh.pairs import stratified_audit_sample
 feat = pd.read_csv(f'{ROOT}/runs/<run_id_P6>/ridge/features.csv')    # bảng cặp + area_ratio_t sơ bộ từ P6 (target test đã bị che)
 pool = feat[(feat.split == 'test') & feat.usable]                    # audit lấy từ participant test (kế hoạch P4 bước 3)
 audit = stratified_audit_sample(pool, n_pairs=50, strata_cols=['delta_days', 'area_ratio_t'], seed=2026)
+import os
+os.makedirs(f'{ROOT}/data/uq/audit', exist_ok=True)
 audit.to_csv(f'{ROOT}/data/uq/audit/audit_pairs.csv', index=False)
 print(audit['stratum'].value_counts())
 ```

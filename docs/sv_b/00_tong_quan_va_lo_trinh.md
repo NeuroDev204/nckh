@@ -155,7 +155,7 @@ Package `nckh` của nhóm **không phụ thuộc torch**, nên cài được v�
 ## 6b. Cài đặt máy cá nhân (một lần)
 
 1. Cài VS Code và 3 extension: **Python** (`ms-python.python`), **Jupyter** (`ms-toolsai.jupyter`), **Colab** (`google.colab`). Lần đầu chọn kernel Colab sẽ yêu cầu đăng nhập Google (dùng tài khoản có Drive `NCKH_PanDerm`).
-2. Cài công cụ và tạo môi trường:
+2. Cài công cụ và tạo môi trường. Lần đầu, `pyproject.toml` chưa có (tạo ở P2 mục 4.2): thay dòng `uv pip install -e ".[demo,test]" ipykernel` bằng `uv pip install ipykernel`, rồi chạy lại dòng gốc sau khi tạo file.
 
 ```bash
 # terminal VS Code (máy cá nhân)
@@ -172,7 +172,7 @@ mkdir -p ~/nckh_drive ~/nckh_data
 
 3. Nối rclone với Drive: `rclone config` → `n` (new remote) → name `gdrive` → storage `drive` → để trống client_id/secret → scope `1` (full access) → `y` mở trình duyệt đăng nhập → không cấu hình Shared Drive. Kiểm tra: `rclone lsd gdrive:NCKH_PanDerm`.
 4. Trong VS Code: *File → Open Folder* → `<repo>`. Mở `notebooks/NB_cpu.ipynb` → *Select Kernel → Python Environments → .venv*.
-5. Biến môi trường cho lệnh chạy trong terminal (notebook đã tự đặt trong cell setup P2 4.1a). 📁 **Tạo trên máy cá nhân:** `<repo>/.env` (đã có trong `.gitignore`, không commit):
+5. Biến môi trường cho lệnh chạy trong terminal (notebook đã tự đặt trong cell setup P2 4.1a). 📁 **Tạo trên máy cá nhân:** `<repo>/.env` (không commit; P2 mục 4.2 thêm `.env` vào `.gitignore`):
 
 ```bash
 # terminal VS Code (máy cá nhân)
@@ -180,8 +180,6 @@ cd <repo>
 printf 'NCKH_ROOT=%s\nNCKH_LOCAL_DATA=%s\n' "$HOME/nckh_drive" "$HOME/nckh_data" > .env
 set -a && source .env && set +a     # chạy mỗi lần mở terminal mới
 ```
-
-> Lần đầu, `pyproject.toml` chưa có (tạo ở P2 mục 4.2): chỉ chạy `uv pip install ipykernel`, chạy lại dòng `-e ".[demo,test]"` sau khi tạo file.
 
 ## 7. Nguyên tắc dữ liệu và đạo đức
 

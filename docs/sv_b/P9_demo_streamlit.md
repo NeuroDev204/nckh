@@ -344,7 +344,7 @@ rclone copy ~/nckh_drive/runs/<p6_uq_run_id>/ridge gdrive:NCKH_PanDerm/runs/<p6_
 Chuẩn bị trong cùng server Colab:
 1. push code ở máy, rồi cell setup Colab P2 4.1b trong `NB_seg`;
 2. `venv_seg` (P2 4.4) và patch (P2 4.6);
-3. **cả** phần cài `venv_cls` (P2 4.10, chỉ các dòng cài đặt).
+3. **cả** phần cài `venv_cls` (P2 4.10, chỉ các dòng cài đặt), rồi chạy lại `VENV = '/content/venv_seg'`: phần cài đặt gán `VENV` sang `venv_cls`, nên nếu không đặt lại thì các cell seg sau đó trong cùng phiên dùng nhầm venv.
 
 ```python
 # cell: NB_seg (Colab GPU)

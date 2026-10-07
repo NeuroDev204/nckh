@@ -14,12 +14,14 @@
 
 Tất cả chạy **trên máy** (`NB_cpu`, chạy cell setup P2 4.1a trước). Một lần `evaluate_forecast.py` mất vài giây đến vài chục giây (2.000 lần bootstrap). Biến `RUN` là run P6 trên UQ ở máy: `RUN = f"{ROOT}/runs/<p6_uq_run_id>"`.
 
-Run P6 (`ridge/`, `ridge_test/`) đã nằm sẵn ở máy. Các run P5a/P5b (`seg_metrics.json`, `cls_metrics.json`) do Colab ghi, nên kéo về trước nếu chưa làm:
+Run P6 (`ridge/`, `ridge_test/`) đã nằm sẵn ở máy (trường hợp UQ được lưu trên máy; nếu không, xem ghi chú ngay dưới). Các run P5a/P5b (`seg_metrics.json`, `cls_metrics.json`) do Colab ghi, nên kéo về trước nếu chưa làm:
 
 ```bash
 # terminal VS Code (máy cá nhân)
 rclone copy gdrive:NCKH_PanDerm/runs/<run_id> ~/nckh_drive/runs/<run_id> --exclude "*.ckpt" --exclude "*.pth" --progress
 ```
+
+> Nếu điều khoản UQ **không** cho lưu trên máy (P6 mục 3.1): chạy các cell `NB_cpu` dưới đây trong `NB_seg` trên Colab, thay `{REPO}` bằng `{CODE}` và `{PY}` bằng `{VENV}/bin/python`, bỏ các lệnh rclone kéo/đẩy thư mục UQ; kết quả nằm trên Drive.
 
 ## 3. Giải thích
 

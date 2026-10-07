@@ -369,15 +369,17 @@ Kỳ vọng: `11 passed`.
 # cell: NB_seg (Colab GPU)
 from nckh.runcard import new_run_id
 PILOT = f"{ROOT}/runs/{new_run_id('seg_pilot')}/"   # dấu / cuối là bắt buộc
+print(PILOT)   # ghi lại: restart kernel sẽ mất biến này
 os.environ['PANDERM_CKPT'] = CK
 os.environ['WANDB_MODE'] = 'disabled'
 !cd /content/PanDerm/segmentation && {VENV}/bin/python run.py --workers 2 --gpu "0," --batch_size 8 --test_batch_size 4 --epoch 2 --lr 1e-4 --weight_decay 0.05 --model cae_seg --size 224 --dataset ISIC2018 --parent_path /content/data/ --save_name {PILOT} --seed 0 --smoke_test --percent 5 2>&1 | tee /content/pilot.log | grep --line-buffered -E "Matched|Val/|Error"
 ```
 
-Khi thấy epoch 0 đã xong (log có `Val/Dice`), dừng cell bằng nút ■, hoặc restart kernel Colab (nút *Restart* trên thanh notebook) để giả lập bị ngắt. Sau đó chạy lại cell mở đầu (4.1b của P2) và `venv_seg`, rồi chạy:
+Khi thấy epoch 0 đã xong (log có `Val/Dice`), dừng cell bằng nút ■, hoặc restart kernel Colab (nút *Restart* trên thanh notebook) để giả lập bị ngắt. Sau đó chạy lại cell mở đầu (4.1b của P2) và `venv_seg`, rồi chạy (nếu đã restart kernel thì bỏ dấu `#` ở dòng `PILOT` và dán giá trị đã in):
 
 ```python
 # cell: NB_seg (Colab GPU)
+# PILOT = "<giá trị đã in ở cell trên>"
 !ls -la {PILOT}0/
 !cd /content/PanDerm/segmentation && {VENV}/bin/python run.py --workers 2 --gpu "0," --batch_size 8 --test_batch_size 4 --epoch 2 --lr 1e-4 --weight_decay 0.05 --model cae_seg --size 224 --dataset ISIC2018 --parent_path /content/data/ --save_name {PILOT} --seed 0 --smoke_test --percent 5 --resume 0 2>&1 | grep -E "loading checkpoint|Restoring|Epoch 1|Error" | head
 ```
