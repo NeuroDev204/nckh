@@ -847,5 +847,5 @@ Các URL dưới đây là điểm bắt đầu. Nhóm cần đọc lại điề
 
 | Ngày | Quyết định/thay đổi | Lý do | Ảnh hưởng tới protocol/kết quả | Người duyệt |
 |---|---|---|---|---|
-| [điền] | [điền] | [điền] | [điền] | [điền] |
+| 2026-10-07 | Trong `patches/panderm_base_seg.patch` (file `segmentation/models/cae_seg.py`), đổi dòng `new_state_dict = {k.replace('encoder.', ''): v for k, v in cae_weight.items() if 'encoder' in k}` thành `new_state_dict = dict(cae_weight)` (dòng context → cặp `-`/`+`, header hunk `@@ -13,18 +15,32 @@` giữ nguyên) | `inspect_checkpoint.py` trên `panderm_bb_data6_checkpoint-499.pth`: `wrapped_in: null`, 186 key, `prefix_counts` = `blocks` 180, `patch_embed` 2, `norm` 2, `cls_token` 1, `pos_embed` 1; `patch_embed_shape` [768, 3, 16, 16]. Key không có prefix `encoder.` nên bộ lọc `if 'encoder' in k` bỏ hết trọng số | Không đổi protocol. Backbone nạp trọng số PanDerm Base thay vì khởi tạo ngẫu nhiên; kiểm tra bằng dòng `ViT coverage` ≥ 90% khi dựng model | [điền] |
 | [điền] | [điền] | [điền] | [điền] | [điền] |
