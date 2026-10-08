@@ -3,7 +3,7 @@ import json
 from datetime import datetime
 from pathlib import Path
 
-from nckh.paths import project_root, runs_dir
+from nckh.paths import local_data_root, project_root, runs_dir
 from nckh.runcard import new_run_id, sha256_file, write_run_card
 
 
@@ -11,6 +11,13 @@ def test_project_root_reads_env(monkeypatch, tmp_path: Path) -> None:
     monkeypatch.setenv("NCKH_ROOT", str(tmp_path))
     assert project_root() == tmp_path
     assert runs_dir() == tmp_path / "runs"
+
+
+def test_defaults_are_local_home(monkeypatch) -> None:
+    monkeypatch.delenv("NCKH_ROOT", raising=False)
+    monkeypatch.delenv("NCKH_LOCAL_DATA", raising=False)
+    assert project_root() == Path.home() / "nckh_root"
+    assert local_data_root() == Path.home() / "nckh_data"
 
 
 def test_sha256_known(tmp_path: Path) -> None:
