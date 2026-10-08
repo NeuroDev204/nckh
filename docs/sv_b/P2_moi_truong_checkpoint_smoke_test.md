@@ -1361,7 +1361,7 @@ Số ms/ảnh ở đây tính cho batch 1, bao gồm cả tiền xử lý. Dùng
 | `gdown` báo quota | File Drive công khai bị giới hạn lượt tải | Xem cách xử lý ở 4.3 |
 | `ModuleNotFoundError: nckh` trong `nb_seg`/`nb_cls` | Kernel không phải venv tương ứng, hoặc thiếu dòng `-e ~/Documents/nckh` | Chọn lại kernel; chạy lại dòng `uv pip install … -e` ở 4.4/4.10 |
 | `ModuleNotFoundError: nckh` ở `nb_cpu` | Kernel không phải `.venv` hoặc chưa `pip install -e` | Chọn kernel `.venv`; chạy lại cell cài ở 4.2 |
-| Kernel venv_seg/venv_cls không hiện trong VS Code | Chưa cài `ipykernel` vào venv | Chạy lại dòng cài requirements ở 4.4/4.10 |
+| Kernel venv_seg/venv_cls không hiện trong VS Code | VS Code chưa quét `~/venvs`, hoặc venv thiếu `ipykernel` | Thêm `"python.venvFolders": ["venvs"]` vào User Settings (`00` mục 6b bước 3) rồi *Reload Window*; nếu vẫn không thấy, chạy lại dòng cài requirements ở 4.4/4.10 |
 | Máy GPU chạy code cũ | Quên `git push` ở laptop hoặc `git pull` ở máy GPU | Push ở laptop, `git pull` ở máy GPU |
 | Đóng VS Code/terminal làm dừng lệnh dài | Lệnh chạy trực tiếp trong terminal | Chạy trong `tmux new -s <tên>`; mở lại bằng `tmux attach -t <tên>` |
 | `ModuleNotFoundError: open_clip` khi chạy cls | `classification/models/__init__.py` import `open_clip` | Đã có trong `classification/requirements.txt`; kiểm tra lại lệnh 4.10 |

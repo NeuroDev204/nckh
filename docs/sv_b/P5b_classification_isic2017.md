@@ -302,6 +302,7 @@ Fine-tune chính trong `tmux` (chạy lại khối biến dùng chung ở trên 
 ```bash
 # terminal (máy GPU, venv_cls)
 tmux new -s p5b          # đã có phiên: tmux attach -t p5b
+# chạy lại khối biến dùng chung (PY, COMMON, new_run…) trong phiên tmux, rồi:
 RUN=$(new_run cls_main); echo $RUN   # ghi lại RUN cho mục 4.5
 mkdir -p $RUN   # tee cần thư mục tồn tại trước
 $PY run_class_finetuning.py $COMMON --epochs 50 --exp_name isic2017_ft --wandb_name isic2017_ft_s0 --output_dir $RUN --csv_path $TRAIN_CSV 2>&1 | tee ${RUN}train_stdout.log | grep -E "Max val|Epoch: \[[0-9]+\] Total|Error"

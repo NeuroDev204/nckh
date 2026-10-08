@@ -373,6 +373,7 @@ export WANDB_MODE=disabled
 # terminal (máy GPU, venv_seg) — sau các dòng ở 4.4
 PILOT=~/nckh_root/runs/$($PY -c "from nckh.runcard import new_run_id; print(new_run_id('seg_pilot'))")/   # dấu / cuối là bắt buộc
 echo $PILOT   # ghi lại để chạy lại ở bước resume
+mkdir -p $PILOT   # tee cần thư mục tồn tại trước
 $PY run.py --workers 2 --gpu "0," --batch_size 8 --test_batch_size 4 --epoch 2 --lr 1e-4 --weight_decay 0.05 --model cae_seg --size 224 --dataset ISIC2018 --parent_path $HOME/nckh_data/ --save_name $PILOT --seed 0 --smoke_test --percent 5 2>&1 | tee ${PILOT}pilot.log | grep --line-buffered -E "Matched|Val/|Error"
 ```
 

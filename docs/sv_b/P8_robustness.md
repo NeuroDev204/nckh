@@ -686,7 +686,8 @@ done
 ### 4.8. Ben Graham / Gamma trên val
 
 ```bash
-# terminal (máy GPU, venv_seg) — cùng phiên tmux với mục 4.5 (dùng lại PY, MAN, SEG, P8)
+# terminal (máy GPU, venv_seg) — cùng phiên tmux với mục 4.5 (dùng lại MAN, SEG, P8)
+PY=~/venvs/venv_seg/bin/python   # đặt lại: mục 4.6 đã đổi PY sang venv_cls
 $PY -c "import pandas as pd; m=pd.read_csv('$MAN'); m[(m.split=='val')&m.exclude_reason.isna()].to_csv('$P8/isic18_val.csv', index=False)"
 $PY scripts/infer_images.py $SEG --manifest $P8/isic18_val.csv --data-root ~/nckh_data --out-dir $P8/clean_val 2>&1 | tee -a $P8/p8.log
 for en in ben_graham_10 gamma_0.8 gamma_1.2; do
@@ -749,6 +750,8 @@ Biểu đồ robustness sinh tự động bởi `make_figures.py` (P10) từ `ro
 | Đóng VS Code/terminal làm dừng vòng lặp | Chạy trong `tmux new -s p8`; mở lại bằng `tmux attach -t p8`; `robustness.json` giữ các mức đã xong |
 | `CUDA out of memory` | Đóng tiến trình GPU khác (`nvidia-smi`); suy luận chạy batch 1 nên hiếm gặp |
 | `CUDA driver version is insufficient` / `no kernel image` | Driver quá cũ cho wheel cu118: cập nhật driver NVIDIA (≥ 520) |
+| `make_degraded` thoát mã 2 | Đúng thiết kế: chỉ split test; dùng `--allow-non-test` **chỉ** cho tiền xử lý trên val |
+| `ValueError: Thiếu mask sạch/suy giảm` | Chạy `infer_images` sạch chưa đủ ảnh hoặc sai thư mục `--clean` |
 | `ValueError: Chỉ ghép được …` (cls) | Manifest suy giảm và nhãn lệch tên ảnh; dùng đúng `$P8C/isic17_test.csv` |
 | Đầy đĩa | Giữ dòng `rm -rf $D` trong vòng lặp; xoá `~/nckh_data/enh/` sau mục 4.8 |
 | Vòng lặp bị ngắt | Đọc `robustness.json` để biết mức nào đã xong, bỏ khỏi `LEVELS` |

@@ -117,8 +117,10 @@ Code: `git clone`/`git pull` repo trên máy GPU. Dữ liệu và kết quả: c
 
 ```bash
 # terminal (laptop, .venv)
-rsync -a --info=progress2 ~/nckh_root ~/nckh_data <user>@<máy-gpu>:~/
+rsync -a --info=progress2 --exclude 'data/uq' ~/nckh_root ~/nckh_data <user>@<máy-gpu>:~/
 ```
+
+`--exclude 'data/uq'` giữ dữ liệu UQ ở yên chỗ cũ: chỉ chép `data/uq` và các run P6 sang máy được ghi trong văn bản Go/No-Go (P6 mục 3.1).
 
 Sau đó làm mục 6b trên máy GPU. Chép kết quả về laptop theo chiều ngược lại cho từng `~/nckh_root/runs/<run_id>`; thêm `--exclude '*.ckpt' --exclude '*.pth'` nếu không cần checkpoint:
 
@@ -153,10 +155,10 @@ Package `nckh` của nhóm **không phụ thuộc torch**, nên cài được v�
 ```bash
 # terminal (máy local)
 sudo apt install -y git tmux
-curl -LsSf https://astral.sh/uv/install.sh | sh
+command -v uv || (curl -LsSf https://astral.sh/uv/install.sh | sh && source $HOME/.local/bin/env)
 git clone https://github.com/NeuroDev204/nckh.git ~/Documents/nckh   # = <repo>
 cd ~/Documents/nckh
-uv venv .venv --python 3.10
+test -x .venv/bin/python || uv venv .venv --python 3.10
 source .venv/bin/activate
 uv pip install -e ".[demo,test]" ipykernel
 uv pip install torch==2.4.1 torchvision==0.19.1 --index-url https://download.pytorch.org/whl/cpu
@@ -166,6 +168,7 @@ mkdir -p ~/nckh_root/{checkpoints,data/manifests,runs} ~/nckh_data ~/venvs
 Nếu clone repo chỗ khác `~/Documents/nckh`, thay đường dẫn này trong mọi lệnh và biến `REPO` của notebook.
 
 3. Trong VS Code: *File → Open Folder* → `<repo>`. Mở `notebooks/nb_cpu.ipynb` → *Select Kernel → Python Environments → .venv*.
+   Để VS Code thấy các venv trong `~/venvs` (dùng cho `nb_seg`/`nb_cls`): `Ctrl+Shift+P` → *Preferences: Open User Settings (JSON)*, thêm dòng `"python.venvFolders": ["venvs"]`, rồi *Developer: Reload Window*. (Mặc định VS Code chỉ quét `~/.venvs`, `~/.virtualenvs`, `~/envs`, không quét `~/venvs`.)
 4. Máy GPU: `nvidia-smi` phải chạy được (driver NVIDIA ≥ 520 cho wheel cu118) trước khi làm P2 mục 4.4. Rồi dựng `venv_seg` (P2 mục 4.4) và `venv_cls` (P2 mục 4.10).
 
 ## 7. Nguyên tắc dữ liệu và đạo đức
