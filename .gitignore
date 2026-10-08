@@ -1,8 +1,6 @@
 # file: .gitignore
-# Chỉ commit docs của SV B và spec/plan; các docs cũ khác giữ ngoài git như trước.
-/docs/*
-!/docs/sv_b/
-!/docs/superpowers/
+# Toàn bộ docs (hướng dẫn, spec/plan) chỉ giữ ở máy, không đưa lên git.
+/docs/
 # Môi trường, cache
 .venv*/
 __pycache__/
