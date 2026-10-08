@@ -270,8 +270,8 @@ LOG = f"{ROOT}/runs/{new_run_id('pytest')}"
 
 | File | Số test | Phase |
 |---|---:|---|
-| `tests/test_paths_runcard.py` | 5 | P2 |
-| `tests/test_inspect_checkpoint.py` | 3 | P2 |
+| `tests/test_paths_runcard.py` | 6 | P2 |
+| `tests/test_inspect_checkpoint.py` | 4 | P2 |
 | `tests/test_infer.py` | 8 | P2 |
 | `tests/test_bench.py` | 3 | P2 |
 | `tests/test_manifest.py` | 8 | P3 |
@@ -283,7 +283,7 @@ LOG = f"{ROOT}/runs/{new_run_id('pytest')}"
 | `tests/test_forecast.py` | 20 | P6 |
 | `tests/test_pipeline_fake.py` | 6 | P6 |
 | `tests/test_evaluate_forecast.py` | 4 | P7 |
-| **Tổng** | **100** | |
+| **Tổng** | **102** | |
 
 P8, P9, P10 thêm test của riêng các phase đó. Nếu môi trường không có torch, `test_infer.py` và `test_bench.py` báo `skipped`; ghi rõ điều đó trong log.
 

@@ -167,6 +167,8 @@ mkdir -p ~/nckh_root/{checkpoints,data/manifests,runs} ~/nckh_data ~/venvs
 
 Nếu clone repo chỗ khác `~/Documents/nckh`, thay đường dẫn này trong mọi lệnh và biến `REPO` của notebook.
 
+Nếu đã làm theo bản hướng dẫn Colab trước đây: xoá file `<repo>/.env` cũ (trỏ `~/nckh_drive`; VS Code tự nạp file này vào kernel) và bỏ các dòng `export NCKH_ROOT`/`NCKH_LOCAL_DATA` cũ trong `~/.bashrc` nếu có.
+
 3. Trong VS Code: *File → Open Folder* → `<repo>`. Mở `notebooks/nb_cpu.ipynb` → *Select Kernel → Python Environments → .venv*.
    Để VS Code thấy các venv trong `~/venvs` (dùng cho `nb_seg`/`nb_cls`): `Ctrl+Shift+P` → *Preferences: Open User Settings (JSON)*, thêm dòng `"python.venvFolders": ["venvs"]`, rồi *Developer: Reload Window*. (Mặc định VS Code chỉ quét `~/.venvs`, `~/.virtualenvs`, `~/envs`, không quét `~/venvs`.)
 4. Máy GPU: `nvidia-smi` phải chạy được (driver NVIDIA ≥ 520 cho wheel cu118) trước khi làm P2 mục 4.4. Rồi dựng `venv_seg` (P2 mục 4.4) và `venv_cls` (P2 mục 4.10).
@@ -201,7 +203,7 @@ Bạn tự tạo toàn bộ các file dưới đây **trên máy**, trong repo `
 | `src/nckh/degrade.py`, `scripts/make_degraded.py`, `scripts/evaluate_robustness.py` | P8 | Máy: `<repo>/src/nckh/degrade.py`, `<repo>/scripts/…` | Ảnh suy giảm/tiền xử lý; so sạch vs suy giảm |
 | `demo/pipeline.py`, `demo/app.py` | P9 | Máy: `<repo>/demo/pipeline.py`, `<repo>/demo/app.py` | Demo Streamlit |
 | `scripts/make_tables.py`, `scripts/make_figures.py` | P10 | Máy: `<repo>/scripts/make_tables.py`, `<repo>/scripts/make_figures.py` | Bảng/hình từ file kết quả; chọn ví dụ lỗi |
-| `tests/test_*.py` (156 test) | cùng phase với module | Máy: `<repo>/tests/` | pytest, chạy trên CPU < 1 phút |
+| `tests/test_*.py` (158 test) | cùng phase với module | Máy: `<repo>/tests/` | pytest, chạy trên CPU < 1 phút |
 | `notebooks/nb_seg.ipynb`, `nb_cls.ipynb`, `nb_cpu.ipynb` | P2 | Máy: `<repo>/notebooks/`, kernel venv tương ứng (mục 6) | Notebook mỏng: cell setup + cell gọi script, xem kết quả |
 
 Ngoài repo (không commit): `~/PanDerm` (upstream + patch), `~/venvs/venv_seg`, `~/venvs/venv_cls` — dựng ở P2.

@@ -51,7 +51,7 @@ def _package_versions() -> dict[str, str]:
         try:
             versions[name] = version(name)
         except PackageNotFoundError:
-            # Mỗi runtime chỉ cài một phần các gói; thiếu gói là bình thường.
+            # Mỗi môi trường (.venv/venv_seg/venv_cls) chỉ cài một phần các gói; thiếu gói là bình thường.
             continue
     return versions
 

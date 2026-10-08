@@ -370,7 +370,7 @@ export WANDB_MODE=disabled
 ### 4.5. Pilot: 1 epoch trên 5% train + thử resume
 
 ```bash
-# terminal (máy GPU, venv_seg) — sau các dòng ở 4.4
+# terminal (máy GPU, venv_seg) — trong tmux (tmux new -s p5a), sau các dòng ở 4.4
 PILOT=~/nckh_root/runs/$($PY -c "from nckh.runcard import new_run_id; print(new_run_id('seg_pilot'))")/   # dấu / cuối là bắt buộc
 echo $PILOT   # ghi lại để chạy lại ở bước resume
 mkdir -p $PILOT   # tee cần thư mục tồn tại trước

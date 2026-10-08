@@ -91,7 +91,7 @@ Các lớp `fpn1..4` và `norm` là lớp mới của đầu segmentation, khôn
 
 ### 4.1. Cell mở đầu của 3 notebook
 
-Mỗi notebook có một cell mở đầu, chạy đầu mỗi phiên.
+Mỗi notebook có một cell mở đầu, chạy mỗi lần mở notebook (hoặc sau khi restart kernel).
 
 **4.1a. `nb_cpu`**:
 
@@ -104,8 +104,8 @@ REPO = Path.home() / 'Documents' / 'nckh'      # sửa nếu bạn clone repo �
 ROOT = str(Path.home() / 'nckh_root')           # NCKH_ROOT: checkpoints, manifests, runs
 DATA = str(Path.home() / 'nckh_data')           # ảnh ISIC giải nén trên máy
 PY = sys.executable                             # Python của .venv, dùng trong lệnh "!"
-os.environ['NCKH_ROOT'] = ROOT
-os.environ['NCKH_LOCAL_DATA'] = DATA
+os.environ.setdefault('NCKH_ROOT', ROOT)         # biến môi trường đặt sẵn vẫn được ưu tiên
+os.environ.setdefault('NCKH_LOCAL_DATA', DATA)
 %cd {REPO}
 !git log --oneline -1
 ```
@@ -280,7 +280,7 @@ def _package_versions() -> dict[str, str]:
         try:
             versions[name] = version(name)
         except PackageNotFoundError:
-            # Mỗi runtime chỉ cài một phần các gói; thiếu gói là bình thường.
+            # Mỗi môi trường (.venv/venv_seg/venv_cls) chỉ cài một phần các gói; thiếu gói là bình thường.
             continue
     return versions
 
@@ -366,6 +366,8 @@ __pycache__/
 *.joblib
 data/
 runs/
+.env
+*.env
 ```
 
 **`tests/test_paths_runcard.py`**
@@ -449,7 +451,8 @@ CK=~/nckh_root/checkpoints/panderm_bb_data6_checkpoint-499.pth
 mkdir -p ~/nckh_root/checkpoints
 test -f $CK || uvx gdown 17J4MjsZu3gdBP6xAQi_NMDVvH65a00HB -O $CK
 ls -lh $CK
-(cd ~/nckh_root/checkpoints && echo "$(sha256sum panderm_bb_data6_checkpoint-499.pth)  # tải $(date +%F)" >> SHA256SUMS)
+# Chỉ ghi SHA một lần, và chỉ khi file đã tải xong.
+test -f $CK && (cd ~/nckh_root/checkpoints && (grep -q panderm_bb_data6_checkpoint-499.pth SHA256SUMS 2>/dev/null || echo "$(sha256sum panderm_bb_data6_checkpoint-499.pth)  # tải $(date +%F)" >> SHA256SUMS))
 ```
 
 Laptop và máy GPU đều cần file này: tải lại trên máy kia, hoặc chép bằng `rsync` (`00` mục 5.2). `uvx` chạy `gdown` mà không cần cài vào môi trường nào.
@@ -488,10 +491,11 @@ Venv cài một lần và giữ lại. Cài `-e` nên sửa code trong `<repo>` 
 
 ```python
 # file: scripts/inspect_checkpoint.py
-"""Soi cấu trúc key của checkpoint PanDerm trước khi áp patch.
-
+"""
+Soi cấu trúc key của checkpoint Panderm trước khi áp patch
 Chạy: ~/venvs/venv_seg/bin/python scripts/inspect_checkpoint.py ~/nckh_root/checkpoints/panderm_bb_data6_checkpoint-499.pth
 """
+
 import json
 import sys
 from collections import Counter
@@ -499,27 +503,26 @@ from pathlib import Path
 
 WRAPPER_KEYS = {"model", "state_dict", "module"}
 
-
 def summarize_state_dict(sd: dict) -> dict:
-    wrapped_in = None
-    if set(sd) <= WRAPPER_KEYS:
-        wrapped_in = next(iter(sd))
+    # MAE-style checkpoints also carry optimizer/epoch/args next to the weights
+    wrapped_in = next((k for k in WRAPPER_KEYS if isinstance(sd.get(k), dict)), None)
+    if wrapped_in:
         sd = sd[wrapped_in]
     prefix_counts = dict(Counter(k.split(".")[0] for k in sd).most_common())
     weight = sd.get("encoder.patch_embed.proj.weight", sd.get("patch_embed.proj.weight"))
     shape = list(weight.shape) if weight is not None else None
     has_encoder = "encoder.patch_embed.proj.weight" in sd
     if shape is None:
-        verdict = "Không tìm thấy patch_embed.proj.weight — checkpoint lạ, dừng lại hỏi nhóm"
+        verdict = "Không tìm thấy patch_embed.proj.weight - checkpoint lạ, dừng lại hỏi nhóm"
     elif shape[0] == 1024:
-        verdict = "ViT-L (1024) — đây là PanDerm Large, không phải Base"
+        verdict = "ViT-L (1024) — đây là PanDerm Large, không phải base"
     elif shape[0] == 768 and has_encoder:
         verdict = "ViT-B (768) với prefix encoder. — patch đang dùng dict(cae_weight), phải đổi lại thành replace('encoder.','')"
     else:
         verdict = "ViT-B (768) không có prefix encoder. — dùng được với patch (dict(cae_weight))"
     return {
         "wrapped_in": wrapped_in,
-        "n_keys": len(sd),
+        "n_key": len(sd),
         "prefix_counts": prefix_counts,
         "first_keys": list(sd)[:10],
         "patch_embed_shape": shape,
@@ -527,10 +530,8 @@ def summarize_state_dict(sd: dict) -> dict:
         "verdict": verdict,
     }
 
-
 if __name__ == "__main__":
     import torch
-
     state = torch.load(Path(sys.argv[1]), map_location="cpu")
     print(json.dumps(summarize_state_dict(state), indent=2, ensure_ascii=False))
 ```
@@ -572,6 +573,11 @@ def test_summarize_unwraps_and_flags_large() -> None:
 def test_summarize_flags_missing_prefix() -> None:
     s = summarize_state_dict({"patch_embed.proj.weight": np.zeros((768, 3, 16, 16))})
     assert "dùng được với patch" in s["verdict"]
+
+def test_summarize_unwraps_mae_checkpoint_with_extra_keys() -> None:
+    s = summarize_state_dict({"model": {"patch_embed.proj.weight": np.zeros((768, 3, 16, 16))}, "optimizer": {}, "epoch": 499})
+    assert s["wrapped_in"] == "model"
+    assert s["patch_embed_shape"] == [768, 3, 16, 16]
 ```
 
 ```python
@@ -746,7 +752,7 @@ Kỳ vọng: `git diff --stat` liệt kê 4 file `segmentation/models/cae_config
 # file: src/nckh/infer.py
 """Suy luận PanDerm Base cho segmentation và classification.
 
-torch chỉ được import bên trong hàm: package nckh phải cài được ở runtime CPU không có torch.
+torch chỉ được import bên trong hàm: package nckh phải cài được ở môi trường CPU không có torch.
 Tiền xử lý bám đúng code upstream để xác suất/mask khi suy luận khớp với lúc đánh giá:
 - seg: datasets/dataset_seg.py → resize 224x224 bicubic, Normalize(0.5, 0.5).
 - cls: run_class_finetuning.py (val_trans) → Resize(256) bilinear, CenterCrop(224),
@@ -1307,7 +1313,7 @@ Overlay của `smoke_seg` đã hiện trong `nb_seg`; điền mục 6 từ `benc
 
 Pilot train 1 epoch cần dữ liệu ISIC 2018 đúng layout của loader (P3), nên được làm ở **P5a mục 4.5**, cùng với phép thử dừng train giữa chừng rồi resume.
 
-### 4.12. Commit cuối phiên
+### 4.12. Commit sau khi xong P2
 
 ```bash
 # terminal (laptop, .venv)
@@ -1322,7 +1328,7 @@ git commit -m "P2: package nckh, infer, smoke test, patch PanDerm Base" && git p
 | Test | Kiểm tra gì | Chạy ở |
 |---|---|---|
 | `tests/test_paths_runcard.py` (6) | Đọc `NCKH_ROOT`; mặc định `~/nckh_root`/`~/nckh_data`; SHA-256 đúng giá trị chuẩn của "abc"; định dạng `run_id`; run card đủ 9 khóa; CLI | Laptop (`nb_cpu`) |
-| `tests/test_inspect_checkpoint.py` (3) | Nhận ra ViT-B/ViT-L, checkpoint bị bọc, thiếu prefix | Laptop (`nb_cpu`) |
+| `tests/test_inspect_checkpoint.py` (4) | Nhận ra ViT-B/ViT-L, checkpoint bị bọc (kể cả kiểu MAE kèm optimizer/epoch), thiếu prefix | Laptop (`nb_cpu`) |
 | `tests/test_infer.py` (8) | Shape/dải giá trị tiền xử lý; std 0,228; giữ vùng lớn nhất + lấp lỗ; mask rỗng giữ rỗng; resize về kích thước gốc; xác suất tổng 1; đổi tên key pretrain | Laptop (`nb_cpu`) (cần torch CPU trong .venv — 00 mục 6b) |
 | `tests/test_bench.py` (3) | Báo cáo JSON, overlay, kiểm tra xác suất, từ chối danh sách ảnh rỗng | Laptop (`nb_cpu`) |
 
@@ -1331,7 +1337,7 @@ git commit -m "P2: package nckh, infer, smoke test, patch PanDerm Base" && git p
 !cd {REPO} && {PY} -m pytest -q
 ```
 
-Kỳ vọng: `20 passed`. Nếu .venv không có torch, `test_infer.py` và `test_bench.py` sẽ `skipped`. Đó không phải lỗi.
+Kỳ vọng: `21 passed`. Nếu .venv không có torch, `test_infer.py` và `test_bench.py` sẽ `skipped`. Đó không phải lỗi.
 
 **Sanity check trên dữ liệu thật** (đã có trong 4.9/4.10): độ phủ trọng số ≥ 90%, `SMOKE TEST OK`, overlay đúng màu và đúng chiều, `cls_probs_smoke.csv` có 20 dòng.
 
@@ -1369,7 +1375,7 @@ Số ms/ảnh ở đây tính cho batch 1, bao gồm cả tiền xử lý. Dùng
 ## 8. Checklist bàn giao cho SV A
 
 - [ ] `checkpoints/SHA256SUMS` có dòng của `panderm_bb_data6_checkpoint-499.pth` (ngày tải, link nguồn).
-- [ ] `python -m pytest -q` ở laptop (`nb_cpu`): 20 passed (hoặc skipped vì thiếu torch, ghi rõ).
+- [ ] `python -m pytest -q` ở laptop (`nb_cpu`): 21 passed (hoặc skipped vì thiếu torch, ghi rõ).
 - [ ] `inspect_checkpoint.py` cho verdict ViT-B; độ phủ ViT ≥ 90% ở cả seg lẫn cls.
 - [ ] `~/nckh_root/runs/<run_id>/bench_seg.json`, `bench_cls.json`, `overlays/`, `run_card.json` đã có (`run_card.json` ghi tên GPU); bảng mục 6 đã điền.
 - [ ] Nhật ký quyết định có dòng về torch 2.1.2 cho segmentation (mục 3.2) và timm 0.9.16 cho classification.

@@ -291,9 +291,9 @@ new_run() { echo ~/nckh_root/runs/$($PY -c "from nckh.runcard import new_run_id;
 Pilot: 1 epoch, 10% train. Chỉ để đo thời gian/VRAM và chắc chắn mọi thứ chạy.
 
 ```bash
-# terminal (máy GPU, venv_cls)
-PILOT=$(new_run cls_pilot)
-$PY run_class_finetuning.py $COMMON --epochs 1 --warmup_epochs 0 --percent_data 0.1 --exp_name pilot --wandb_name pilot --output_dir $PILOT --csv_path $TRAIN_CSV 2>&1 | tail -5
+# terminal (máy GPU, venv_cls) — trong tmux (tmux new -s p5b), sau khối biến dùng chung ở trên
+PILOT=$(new_run cls_pilot); mkdir -p $PILOT
+$PY run_class_finetuning.py $COMMON --epochs 1 --warmup_epochs 0 --percent_data 0.1 --exp_name pilot --wandb_name pilot --output_dir $PILOT --csv_path $TRAIN_CSV 2>&1 | tee ${PILOT}pilot.log | tail -5
 wc -l ${PILOT}test.csv   # kỳ vọng 151 dòng (150 ảnh val + header): đúng là bản sao val, không phải test thật
 ```
 

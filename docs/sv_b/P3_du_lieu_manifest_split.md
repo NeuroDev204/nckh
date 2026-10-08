@@ -133,7 +133,7 @@ def download_missing(target_dir: Path, urls: list[str]) -> list[Path]:
         if dest.exists() and dest.stat().st_size == expected:
             logger.info("Đã có %s, bỏ qua", dest.name)
         else:
-            # Tải vào file tạm rồi đổi tên: runtime bị ngắt giữa chừng sẽ không để lại file "đủ tên nhưng thiếu byte".
+            # Tải vào file tạm rồi đổi tên: mạng hoặc máy bị ngắt giữa chừng sẽ không để lại file "đủ tên nhưng thiếu byte".
             logger.info("Tải %s (%.2f GB)", dest.name, expected / 1e9)
             tmp = dest.with_suffix(dest.suffix + ".part")
             urllib.request.urlretrieve(url, tmp)
@@ -717,7 +717,14 @@ def test_count_masks(tmp_path: Path) -> None:
 !ls {DATA}/ISIC2017/*/ | head; ls {DATA}/ISIC2017/ISIC-2017_Training_Data | wc -l
 ```
 
-Trên máy GPU chỉ cần ảnh: chạy hai lệnh `prepare_*` ở trên (bỏ dòng `build_manifest.py`, CSV đã có từ laptop), hoặc `rsync` cả `~/nckh_data` (`00` mục 5.2). Không tạo lại manifest trên máy GPU.
+Trên máy GPU chỉ cần ảnh (manifest và CSV nhãn chép từ laptop, không tạo lại). Hoặc `rsync` cả `~/nckh_data` (`00` mục 5.2), hoặc tải lại; CSV nhãn ISIC 2017 ghi ra thư mục tạm để không đè bản của laptop:
+
+```bash
+# terminal (máy GPU, .venv)
+cd ~/Documents/nckh
+.venv/bin/python scripts/prepare_isic2018.py --zips-dir ~/nckh_data/zips --data-root ~/nckh_data --delete-zips
+.venv/bin/python scripts/prepare_isic2017_cls.py --zips-dir ~/nckh_data/zips --data-root ~/nckh_data --out-dir /tmp/isic2017_labels --delete-zips
+```
 
 Kỳ vọng:
 - `ISIC-2017_Training_Data` có 2.000 file `.jpg` (ảnh superpixel đã bị lọc).
