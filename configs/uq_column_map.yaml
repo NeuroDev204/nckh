@@ -1,0 +1,13 @@
+# file: configs/uq_column_map.yaml
+# Điền TÊN CỘT GỐC trong metadata UQ cho từng cột chuẩn (làm sau P1, khi đã đọc data dictionary).
+participant_id: "<ĐIỀN TÊN CỘT GỐC>"
+lesion_id: "<ĐIỀN TÊN CỘT GỐC>"
+image_id: "<ĐIỀN TÊN CỘT GỐC>"
+image_path: "<ĐIỀN TÊN CỘT GỐC>"
+captured_at: "<ĐIỀN TÊN CỘT GỐC>"
+modality: "<ĐIỀN TÊN CỘT GỐC>"
+# Giá trị (sau khi viết thường, bỏ khoảng trắng) của cột modality được coi là ảnh dermoscopy.
+modality_dermoscopy_value: "dermoscopy"
+# Định dạng ngày giờ của cột captured_at: "ISO8601" (vd 2020-01-05, 2020-01-05T10:00:00+10:00) hoặc mẫu strftime
+# như "%d/%m/%Y". Khai báo rõ để ngày/tháng không bị đọc nhầm; giá trị sai định dạng bị loại (missing_timestamp).
+captured_at_format: "ISO8601"
