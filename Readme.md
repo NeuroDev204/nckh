@@ -32,3 +32,46 @@ Tập huấn luyện Task 1 có **2.000 ảnh** và mask phân đoạn tương �
 ## Mã nguồn mô hình tham khảo
 
 - **PanDerm**: [Repository trên GitHub](https://github.com/SiyuanYan1/PanDerm) — nguồn mã để tham khảo và triển khai mô hình PanDerm trong nghiên cứu.
+
+## Hướng dẫn cài đặt môi trường và chạy kiểm thử (Unit Test)
+
+Môi trường kiểm thử có thể chạy trực tiếp trên máy CPU thông thường (không bắt buộc GPU).
+
+### 1. Đồng bộ mã nguồn
+```bash
+git clone https://github.com/NeuroDev204/nckh.git ~/Documents/nckh
+cd ~/Documents/nckh
+# hoặc nếu đã clone: git pull origin main
+```
+
+### 2. Thiết lập môi trường ảo (.venv với Python 3.10)
+```bash
+# Cài đặt uv (nếu máy chưa có)
+command -v uv || (curl -LsSf https://astral.sh/uv/install.sh | sh && source $HOME/.local/bin/env)
+
+# Tạo và kích hoạt môi trường ảo
+test -x .venv/bin/python || uv venv .venv --python 3.10
+source .venv/bin/activate
+
+# Cài đặt package nckh cùng công cụ kiểm thử
+uv pip install -e ".[demo,test]" ipykernel
+
+# Cài đặt PyTorch CPU (để chạy đầy đủ các test suy luận)
+uv pip install torch==2.4.1 torchvision==0.19.1 --index-url https://download.pytorch.org/whl/cpu
+```
+
+### 3. Thực thi kiểm thử
+```bash
+python -m pytest -q
+```
+
+### 4. Kết quả kỳ vọng
+```text
+21 passed in ~2.0s
+```
+
+Bộ kiểm thử bao gồm:
+- `tests/test_paths_runcard.py` (6 passed): Đường dẫn hệ thống, mã băm SHA-256, sinh `run_id` và thẻ truy vết `run_card.json`.
+- `tests/test_inspect_checkpoint.py` (4 passed): Nhận diện kiến trúc ViT-B (768) / ViT-L (1024), xử lý checkpoint bọc ngoài.
+- `tests/test_infer.py` (8 passed): Tiền xử lý chuẩn PanDerm, hậu xử lý vùng liên thông lớn nhất của mask, ánh xạ trọng số pretrain sang classification.
+- `tests/test_bench.py` (3 passed): Đo độ trễ suy luận, kiểm tra tính hữu hạn và tổng xác suất bằng 1.0.
