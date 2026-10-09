@@ -12,7 +12,11 @@ __pycache__/
 *.pth
 *.ckpt
 *.joblib
+*.zip
+*.part
 data/
+zips/
+nckh_data/
 runs/
 .env
 *.env
