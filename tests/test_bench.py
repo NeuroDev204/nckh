@@ -1,6 +1,7 @@
 # file: tests/test_bench.py
 import json
 import sys
+import weakref
 from pathlib import Path
 
 import numpy as np
@@ -54,3 +55,28 @@ def test_cls_benchmark_checks_probabilities(tmp_path: Path) -> None:
 def test_benchmark_rejects_empty_image_list(tmp_path: Path) -> None:
     with pytest.raises(ValueError):
         run_benchmark(SegPredictor(_FakeSeg()), "seg", [], warmup=0, out_dir=tmp_path, save_overlays=0)
+
+
+def test_callback_only_receives_measured_predictions(tmp_path: Path) -> None:
+    seen = []
+    images = _images(tmp_path, 3)
+    run_benchmark(SegPredictor(_FakeSeg()), "seg", images, warmup=2, out_dir=tmp_path / "out",
+                  save_overlays=0, on_prediction=lambda path, output: seen.append((path, output)))
+    assert [path for path, _ in seen] == images
+    assert all(output.shape == (60 + i, 80) for i, (_, output) in enumerate(seen))
+
+
+def test_benchmark_does_not_keep_whole_split_in_memory(tmp_path: Path) -> None:
+    class StreamingPredictor:
+        device = "cpu"
+
+        def __init__(self) -> None:
+            self.seen = []
+
+        def predict(self, rgb: np.ndarray) -> np.ndarray:
+            self.seen.append(weakref.ref(rgb))
+            assert sum(ref() is not None for ref in self.seen) <= 2
+            return np.zeros(rgb.shape[:2], dtype=bool)
+
+    run_benchmark(StreamingPredictor(), "seg", _images(tmp_path, 5), warmup=0,
+                  out_dir=tmp_path / "out", save_overlays=0)
