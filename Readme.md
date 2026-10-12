@@ -78,6 +78,20 @@ Bộ kiểm thử bao gồm:
 
 ## Smoke test và đo metric trên Streamlit
 
+### Pilot kỹ thuật P2: backward và checkpoint resume
+
+Pilot P2 dùng ảnh smoke cùng nhãn/mask tổng hợp để kiểm tra gradient, cập nhật backbone/head, lưu checkpoint, nạp lại logits và resume optimizer. Checkpoint pilot chỉ dùng kiểm tra kỹ thuật, không dùng đánh giá chất lượng hoặc thay cho checkpoint fine-tune trên nhãn thật.
+
+Utility resume classification của PanDerm xóa `head`/`fc_norm` trước khi nạp strict, gây lỗi missing keys với checkpoint vừa train. Sau khi clone PanDerm, áp dụng bản sửa tối thiểu trước khi kiểm tra resume (bỏ qua nếu đã áp dụng):
+
+```bash
+git -C ~/PanDerm apply --unidiff-zero ~/Documents/nckh/patches/panderm_cls_resume.patch
+```
+
+Probe, self-check, log, báo cáo và checkpoint của lần chạy local được lưu trong `~/nckh_root/runs/20261012-p2-training-pilot/`. Đây là probe tạm cho P2; loader dataset chính thức và lệnh fine-tune đầy đủ sẽ được kiểm tra ở P3/P5.
+
+### Giao diện đánh giá
+
 Chạy từ thư mục repository bằng môi trường demo:
 
 ```bash

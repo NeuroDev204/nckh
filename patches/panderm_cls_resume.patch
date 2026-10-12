@@ -1,0 +1,8 @@
+--- a/classification/furnace/utils.py
++++ b/classification/furnace/utils.py
+@@ -569,4 +569 @@
+-            unexpected_keys = ["head.weight", "head.bias", "fc_norm.weight", "fc_norm.bias"]
+-            for key in unexpected_keys:
+-                if key in checkpoint['model']:
+-                    del checkpoint['model'][key]
++            # Resume must restore the trained head and normalization alongside the backbone.
