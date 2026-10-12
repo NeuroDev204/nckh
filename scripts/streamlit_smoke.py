@@ -22,7 +22,7 @@ logger = logging.getLogger(__name__)
 
 
 def _show_figure(figure: Figure, name: str, key: str) -> None:
-    st.pyplot(figure, clear_figure=False)
+    st.pyplot(figure, clear_figure=False, width=650)
     with io.BytesIO() as output:
         figure.savefig(output, format="png", dpi=160, bbox_inches="tight")
         st.download_button("Tải biểu đồ PNG", output.getvalue(), file_name=f"{name}.png",
@@ -50,23 +50,36 @@ def _render_pilot() -> None:
     cards[0].metric("Kiểm tra đạt", f"{count}/8")
     cards[1].metric("Nhánh mô hình", "2")
     cards[2].metric("Điểm loss mỗi nhánh", str(len(tables["loss"]) // 2))
-    _show_figure(figures["status"], "p2_status", "p2_download_status")
+    overview = st.columns(2)
+    with overview[0]:
+        _show_figure(figures["status"], "p2_status", "p2_download_status")
+    with overview[1]:
+        _show_figure(figures["vram"], "p2_vram", "p2_download_vram")
     loss_columns = st.columns(2)
     for task, column in zip(("cls", "seg"), loss_columns):
         with column:
             _show_figure(figures[f"loss_{task}"], f"p2_loss_{task}", f"p2_download_loss_{task}")
-    _show_figure(figures["vram"], "p2_vram", "p2_download_vram")
     _show_figure(figures["updates"], "p2_weight_updates", "p2_download_updates")
-    if tables["status"].to_numpy().all():
-        st.success("Pilot kỹ thuật P2 đạt · Chuyển sang kiểm chứng loader và dữ liệu thật ở P3.")
-    else:
-        st.error("Pilot P2 chưa đạt · Xử lý các kiểm tra FAIL trước khi chuyển sang P3.")
     with st.expander("Số liệu chi tiết và nguồn báo cáo"):
         for name, table in tables.items():
             st.caption(name)
             st.dataframe(table)
         st.caption(str(path))
         st.download_button("Tải báo cáo P2 JSON", path.read_bytes(), file_name="p2_summary.json", mime="application/json")
+    st.subheader("Kết luận P2")
+    if tables["status"].to_numpy().all():
+        st.success("Pilot kỹ thuật P2 đạt. Hai nhánh phân loại và phân đoạn đã chạy backward, cập nhật backbone/head, "
+                   "lưu/nạp checkpoint và resume optimizer từ bước 1 lên bước 2. Có thể chuyển sang kiểm chứng loader và dữ liệu thật ở P3.")
+    else:
+        st.error("Pilot P2 chưa đạt. Cần xử lý các kiểm tra FAIL trước khi chuyển sang P3.")
+    st.subheader("Tác dụng của smoke test")
+    st.markdown(
+        "- Phát hiện sớm lỗi môi trường, nạp trọng số, tiền xử lý và đầu ra suy luận.\n"
+        "- Kết hợp pilot train nhỏ để kiểm tra backward, cập nhật trọng số và lưu/nạp/resume checkpoint.\n"
+        "- Ước lượng thời gian suy luận và VRAM để chuẩn bị cấu hình chạy lớn."
+    )
+    st.caption("Smoke test xác nhận pipeline hoạt động ở quy mô nhỏ. Accuracy, F2, balanced accuracy, Dice/IoU "
+               "cần được đánh giá với nhãn/mask thật và checkpoint fine-tune.")
 
 
 def run_worker(command: list[str], cwd: Path, log_path: Path, timeout_seconds: int) -> int:
