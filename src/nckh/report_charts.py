@@ -1,10 +1,15 @@
 """Biểu đồ từ báo cáo đã lưu; không suy luận thêm hoặc thay thế số liệu thiếu."""
+import json
 import math
+from pathlib import Path
 
 import numpy as np
 import pandas as pd
 from matplotlib.colors import ListedColormap
 from matplotlib.figure import Figure
+
+from nckh.manifest import find_cross_split_duplicates
+from nckh.runcard import sha256_file
 
 BRANCH_NAMES = {"cls": "Phân loại", "seg": "Phân đoạn"}
 PILOT_KEYS = {
@@ -12,6 +17,133 @@ PILOT_KEYS = {
     "seg": ("model.segmentor.backbone.patch_embed.proj.weight", "model.segmentor.decode_head.conv_seg.weight"),
 }
 CHART_COLOR = "#181818"
+P3_SPLITS = ("train", "val", "test")
+P3_CLASSES = {0: "Melanoma", 1: "Nevus", 2: "Seborrheic keratosis"}
+
+
+def _read_p3_csv(path: Path, required: set[str]) -> pd.DataFrame:
+    if not path.is_file():
+        raise FileNotFoundError(f"Thiếu artifact P3: {path}")
+    frame = pd.read_csv(path)
+    missing = required - set(frame.columns)
+    if missing:
+        raise ValueError(f"{path.name} thiếu cột: {', '.join(sorted(missing))}")
+    return frame
+
+
+def p3_tables(manifest_dir: Path) -> tuple[dict[str, object], dict[str, pd.DataFrame]]:
+    seg = _read_p3_csv(manifest_dir / "isic2018_seg.csv", {
+        "image_id", "image_path", "mask_path", "split", "sha256", "width", "height",
+        "mask_width", "mask_height", "readable", "exclude_reason",
+    })
+    cls = _read_p3_csv(manifest_dir / "isic2017_cls.csv", {"image", "label", "split"})
+    trainphase = _read_p3_csv(manifest_dir / "isic2017_cls_trainphase.csv", {"image", "label", "split"})
+    duplicates = _read_p3_csv(manifest_dir / "isic2018_seg.cross_split_duplicates.csv", {"sha256", "split"})
+
+    seg_counts = seg["split"].value_counts().reindex(P3_SPLITS, fill_value=0).astype(int)
+    mask_counts = seg.groupby("split")["mask_path"].count().reindex(P3_SPLITS, fill_value=0).astype(int)
+    seg_overview = pd.DataFrame({"split": P3_SPLITS, "images": seg_counts.to_numpy(), "masks": mask_counts.to_numpy()})
+    valid_cls = cls[cls["split"].isin(P3_SPLITS) & cls["label"].isin(P3_CLASSES)]
+    distribution = pd.crosstab(valid_cls["label"], valid_cls["split"]).reindex(
+        index=P3_CLASSES, columns=P3_SPLITS, fill_value=0
+    )
+    distribution.index = [P3_CLASSES[index] for index in distribution.index]
+
+    checksum_path = manifest_dir / "isic2018_seg.csv.sha256"
+    checksum_parts = checksum_path.read_text(encoding="utf-8").split()
+    if len(checksum_parts) < 2:
+        raise ValueError(f"Sai định dạng checksum: {checksum_path}")
+    actual_sha256 = sha256_file(manifest_dir / "isic2018_seg.csv")
+    checksum_matches = checksum_parts[0] == actual_sha256 and checksum_parts[1] == "isic2018_seg.csv"
+
+    mask_count_path = manifest_dir / "mask_count.json"
+    mask_report = json.loads(mask_count_path.read_text(encoding="utf-8"))
+    reported_counts = mask_report["counts"]
+    mask_report_matches = all(
+        int(reported_counts[split]["images"]) == int(seg_counts[split])
+        and int(reported_counts[split]["masks"]) == int(mask_counts[split])
+        for split in P3_SPLITS
+    )
+    max_masks_per_image = max(int(reported_counts[split]["max_masks_per_image"]) for split in P3_SPLITS)
+
+    actual_duplicates = find_cross_split_duplicates(seg)
+    listed_duplicates = set(zip(duplicates["sha256"], duplicates["split"]))
+    actual_duplicate_rows = set(zip(actual_duplicates["sha256"], actual_duplicates["split"]))
+    duplicate_report_matches = len(duplicates) == len(actual_duplicates) and listed_duplicates == actual_duplicate_rows
+    readable = seg["readable"].isin([True, 1, "True", "true"])
+    size_mismatch = (seg["width"] != seg["mask_width"]) | (seg["height"] != seg["mask_height"])
+    excluded = seg["exclude_reason"].fillna("").astype(str).str.strip().ne("")
+    invalid_labels = ~cls["label"].isin(P3_CLASSES)
+    duplicate_cls_images = int(cls["image"].duplicated().sum())
+    val_rows = cls.loc[cls["split"] == "val", ["image", "label"]].sort_values("image").reset_index(drop=True)
+    trainphase_test = trainphase.loc[trainphase["split"] == "test", ["image", "label"]].sort_values("image").reset_index(drop=True)
+    official_train_val = cls.loc[cls["split"].isin(("train", "val")), ["image", "label", "split"]]
+    trainphase_train_val = trainphase.loc[trainphase["split"].isin(("train", "val")), ["image", "label", "split"]]
+    trainphase_test_is_val = val_rows.equals(trainphase_test) and official_train_val.sort_values(
+        ["split", "image"]
+    ).reset_index(drop=True).equals(trainphase_train_val.sort_values(["split", "image"]).reset_index(drop=True))
+    known_splits = set(seg["split"].dropna()) == set(P3_SPLITS) and set(cls["split"].dropna()) == set(P3_SPLITS)
+
+    checks = [
+        ("SHA-256 manifest ISIC 2018", checksum_matches, actual_sha256),
+        ("Đủ split chính thức", known_splits, "ISIC 2018 và ISIC 2017 có train/val/test"),
+        ("Ảnh ISIC 2018 đọc được", bool(len(seg) and readable.all()), f"{int(readable.sum())}/{len(seg)} ảnh"),
+        ("Kích thước ảnh và mask khớp", not bool(size_mismatch.any()), f"{int(size_mismatch.sum())} cặp lệch kích thước"),
+        ("Không có ảnh bị loại", not bool(excluded.any()), f"{int(excluded.sum())} ảnh bị loại"),
+        ("Mask count khớp manifest", mask_report_matches and max_masks_per_image == 1,
+         f"tối đa {max_masks_per_image} mask/ảnh"),
+        ("Bảng trùng khớp manifest", duplicate_report_matches, f"{len(duplicates)} dòng artifact · {len(actual_duplicates)} dòng tính lại"),
+        ("Không trùng hash xuyên split", actual_duplicates.empty, f"{len(actual_duplicates)} dòng trùng chính xác"),
+        ("Nhãn ISIC 2017 hợp lệ và ID duy nhất", not bool(invalid_labels.any()) and duplicate_cls_images == 0,
+         f"{int(invalid_labels.sum())} nhãn lỗi · {duplicate_cls_images} ID trùng"),
+        ("Trainphase dùng validation thay test", trainphase_test_is_val,
+         f"{len(trainphase_test)} dòng test mô phỏng · test thật giữ riêng {int((cls['split'] == 'test').sum())} ảnh"),
+    ]
+    quality = pd.DataFrame(checks, columns=["Kiểm tra", "Đạt", "Chi tiết"])
+    summary: dict[str, object] = {
+        "seg_images": len(seg),
+        "seg_masks": int(mask_counts.sum()),
+        "cls_images": len(cls),
+        "seg_excluded": int(excluded.sum()),
+        "seg_unreadable": int((~readable).sum()),
+        "seg_size_mismatch": int(size_mismatch.sum()),
+        "seg_duplicates": len(actual_duplicates),
+        "seg_sha256": actual_sha256,
+        "checksum_matches": checksum_matches,
+        "max_masks_per_image": max_masks_per_image,
+        "trainphase_test_is_val": trainphase_test_is_val,
+        "quality_ok": bool(quality["Đạt"].all()),
+    }
+    return summary, {"seg_split": seg_overview, "class_distribution": distribution, "quality": quality}
+
+
+def p3_figures(tables: dict[str, pd.DataFrame]) -> dict[str, Figure]:
+    seg = tables["seg_split"]
+    figure = Figure(figsize=(6.5, 3.2), layout="constrained")
+    axis = figure.subplots()
+    positions = np.arange(len(seg))
+    for offset, column, label, alpha in ((-.18, "images", "Ảnh", 1.), (.18, "masks", "Mask", .5)):
+        bars = axis.bar(positions + offset, seg[column], width=.36, color=CHART_COLOR, alpha=alpha, label=label)
+        axis.bar_label(bars, padding=3)
+    axis.set_xticks(positions, seg["split"])
+    axis.set(title="ISIC 2018 · ảnh và mask theo split", ylabel="Số lượng")
+    axis.spines[["top", "right"]].set_visible(False)
+    axis.legend(frameon=False)
+
+    distribution = tables["class_distribution"]
+    figure_cls = Figure(figsize=(6.5, 3.2), layout="constrained")
+    axis_cls = figure_cls.subplots()
+    positions = np.arange(len(distribution))
+    width = .24
+    for index, split in enumerate(P3_SPLITS):
+        bars = axis_cls.bar(positions + (index - 1) * width, distribution[split], width=width,
+                            label=split, color=CHART_COLOR, alpha=1. - index * .2)
+        axis_cls.bar_label(bars, padding=2, fontsize=8)
+    axis_cls.set_xticks(positions, distribution.index)
+    axis_cls.set(title="ISIC 2017 · phân bố lớp theo split", ylabel="Số ảnh")
+    axis_cls.spines[["top", "right"]].set_visible(False)
+    axis_cls.legend(frameon=False)
+    return {"seg_split": figure, "class_distribution": figure_cls}
 
 
 def _number(value: object) -> float:

@@ -1,12 +1,44 @@
 import copy
+import hashlib
 import json
 from pathlib import Path
 
 import numpy as np
+import pandas as pd
 import pytest
 
 pytest.importorskip("matplotlib")
-from nckh.report_charts import evaluation_figures, pilot_figures, pilot_tables  # noqa: E402
+from nckh.report_charts import evaluation_figures, p3_figures, p3_tables, pilot_figures, pilot_tables  # noqa: E402
+
+
+def write_p3_artifacts(manifest_dir: Path) -> None:
+    manifest_dir.mkdir(parents=True, exist_ok=True)
+    seg_rows = []
+    for split, count in (("train", 2), ("val", 1), ("test", 1)):
+        for index in range(count):
+            image_id = f"{split}_{index}"
+            seg_rows.append({"image_id": image_id, "image_path": f"{image_id}.jpg", "mask_path": f"{image_id}.png",
+                             "split": split, "sha256": f"hash-{image_id}", "width": 10, "height": 10,
+                             "mask_width": 10, "mask_height": 10, "readable": True, "exclude_reason": ""})
+    seg_path = manifest_dir / "isic2018_seg.csv"
+    pd.DataFrame(seg_rows).to_csv(seg_path, index=False)
+    (manifest_dir / "isic2018_seg.csv.sha256").write_text(
+        f"{hashlib.sha256(seg_path.read_bytes()).hexdigest()}  isic2018_seg.csv\n"
+    )
+    pd.DataFrame(columns=["sha256", "split"]).to_csv(manifest_dir / "isic2018_seg.cross_split_duplicates.csv", index=False)
+    counts = {split: {"images": count, "masks": count, "max_masks_per_image": 1}
+              for split, count in (("train", 2), ("val", 1), ("test", 1))}
+    (manifest_dir / "mask_count.json").write_text(json.dumps({"counts": counts}))
+    cls = pd.DataFrame([
+        {"image": "train_0.jpg", "label": 0, "split": "train"},
+        {"image": "train_1.jpg", "label": 1, "split": "train"},
+        {"image": "val_0.jpg", "label": 2, "split": "val"},
+        {"image": "test_0.jpg", "label": 1, "split": "test"},
+    ])
+    cls.to_csv(manifest_dir / "isic2017_cls.csv", index=False)
+    pd.concat([cls[cls["split"] != "test"], cls[cls["split"] == "val"].assign(split="test")]).to_csv(
+        manifest_dir / "isic2017_cls_trainphase.csv", index=False
+    )
 
 
 @pytest.fixture
@@ -96,6 +128,40 @@ def test_smoke_only_does_not_invent_accuracy() -> None:
     assert "latency" in figures
 
 
+def test_p3_report_checks_manifests_and_builds_dataset_figures(tmp_path: Path) -> None:
+    write_p3_artifacts(tmp_path)
+    summary, tables = p3_tables(tmp_path)
+    assert summary["quality_ok"]
+    assert summary["seg_images"] == summary["seg_masks"] == 4
+    assert tables["class_distribution"].loc["Melanoma"].to_dict() == {"train": 1, "val": 0, "test": 0}
+    figures = p3_figures(tables)
+    assert set(figures) == {"seg_split", "class_distribution"}
+    assert [bar.get_height() for bar in figures["seg_split"].axes[0].patches[:3]] == [2, 1, 1]
+    assert [bar.get_height() for bar in figures["class_distribution"].axes[0].patches[:3]] == [1, 1, 0]
+
+
+def test_p3_report_flags_changed_manifest_checksum(tmp_path: Path) -> None:
+    write_p3_artifacts(tmp_path)
+    (tmp_path / "isic2018_seg.csv.sha256").write_text(f"{'0' * 64}  isic2018_seg.csv\n")
+    summary, tables = p3_tables(tmp_path)
+    assert not summary["quality_ok"]
+    assert not tables["quality"].iloc[0]["Đạt"]
+
+
+def test_p3_report_recomputes_cross_split_duplicates(tmp_path: Path) -> None:
+    write_p3_artifacts(tmp_path)
+    seg_path = tmp_path / "isic2018_seg.csv"
+    seg = pd.read_csv(seg_path)
+    seg.loc[1, "sha256"] = seg.loc[2, "sha256"]
+    seg.to_csv(seg_path, index=False)
+    (tmp_path / "isic2018_seg.csv.sha256").write_text(
+        f"{hashlib.sha256(seg_path.read_bytes()).hexdigest()}  isic2018_seg.csv\n"
+    )
+    summary, tables = p3_tables(tmp_path)
+    assert summary["seg_duplicates"] == 2
+    assert not tables["quality"].set_index("Kiểm tra").loc["Không trùng hash xuyên split", "Đạt"]
+
+
 def test_pilot_dashboard_renders_saved_figures(pilot_summary: dict, tmp_path: Path) -> None:
     AppTest = pytest.importorskip("streamlit.testing.v1").AppTest
     path = tmp_path / "summary.json"
@@ -104,14 +170,14 @@ def test_pilot_dashboard_renders_saved_figures(pilot_summary: dict, tmp_path: Pa
     app = AppTest.from_file(str(script)).run()
     app.text_input(key="pilot_summary").set_value(str(path)).run()
     assert not app.exception
-    assert len(app.get("image")) == 5
+    assert len(app.get("image")) == 7
     assert any("P2 đạt" in message.value for message in app.success)
     assert any("tổng hợp" in message.value for message in app.warning)
-    assert {tab.label for tab in app.tabs} == {"Báo cáo P2", "Đánh giá mô hình"}
+    assert {tab.label for tab in app.tabs} == {"Báo cáo P2", "Báo cáo P3", "Đánh giá mô hình"}
     app.text_input(key="pilot_summary").set_value(str(tmp_path / "missing.json")).run()
     assert not app.exception
     assert app.info
-    assert not app.get("image")
+    assert len(app.get("image")) == 2
 
 
 def test_pilot_dashboard_rejects_bad_json(tmp_path: Path) -> None:
@@ -122,7 +188,18 @@ def test_pilot_dashboard_rejects_bad_json(tmp_path: Path) -> None:
     app.text_input(key="pilot_summary").set_value(str(path)).run()
     assert not app.exception
     assert app.error
-    assert not app.get("image")
+    assert len(app.get("image")) == 2
+
+
+def test_p3_dashboard_renders_charts_and_checks(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
+    AppTest = pytest.importorskip("streamlit.testing.v1").AppTest
+    write_p3_artifacts(tmp_path / "data/manifests")
+    monkeypatch.setenv("NCKH_ROOT", str(tmp_path))
+    app = AppTest.from_file(str(Path(__file__).resolve().parents[1] / "scripts/streamlit_smoke.py")).run()
+    assert not app.exception
+    assert len(app.get("image")) == 2
+    assert any("Các kiểm tra dữ liệu P3 đều đạt" in message.value for message in app.success)
+    assert any("Báo cáo P3" == tab.label for tab in app.tabs)
 
 
 def test_rejects_score_outside_unit_interval() -> None:

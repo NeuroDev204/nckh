@@ -92,6 +92,8 @@ Probe, self-check, log, báo cáo và checkpoint của lần chạy local đư�
 
 Trong Streamlit, tab **Báo cáo P2** tự chọn summary pilot gần nhất dưới `runs/`, hoặc cho nhập đường dẫn `summary.json`. Dashboard có ma trận PASS/FAIL, hai biểu đồ loss riêng cho từng nhánh, VRAM cao nhất (MiB), biểu đồ cập nhật backbone/head và kết luận kỹ thuật. Mỗi biểu đồ có nút tải PNG. Loss chỉ gồm hai điểm train/resume với nhãn tổng hợp, không phải đường cong huấn luyện đầy đủ hay kết quả hiệu năng.
 
+Tab **Báo cáo P3** đọc manifest từ `NCKH_ROOT/data/manifests`, hiển thị biểu đồ ảnh/mask theo split ISIC 2018 và phân bố lớp ISIC 2017, cùng các kiểm tra checksum, ảnh/mask, nhãn, split và trùng hash. Có thể đổi thư mục manifest trong giao diện và tải CSV/JSON hoặc PNG. Báo cáo này kiểm tra dữ liệu; không đưa ra metric hiệu năng mô hình.
+
 ### Giao diện đánh giá
 
 Chạy từ thư mục repository bằng môi trường demo:

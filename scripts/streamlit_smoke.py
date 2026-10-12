@@ -14,7 +14,7 @@ import streamlit as st
 
 from nckh.paths import checkpoints_dir, local_data_root, manifests_dir, runs_dir
 from nckh.runcard import new_run_id
-from nckh.report_charts import evaluation_figures, pilot_figures, pilot_tables
+from nckh.report_charts import evaluation_figures, p3_figures, p3_tables, pilot_figures, pilot_tables
 from matplotlib.figure import Figure
 
 ROOT = Path(__file__).resolve().parents[1]
@@ -80,6 +80,57 @@ def _render_pilot() -> None:
     )
     st.caption("Smoke test xác nhận pipeline hoạt động ở quy mô nhỏ. Accuracy, F2, balanced accuracy, Dice/IoU "
                "cần được đánh giá với nhãn/mask thật và checkpoint fine-tune.")
+
+
+def _render_p3() -> None:
+    manifest_dir = Path(st.text_input("Thư mục manifest P3", str(manifests_dir()), key="p3_manifest_dir")).expanduser()
+    try:
+        summary, tables = p3_tables(manifest_dir)
+        figures = p3_figures(tables)
+    except (KeyError, OSError, TypeError, ValueError) as exc:
+        logger.exception("Không đọc được báo cáo dữ liệu P3")
+        st.error(f"Không đọc được báo cáo P3: {exc}")
+        return
+
+    passed = int(tables["quality"]["Đạt"].sum())
+    cards = st.columns(4)
+    cards[0].metric("ISIC 2018 · phân đoạn", f"{summary['seg_images']:,} ảnh / {summary['seg_masks']:,} mask")
+    cards[1].metric("ISIC 2017 · phân loại", f"{summary['cls_images']:,} ảnh")
+    cards[2].metric("Trùng hash xuyên split", str(summary["seg_duplicates"]))
+    cards[3].metric("Kiểm tra dữ liệu", f"{passed}/{len(tables['quality'])} đạt")
+
+    chart_columns = st.columns(2)
+    with chart_columns[0]:
+        _show_figure(figures["seg_split"], "p3_isic2018_splits", "p3_download_seg_splits")
+    with chart_columns[1]:
+        _show_figure(figures["class_distribution"], "p3_isic2017_classes", "p3_download_cls_balance")
+
+    with st.expander("Bảng kiểm tra, số liệu và artifact nguồn"):
+        st.dataframe(tables["quality"], hide_index=True)
+        st.dataframe(tables["seg_split"], hide_index=True)
+        st.dataframe(tables["class_distribution"])
+        st.caption(f"SHA-256 ISIC 2018: {summary['seg_sha256']} · checksum sidecar: "
+                   f"{'khớp' if summary['checksum_matches'] else 'KHÔNG KHỚP'}")
+        for filename, label in (
+            ("isic2018_seg.csv", "Tải manifest ISIC 2018"),
+            ("isic2017_cls.csv", "Tải manifest ISIC 2017"),
+            ("isic2017_cls_trainphase.csv", "Tải manifest trainphase ISIC 2017"),
+            ("isic2018_seg.cross_split_duplicates.csv", "Tải bảng kiểm tra trùng"),
+            ("mask_count.json", "Tải thống kê mask"),
+        ):
+            artifact = manifest_dir / filename
+            if artifact.is_file():
+                st.download_button(label, artifact.read_bytes(), file_name=filename,
+                                   mime="application/json" if filename.endswith(".json") else "text/csv",
+                                   key=f"p3_download_{filename}")
+    st.subheader("Kết luận P3")
+    if summary["quality_ok"]:
+        st.success("Các kiểm tra dữ liệu P3 đều đạt. ISIC 2018 có một mask cho mỗi ảnh; split chính thức được giữ nguyên. "
+                   "ISIC 2017 trainphase dùng validation thay test để tránh mở tập test thật khi fine-tune.")
+    else:
+        st.error("Một hoặc nhiều kiểm tra dữ liệu P3 chưa đạt. Xem bảng kiểm tra phía trên trước khi dùng các manifest.")
+    st.caption("Đây là báo cáo chuẩn bị và kiểm tra dữ liệu, không phải đánh giá mô hình. Accuracy, F2, balanced accuracy, "
+               "Dice và IoU chỉ có sau khi đánh giá checkpoint fine-tune trên nhãn/mask thật.")
 
 
 def run_worker(command: list[str], cwd: Path, log_path: Path, timeout_seconds: int) -> int:
@@ -285,9 +336,11 @@ def main() -> None:
     st.set_page_config(page_title="PanDerm · Báo cáo nghiên cứu", layout="wide")
     st.title("PanDerm · Báo cáo nghiên cứu")
     st.caption("Demo nghiên cứu trên ảnh dermoscopy. Nhóm bệnh là nhãn tham khảo theo dữ liệu, không phải chẩn đoán hay khuyến nghị điều trị.")
-    pilot, evaluation = st.tabs(["Báo cáo P2", "Đánh giá mô hình"])
+    pilot, p3, evaluation = st.tabs(["Báo cáo P2", "Báo cáo P3", "Đánh giá mô hình"])
     with pilot:
         _render_pilot()
+    with p3:
+        _render_p3()
     with evaluation:
         _render_evaluation()
 
