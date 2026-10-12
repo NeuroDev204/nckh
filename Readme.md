@@ -39,9 +39,11 @@ Môi trường kiểm thử có thể chạy trực tiếp trên máy CPU thông
 
 ### 1. Đồng bộ mã nguồn
 ```bash
-git clone https://github.com/NeuroDev204/nckh.git ~/Documents/nckh
+git clone --branch p3 --single-branch https://github.com/NeuroDev204/nckh.git ~/Documents/nckh
 cd ~/Documents/nckh
-# hoặc nếu đã clone: git pull origin main
+# Nếu đã clone repository:
+git switch p3
+git pull --ff-only origin p3
 ```
 
 ### 2. Thiết lập môi trường ảo (.venv với Python 3.10)
@@ -93,6 +95,25 @@ Probe, self-check, log, báo cáo và checkpoint của lần chạy local đư�
 Trong Streamlit, tab **Báo cáo P2** tự chọn summary pilot gần nhất dưới `runs/`, hoặc cho nhập đường dẫn `summary.json`. Dashboard có ma trận PASS/FAIL, hai biểu đồ loss riêng cho từng nhánh, VRAM cao nhất (MiB), biểu đồ cập nhật backbone/head và kết luận kỹ thuật. Mỗi biểu đồ có nút tải PNG. Loss chỉ gồm hai điểm train/resume với nhãn tổng hợp, không phải đường cong huấn luyện đầy đủ hay kết quả hiệu năng.
 
 Tab **Báo cáo P3** đọc manifest từ `NCKH_ROOT/data/manifests`, hiển thị biểu đồ ảnh/mask theo split ISIC 2018 và phân bố lớp ISIC 2017, cùng các kiểm tra checksum, ảnh/mask, nhãn, split và trùng hash. Có thể đổi thư mục manifest trong giao diện và tải CSV/JSON hoặc PNG. Báo cáo này kiểm tra dữ liệu; không đưa ra metric hiệu năng mô hình.
+
+### Chạy Streamlit sau khi clone
+
+Tạo môi trường và cài các dependency giao diện (nếu chưa cài ở bước trên):
+
+```bash
+cd ~/Documents/nckh
+test -x .venv/bin/python || uv venv .venv --python 3.10
+source .venv/bin/activate
+uv pip install -e ".[demo]"
+```
+
+Khởi chạy ứng dụng:
+
+```bash
+.venv/bin/python -m streamlit run scripts/streamlit_smoke.py
+```
+
+Để tab **Báo cáo P3** hiện số liệu, chép các artifact nhẹ từ máy tạo manifest vào `~/nckh_root/data/manifests/` (hoặc chọn thư mục khác trong tab): `isic2018_seg.csv`, `isic2018_seg.csv.sha256`, `isic2018_seg.cross_split_duplicates.csv`, `isic2017_cls.csv`, `isic2017_cls_trainphase.csv` và `mask_count.json`. Có thể đổi thư mục gốc bằng biến môi trường `NCKH_ROOT`. Các artifact này không nằm trong Git; riêng biểu đồ P3 không cần chép ảnh ISIC. Tab **Báo cáo P2** cần file pilot `summary.json` trong `~/nckh_root/runs/`. Muốn chạy đánh giá mô hình thì cần chép thêm ảnh dữ liệu và checkpoint, đồng thời cài mã PanDerm cùng các môi trường Python tương ứng.
 
 ### Giao diện đánh giá
 
