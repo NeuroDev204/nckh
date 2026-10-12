@@ -12,6 +12,7 @@ import csv
 import glob
 import json
 import time
+from typing import Callable
 from pathlib import Path
 
 import numpy as np
@@ -26,7 +27,7 @@ def _sync(device: str) -> None:
 
 
 def run_benchmark(predictor: object, task: str, images: list[Path], warmup: int, out_dir: Path,
-                  save_overlays: int) -> dict:
+                  save_overlays: int, on_prediction: Callable[[Path, np.ndarray], None] | None = None) -> dict:
     import torch
 
     if not images:
@@ -34,35 +35,40 @@ def run_benchmark(predictor: object, task: str, images: list[Path], warmup: int,
     out_dir.mkdir(parents=True, exist_ok=True)
     device = predictor.device
     cuda = device.startswith("cuda")
-    rgbs = [np.asarray(Image.open(p).convert("RGB")) for p in images]
-
-    # Lượt warmup không tính giờ: lần chạy đầu của CUDA tốn thêm thời gian khởi tạo kernel.
-    for rgb in rgbs[:warmup]:
-        predictor.predict(rgb)
+    # Chạy từng ảnh để chế độ toàn split không giữ ảnh/mask lớn trong RAM.
+    for path in images[:warmup]:
+        with Image.open(path) as image:
+            predictor.predict(np.asarray(image.convert("RGB")))
     if cuda:
         torch.cuda.reset_peak_memory_stats()
 
-    times_ms, outputs = [], []
-    for rgb in rgbs:
+    times_ms, outputs, area_ratios = [], [], []
+    shapes_match, n_empty = True, 0
+    for i, path in enumerate(images):
+        with Image.open(path) as image:
+            rgb = np.asarray(image.convert("RGB"))
         _sync(device)
         t0 = time.perf_counter()
-        outputs.append(predictor.predict(rgb))
+        output = predictor.predict(rgb)
         _sync(device)
         times_ms.append((time.perf_counter() - t0) * 1000)
+        if on_prediction is not None:
+            on_prediction(path, output)
+        if task == "seg":
+            shapes_match = shapes_match and output.shape == rgb.shape[:2]
+            area_ratios.append(round(float(output.mean()), 4))
+            n_empty += int(not output.any())
+            if i < save_overlays:
+                from skimage.segmentation import mark_boundaries
+
+                (out_dir / "overlays").mkdir(exist_ok=True)
+                vis = (mark_boundaries(rgb, output.astype(int), color=(0, 1, 1)) * 255).astype(np.uint8)
+                Image.fromarray(vis).save(out_dir / "overlays" / f"{path.stem}.png")
+        else:
+            outputs.append(output)
 
     if task == "seg":
-        checks = {
-            "all_shapes_match": all(o.shape == r.shape[:2] for o, r in zip(outputs, rgbs)),
-            "area_ratio": [round(float(o.mean()), 4) for o in outputs],
-            "n_empty_masks": int(sum(not o.any() for o in outputs)),
-        }
-        if save_overlays:
-            from skimage.segmentation import mark_boundaries
-
-            (out_dir / "overlays").mkdir(exist_ok=True)
-            for path, rgb, mask in list(zip(images, rgbs, outputs))[:save_overlays]:
-                vis = (mark_boundaries(rgb, mask.astype(int), color=(0, 1, 1)) * 255).astype(np.uint8)
-                Image.fromarray(vis).save(out_dir / "overlays" / f"{path.stem}.png")
+        checks = {"all_shapes_match": shapes_match, "area_ratio": area_ratios, "n_empty_masks": n_empty}
     else:
         probs = np.stack(outputs)
         checks = {

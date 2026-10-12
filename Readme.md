@@ -75,3 +75,50 @@ Bộ kiểm thử bao gồm:
 - `tests/test_inspect_checkpoint.py` (4 passed): Nhận diện kiến trúc ViT-B (768) / ViT-L (1024), xử lý checkpoint bọc ngoài.
 - `tests/test_infer.py` (8 passed): Tiền xử lý chuẩn PanDerm, hậu xử lý vùng liên thông lớn nhất của mask, ánh xạ trọng số pretrain sang classification.
 - `tests/test_bench.py` (3 passed): Đo độ trễ suy luận, kiểm tra tính hữu hạn và tổng xác suất bằng 1.0.
+
+## Smoke test và đo metric trên Streamlit
+
+Chạy từ thư mục repository bằng môi trường demo:
+
+```bash
+.venv/bin/python -m streamlit run scripts/streamlit_smoke.py
+```
+
+Chọn **Phân loại**, **Phân đoạn** hoặc **Cả hai**. Mỗi nhánh chạy tuần tự trong Python riêng (`~/venvs/venv_cls/bin/python`, `~/venvs/venv_seg/bin/python`); không cần cài hai bộ dependency PanDerm vào venv giao diện. Cấu hình đường dẫn PanDerm, checkpoint, data root và manifest trong app. Mặc định smoke test dùng tối đa 20 ảnh validation có seed 2026. Chọn **Đánh giá toàn split** để chạy toàn bộ split; không dùng test để chọn checkpoint/ngưỡng.
+
+Manifest phân loại chính thức là `isic2017_cls.csv` do `scripts/prepare_isic2017_cls.py` tạo, có các cột `image,label,split`; `image` tương đối so với `<data-root>/ISIC2017`, nhãn 0/1/2 lần lượt melanoma/nevus/seborrheic keratosis. Không dùng `isic2017_cls_trainphase.csv`: split test của file đó chứa bản sao validation.
+
+Manifest phân đoạn có các cột `image_path,mask_path,split,exclude_reason`, đường dẫn tương đối so với data root, được tạo bằng `scripts/build_manifest.py`. Mask phải grayscale nhị phân 0/1 hoặc 0/255 và có cùng kích thước ảnh. Dòng có `exclude_reason` được loại và đếm trong báo cáo. Manifest thiếu ground truth column chỉ chạy smoke test; đường dẫn ground truth đã khai báo nhưng thiếu/hỏng sẽ bị báo lỗi.
+
+Với ảnh smoke chưa có nhãn, cả hai nhánh nhận manifest chung `image_path,split` (đường dẫn tương đối data root). Ví dụ theo ảnh mà notebook hiện dùng:
+
+```csv
+image_path,split
+smoke/ISIC2018_Task1-2_Validation_Input/ISIC_0017460.jpg,val
+```
+
+Nếu chưa có manifest chính thức nhưng có `~/nckh_root/data/manifests/smoke_images.csv`, app dùng file smoke đó làm mặc định. Chạy worker trực tiếp để tái lập:
+
+```bash
+~/venvs/venv_cls/bin/python scripts/evaluate_inference.py \
+  --task cls --panderm-dir ~/PanDerm/classification \
+  --pretrained ~/nckh_root/checkpoints/panderm_bb_data6_checkpoint-499.pth \
+  --data-root ~/nckh_data --manifest ~/nckh_root/data/manifests/isic2017_cls.csv \
+  --split val --n 20 --seed 2026 --out-dir ~/nckh_root/runs/eval_cls_example
+
+~/venvs/venv_seg/bin/python scripts/evaluate_inference.py \
+  --task seg --panderm-dir ~/PanDerm/segmentation \
+  --pretrained ~/nckh_root/checkpoints/panderm_bb_data6_checkpoint-499.pth \
+  --data-root ~/nckh_data --manifest ~/nckh_root/data/manifests/isic2018_seg.csv \
+  --split val --n 20 --seed 2026 --out-dir ~/nckh_root/runs/eval_seg_example
+```
+
+Thêm `--finetuned <checkpoint>` để dùng head đã fine-tune. Segmentation vẫn cần checkpoint pretrain để dựng backbone. `--n 0` chạy toàn split; output directory phải chưa tồn tại. CLI ghi traceback vào `worker.log`; giao diện lưu cả stdout/stderr trong log subprocess và có timeout mỗi nhánh (mặc định 600 giây).
+
+Phân loại báo accuracy, balanced accuracy, macro precision/recall/F1/F2, chỉ số từng lớp, AUROC one-vs-rest, Brier score đa lớp và confusion matrix. Dự đoán dùng argmax; F2 có beta=2. Macro precision/recall/F1/F2 tính trên cả ba lớp với zero division bằng 0; balanced accuracy lấy mean recall trên lớp có nhãn thật. AUROC thiếu positive/negative là null kèm lý do, macro AUROC chỉ tính khi cả ba lớp xác định. Brier score là mean tổng bình phương sai số của ba xác suất so với one-hot.
+
+Phân đoạn báo Dice, IoU, precision/recall/F2 và pixel accuracy: tính từng ảnh rồi lấy mean. Cả hai mask rỗng cho Dice/IoU/F2=1; precision khi prediction rỗng bằng 1 nếu reference cũng rỗng, ngược lại bằng 0; recall khi reference rỗng bằng 1. Báo số mask rỗng riêng. Pixel accuracy có thể cao do nhiều pixel nền; đọc cùng Dice/IoU.
+
+Mỗi run lưu `report.json`, `predictions.csv`, overlay mẫu, log và `run_card.json` có hash manifest/checkpoint. App cho tải JSON/CSV. Benchmark báo mean/p50/p95 và peak VRAM; thời gian gồm preprocessing/inference/postprocessing, không gồm đọc ảnh, model load, tính metric hay khởi chạy worker.
+
+Checkpoint chỉ pretrain có head chưa fine-tune: mọi kết quả được gắn cảnh báo **chỉ kiểm tra pipeline**. Không có nhãn/mask thật thì metric là null; smoke test không thay thế đánh giá hiệu năng. Bản này chưa tính CI 95%, robustness hoặc huấn luyện model.
