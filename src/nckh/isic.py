@@ -53,18 +53,23 @@ def download_missing(target_dir: Path, urls: list[str]) -> list[Path]:
                     if downloaded - last_logged >= 50 * (1 << 20) or downloaded >= expected:
                         logger.info("  %s: %.1f / %.1f MB (%.1f%%)", dest.name, downloaded / 1e6, expected / 1e6, 100 * downloaded / max(expected, 1))
                         last_logged = downloaded
+            if downloaded != expected:
+                raise OSError(f"Tải thiếu dữ liệu cho {dest.name}: {downloaded} / {expected} bytes")
             tmp.rename(dest)
         paths.append(dest)
     return paths
 
 
-def extract_zip(zip_path: Path, target_dir: Path, suffixes: tuple[str, ...]) -> dict:
+def extract_zip(zip_path: Path, target_dir: Path, suffixes: tuple[str, ...]) -> dict[str, bool | int]:
     with zipfile.ZipFile(zip_path) as zf:
         # Bỏ thư mục cha trong zip, bỏ LICENSE/ATTRIBUTION/metadata và ảnh superpixel của ISIC 2017.
         members = [m for m in zf.infolist() if not m.is_dir() and m.filename.lower().endswith(suffixes)
                    and "_superpixels" not in m.filename]
         target_dir.mkdir(parents=True, exist_ok=True)
-        if sum(1 for p in target_dir.iterdir() if p.suffix.lower() in suffixes) >= len(members):
+        expected_sizes = {Path(member.filename).name: member.file_size for member in members}
+        # shortcut: size checks miss same-size edits; add hashes if extracted files can be modified outside this step.
+        if all((target_dir / name).is_file() and (target_dir / name).stat().st_size == size
+               for name, size in expected_sizes.items()):
             return {"skipped": True, "n_files": len(members)}
         for member in members:
             (target_dir / Path(member.filename).name).write_bytes(zf.read(member))

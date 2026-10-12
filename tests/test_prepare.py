@@ -1,10 +1,12 @@
 # file: tests/test_prepare.py
+import io
 import zipfile
 from pathlib import Path
 
 import pandas as pd
 import pytest
 
+import nckh.isic as isic
 from nckh.isic import count_masks, extract_zip, make_cls_table, make_trainphase
 
 
@@ -58,11 +60,51 @@ def test_extract_zip_flattens_filters_and_is_idempotent(tmp_path: Path) -> None:
     assert extract_zip(z, target, suffixes=(".png",)) == {"skipped": True, "n_files": 2}
 
 
+def test_extract_zip_does_not_skip_when_expected_file_is_missing(tmp_path: Path) -> None:
+    z = _zip_with_top_dir(tmp_path / "images.zip", "images", ["ISIC_1.jpg", "ISIC_2.jpg"])
+    target = tmp_path / "images"
+    target.mkdir()
+    (target / "ISIC_1.jpg").write_bytes(b"existing")
+    (target / "stale.jpg").write_bytes(b"stale")
+
+    result = extract_zip(z, target, suffixes=(".jpg",))
+
+    assert result == {"skipped": False, "n_files": 2}
+    assert (target / "ISIC_2.jpg").read_bytes() == b"x"
+
+
+def test_extract_zip_rewrites_truncated_expected_file(tmp_path: Path) -> None:
+    z = _zip_with_top_dir(tmp_path / "images.zip", "images", ["ISIC_1.jpg", "ISIC_2.jpg"])
+    target = tmp_path / "images"
+    target.mkdir()
+    (target / "ISIC_1.jpg").write_bytes(b"x")
+    (target / "ISIC_2.jpg").write_bytes(b"")
+
+    result = extract_zip(z, target, suffixes=(".jpg",))
+
+    assert result == {"skipped": False, "n_files": 2}
+    assert (target / "ISIC_2.jpg").read_bytes() == b"x"
+
+
 def test_extract_zip_excludes_superpixels(tmp_path: Path) -> None:
     z = _zip_with_top_dir(tmp_path / "ISIC-2017_Validation_Data.zip", "ISIC-2017_Validation_Data",
                           ["ISIC_1.jpg", "ISIC_1_superpixels.png", "ISIC-2017_Validation_Data_metadata.csv"])
     out = extract_zip(z, tmp_path / "out", suffixes=(".jpg",))
     assert out["n_files"] == 1
+
+
+def test_download_rejects_truncated_file_before_rename(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
+    head = io.BytesIO()
+    head.headers = {"Content-Length": "10"}
+    body = io.BytesIO(b"short")
+    responses = iter([head, body])
+    monkeypatch.setattr(isic.urllib.request, "urlopen", lambda _: next(responses))
+
+    with pytest.raises(IOError, match="5 / 10 bytes"):
+        isic.download_missing(tmp_path, ["https://example.test/images.zip"])
+
+    assert not (tmp_path / "images.zip").exists()
+    assert (tmp_path / "images.zip.part").read_bytes() == b"short"
 
 
 def test_count_masks(tmp_path: Path) -> None:
