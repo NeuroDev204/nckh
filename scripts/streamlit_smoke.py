@@ -1,5 +1,6 @@
 """Streamlit local: smoke test và metric PanDerm trong hai venv riêng."""
 import json
+import io
 import logging
 import os
 import signal
@@ -13,9 +14,59 @@ import streamlit as st
 
 from nckh.paths import checkpoints_dir, local_data_root, manifests_dir, runs_dir
 from nckh.runcard import new_run_id
+from nckh.report_charts import evaluation_figures, pilot_figures, pilot_tables
+from matplotlib.figure import Figure
 
 ROOT = Path(__file__).resolve().parents[1]
 logger = logging.getLogger(__name__)
+
+
+def _show_figure(figure: Figure, name: str, key: str) -> None:
+    st.pyplot(figure, clear_figure=False)
+    with io.BytesIO() as output:
+        figure.savefig(output, format="png", dpi=160, bbox_inches="tight")
+        st.download_button("Tải biểu đồ PNG", output.getvalue(), file_name=f"{name}.png",
+                           mime="image/png", key=key)
+
+
+def _render_pilot() -> None:
+    candidates = sorted(runs_dir().glob("*p2*pilot*/summary.json"), reverse=True)
+    default = candidates[0] if candidates else runs_dir() / "p2-training-pilot/summary.json"
+    path = Path(st.text_input("Báo cáo pilot P2 (summary.json)", str(default), key="pilot_summary")).expanduser()
+    if not path.is_file():
+        st.info("Chọn file summary.json của pilot P2 để xem biểu đồ đã lưu.")
+        return
+    try:
+        summary = json.loads(path.read_text(encoding="utf-8"))
+        tables = pilot_tables(summary)
+        figures = pilot_figures(summary)
+    except (ValueError, OSError) as exc:
+        logger.exception("Không đọc được báo cáo pilot P2")
+        st.error(f"Không đọc được báo cáo pilot P2: {exc}")
+        return
+    st.warning("Pilot kỹ thuật dùng nhãn/mask tổng hợp. Loss chỉ có hai điểm quan sát; không phải kết quả đánh giá hiệu năng.")
+    count = int(tables["status"].to_numpy().sum())
+    cards = st.columns(3)
+    cards[0].metric("Kiểm tra đạt", f"{count}/8")
+    cards[1].metric("Nhánh mô hình", "2")
+    cards[2].metric("Điểm loss mỗi nhánh", str(len(tables["loss"]) // 2))
+    _show_figure(figures["status"], "p2_status", "p2_download_status")
+    loss_columns = st.columns(2)
+    for task, column in zip(("cls", "seg"), loss_columns):
+        with column:
+            _show_figure(figures[f"loss_{task}"], f"p2_loss_{task}", f"p2_download_loss_{task}")
+    _show_figure(figures["vram"], "p2_vram", "p2_download_vram")
+    _show_figure(figures["updates"], "p2_weight_updates", "p2_download_updates")
+    if tables["status"].to_numpy().all():
+        st.success("Pilot kỹ thuật P2 đạt · Chuyển sang kiểm chứng loader và dữ liệu thật ở P3.")
+    else:
+        st.error("Pilot P2 chưa đạt · Xử lý các kiểm tra FAIL trước khi chuyển sang P3.")
+    with st.expander("Số liệu chi tiết và nguồn báo cáo"):
+        for name, table in tables.items():
+            st.caption(name)
+            st.dataframe(table)
+        st.caption(str(path))
+        st.download_button("Tải báo cáo P2 JSON", path.read_bytes(), file_name="p2_summary.json", mime="application/json")
 
 
 def run_worker(command: list[str], cwd: Path, log_path: Path, timeout_seconds: int) -> int:
@@ -110,17 +161,20 @@ def _render_result(task: str, result: dict) -> None:
             for warning in report["warnings"]:
                 st.warning(warning)
             metrics = report["metrics"]
-            if metrics:
-                scalar = {key: value for key, value in metrics.items() if not isinstance(value, (list, dict))}
-                st.dataframe(pd.DataFrame(scalar.items(), columns=["Chỉ số", "Giá trị"]), hide_index=True)
-                if "per_class" in metrics:
-                    st.dataframe(pd.DataFrame(metrics["per_class"]), hide_index=True)
-                    st.caption("Confusion matrix: dòng = nhãn thật, cột = dự đoán; melanoma / nevus / seborrheic keratosis")
-                    st.dataframe(pd.DataFrame(metrics["confusion_matrix"], index=["mel", "nev", "sk"], columns=["mel", "nev", "sk"]))
+            for name, figure in evaluation_figures(report).items():
+                _show_figure(figure, f"{task}_{name}", f"download_{task}_{name}_png")
+            if metrics and metrics.get("macro_auroc", "defined") is None:
+                st.caption("AUROC chưa xác định do thiếu lớp trong mẫu; không biểu diễn giá trị thiếu thành 0.")
             benchmark = {key: report[key] for key in ("device", "ms_per_image_mean", "ms_per_image_p50", "ms_per_image_p95", "peak_vram_mb") if key in report}
-            st.json(benchmark)
             st.caption(report.get("timing_scope", ""))
-            st.dataframe(predictions, hide_index=True)
+            with st.expander("Bảng số liệu và prediction chi tiết"):
+                if metrics:
+                    scalar = {key: value for key, value in metrics.items() if not isinstance(value, (list, dict))}
+                    st.dataframe(pd.DataFrame(scalar.items(), columns=["Chỉ số", "Giá trị"]), hide_index=True)
+                    if "per_class" in metrics:
+                        st.dataframe(pd.DataFrame(metrics["per_class"]), hide_index=True)
+                st.json(benchmark)
+                st.dataframe(predictions, hide_index=True)
             for name in ("report.json", "predictions.csv"):
                 st.download_button(f"Tải {name}", (run_dir / name).read_bytes(), file_name=f"{task}_{name}",
                                    mime="application/json" if name.endswith("json") else "text/csv", key=f"download_{task}_{name}")
@@ -148,10 +202,7 @@ def _render_result(task: str, result: dict) -> None:
             st.caption(f"Log đầy đủ: {log_path}")
 
 
-def main() -> None:
-    st.set_page_config(page_title="PanDerm smoke test", layout="wide")
-    st.title("PanDerm · Smoke test và metric")
-    st.caption("Demo nghiên cứu trên ảnh dermoscopy. Nhóm bệnh là nhãn tham khảo theo dữ liệu, không phải chẩn đoán hay khuyến nghị điều trị.")
+def _render_evaluation() -> None:
     home = Path.home()
     with st.form("configuration"):
         branch = st.selectbox("Nhánh", ["Cả hai", "Phân loại", "Phân đoạn"])
@@ -193,8 +244,39 @@ def main() -> None:
             st.error(f"Không tạo được thư mục run: {exc}")
         finally:
             st.session_state["running"] = False
-    for task, result in st.session_state.get("results", {}).items():
+    saved = sorted({path.parent.parent if path.parent.name in ("cls", "seg") else path.parent
+                    for pattern in ("*/report.json", "*/*/report.json") for path in runs_dir().glob(pattern)}, reverse=True)
+    if submitted:
+        st.session_state["saved_run"] = ""
+    selected = st.selectbox("Xem báo cáo đã lưu", [""] + [str(path) for path in saved],
+                            format_func=lambda value: Path(value).name if value else "Chọn báo cáo đã lưu", key="saved_run")
+    display_results = st.session_state.get("results", {})
+    if selected:
+        root = Path(selected)
+        directories = [path.parent for path in root.glob("*/report.json")] if not (root / "report.json").is_file() else [root]
+        display_results = {}
+        for directory in directories:
+            try:
+                report, _ = load_result(directory)
+                task = report["task"]
+                display_results[task] = {"report_dir": str(directory), "error": None,
+                                         "log": str(root / f"{task}_subprocess.log" if (root / f"{task}_subprocess.log").is_file() else directory / "worker.log")}
+            except (ValueError, OSError) as exc:
+                logger.exception("Không đọc được báo cáo đã lưu")
+                st.error(f"Không đọc được báo cáo đã lưu: {exc}")
+    for task, result in display_results.items():
         _render_result(task, result)
+
+
+def main() -> None:
+    st.set_page_config(page_title="PanDerm · Báo cáo nghiên cứu", layout="wide")
+    st.title("PanDerm · Báo cáo nghiên cứu")
+    st.caption("Demo nghiên cứu trên ảnh dermoscopy. Nhóm bệnh là nhãn tham khảo theo dữ liệu, không phải chẩn đoán hay khuyến nghị điều trị.")
+    pilot, evaluation = st.tabs(["Báo cáo P2", "Đánh giá mô hình"])
+    with pilot:
+        _render_pilot()
+    with evaluation:
+        _render_evaluation()
 
 
 if __name__ == "__main__":

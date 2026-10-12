@@ -90,6 +90,8 @@ git -C ~/PanDerm apply --unidiff-zero ~/Documents/nckh/patches/panderm_cls_resum
 
 Probe, self-check, log, báo cáo và checkpoint của lần chạy local được lưu trong `~/nckh_root/runs/20261012-p2-training-pilot/`. Đây là probe tạm cho P2; loader dataset chính thức và lệnh fine-tune đầy đủ sẽ được kiểm tra ở P3/P5.
 
+Trong Streamlit, tab **Báo cáo P2** tự chọn summary pilot gần nhất dưới `runs/`, hoặc cho nhập đường dẫn `summary.json`. Dashboard có ma trận PASS/FAIL, hai biểu đồ loss riêng cho từng nhánh, VRAM cao nhất (MiB), biểu đồ cập nhật backbone/head và kết luận kỹ thuật. Mỗi biểu đồ có nút tải PNG. Loss chỉ gồm hai điểm train/resume với nhãn tổng hợp, không phải đường cong huấn luyện đầy đủ hay kết quả hiệu năng.
+
 ### Giao diện đánh giá
 
 Chạy từ thư mục repository bằng môi trường demo:
@@ -99,6 +101,8 @@ Chạy từ thư mục repository bằng môi trường demo:
 ```
 
 Chọn **Phân loại**, **Phân đoạn** hoặc **Cả hai**. Mỗi nhánh chạy tuần tự trong Python riêng (`~/venvs/venv_cls/bin/python`, `~/venvs/venv_seg/bin/python`); không cần cài hai bộ dependency PanDerm vào venv giao diện. Cấu hình đường dẫn PanDerm, checkpoint, data root và manifest trong app. Mặc định smoke test dùng tối đa 20 ảnh validation có seed 2026. Chọn **Đánh giá toàn split** để chạy toàn bộ split; không dùng test để chọn checkpoint/ngưỡng.
+
+Tab **Đánh giá mô hình** có lựa chọn **Xem báo cáo đã lưu** để mở kết quả mà không chạy model lại. Metric và recall/F2 từng lớp được vẽ bằng cột, confusion matrix bằng heatmap, mean/p50/p95 latency bằng cột. Metric null được bỏ khỏi biểu đồ, không thay bằng 0. Bảng số liệu, prediction và log nằm trong phần thu gọn; JSON/CSV và biểu đồ PNG đều tải được.
 
 Manifest phân loại chính thức là `isic2017_cls.csv` do `scripts/prepare_isic2017_cls.py` tạo, có các cột `image,label,split`; `image` tương đối so với `<data-root>/ISIC2017`, nhãn 0/1/2 lần lượt melanoma/nevus/seborrheic keratosis. Không dùng `isic2017_cls_trainphase.csv`: split test của file đó chứa bản sao validation.
 
