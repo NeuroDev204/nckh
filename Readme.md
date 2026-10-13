@@ -33,17 +33,58 @@ Tập huấn luyện Task 1 có **2.000 ảnh** và mask phân đoạn tương �
 
 - **PanDerm**: [Repository trên GitHub](https://github.com/SiyuanYan1/PanDerm) — nguồn mã để tham khảo và triển khai mô hình PanDerm trong nghiên cứu.
 
+## Báo cáo tiến độ và trạng thái các giai đoạn nghiên cứu
+
+Căn cứ theo [Kế hoạch triển khai NCKH PanDerm](Ke_hoach_trien_khai_NCKH_PanDerm_2_nguoi.md) và [Báo cáo tiến độ giai đoạn P2](Bao_cao_tien_do_NCKH_PanDerm_Giai_doan_P2.docx), hiện trạng triển khai các nhiệm vụ như sau:
+
+### Bảng tổng hợp tiến độ
+
+| Giai đoạn | Nhiệm vụ | Trạng thái | Minh chứng thực tế |
+| :--- | :--- | :---: | :--- |
+| **Phase 0** | Khóa Protocol, mục tiêu và định nghĩa endpoint nghiên cứu | **Đạt (100%)** | Quy chuẩn đề cương, protocol và kế hoạch phân công 2 người. |
+| **Phase 2** | Hạ tầng môi trường, Checkpoint PanDerm Base, Vá mã nguồn & Smoke test | **Đạt (100%)** | Checkpoint ViT-B 328 MB (SHA-256 `be1e0fb1...`); 2 venv GPU (`venv_seg`, `venv_cls`); bản vá `patches/panderm_base_seg.patch` (độ phủ ViT 100%); smoke test 20 ảnh (RTX 3050 & Tesla T4); pilot backward pass & resume optimizer đạt (`status: PASS`). |
+| **Phase 3** | Tải dữ liệu ISIC, Kiểm tra nhãn/mask & Lập manifest chia tập (Split) | **Đạt (100%)** | 3.694 ảnh & mask ISIC 2018 (1 mask/ảnh, 0 lỗi, SHA-256 manifest `8cf5e733...`); 2.750 ảnh ISIC 2017 (3 lớp); tách `isic2017_cls_trainphase.csv` chống leakage; tab Báo cáo P3 trên Streamlit; 97/97 unit tests passed. Toàn bộ dữ liệu lưu trữ trên Google Drive. |
+| **Phase 5a** | Tinh chỉnh nhánh phân đoạn (ISIC 2018 Task 1) | **Chưa chạy (0%)** | **Đã sẵn sàng pipeline & dữ liệu**: Đã vá code, kiểm tra loader, chuẩn bị `run.sh`; chờ kích hoạt huấn luyện 100 epoch trên GPU. |
+| **Phase 5b** | Tinh chỉnh nhánh phân loại tham khảo (ISIC 2017 Task 3) | **Chưa chạy (0%)** | Đã sẵn sàng manifest và script; chờ huấn luyện trên GPU. |
+| **Phase 6** | Ghép cặp ảnh theo dõi và huấn luyện mô hình hồi quy Ridge | **Chưa chạy (0%)** | Đã xây dựng sẵn module suy luận `nckh.infer` và cấu trúc trích xuất đặc trưng; chờ dữ liệu dọc UQ. |
+| **Phase 7** | Đánh giá kiểm định mô hình, Bootstrap CI 95% & Robustness | **Chưa chạy (0%)** | Đã xây dựng module `nckh.metrics`; chờ kết quả checkpoint sau fine-tuning. |
+
+### Chi tiết các phần đã hoàn thành
+
+#### 1. Hạ tầng kỹ thuật & Pilot PanDerm Base (P2)
+* **Xử lý xung đột phụ thuộc**: Tách lập 2 môi trường GPU độc lập gồm `venv_seg` (PyTorch 2.1.2 + MMCV 2.1.0 + MMSegmentation 1.2.2) và `venv_cls` (PyTorch 2.4.1 + timm 0.9.16).
+* **Vá mã nguồn PanDerm**: Áp dụng `patches/panderm_base_seg.patch` để tương thích ViT-B/16 (768 dim), hỗ trợ checkpoint resume (`model_checkpoint_0.ckpt`) và ngắt chế độ tự động mở tập test sau train.
+* **Đo kiểm Smoke test (20 ảnh ISIC 2018 Validation)**:
+  * Phân đoạn: 177.5 ms/ảnh, VRAM đỉnh 812 MB.
+  * Phân loại: 85.6 ms/ảnh, VRAM đỉnh 351 MB.
+  * Sinh 10 ảnh mask overlay trực quan và xuất thẻ truy vết `run_card.json`.
+* **Pilot Backward pass & Resume Optimizer**: Đã kiểm chứng trên GPU Tesla T4 (loss giảm 1.0985 → 1.0981, khôi phục nguyên vẹn 100% logits và bước optimizer).
+
+#### 2. Dữ liệu, Kiểm tra nhãn/mask & Manifest split (P3)
+* **Phân đoạn ISIC 2018 Task 1 (`isic2018_seg.csv`)**:
+  * Tải và giải nén đủ 3.694 ảnh và 3.694 mask chuẩn hóa theo cấu trúc của PanDerm (Train: 2.594, Val: 100, Test: 1.000).
+  * Kiểm tra toàn vẹn: 100% ảnh đọc được, 100% khớp kích thước ảnh-mask, 0 ảnh bị loại (`exclude_reason: ""`).
+  * Xác thực mỗi ảnh có đúng 1 mask tham chiếu (`max_masks_per_image: 1`).
+  * 0 ảnh trùng lặp hash xuyên split (`seg_duplicates: 0`). Khóa SHA-256: `8cf5e733a18dfbbe8798f03b4f84354594ec0c10e7f8b5072db2dd65733d09fb`.
+* **Phân loại ISIC 2017 Task 3 (`isic2017_cls.csv`)**:
+  * Tải đủ 2.750 ảnh (Train: 2.000, Val: 150, Test: 600) với 3 nhóm nhãn chuẩn.
+  * Sinh thêm file `isic2017_cls_trainphase.csv` (dùng bản sao val thay cho test) nhằm bảo vệ tập test thật khi fine-tuning.
+* **Lưu trữ & Báo cáo trực quan**:
+  * Dữ liệu và manifest được lưu trữ an toàn trên Google Drive (`/MyDrive/NCKH_PanDerm/`).
+  * Tích hợp tab **Báo cáo P3** trên dashboard Streamlit (`scripts/streamlit_smoke.py`).
+
+
 ## Hướng dẫn cài đặt môi trường và chạy kiểm thử (Unit Test)
 
 Môi trường kiểm thử có thể chạy trực tiếp trên máy CPU thông thường (không bắt buộc GPU).
 
 ### 1. Đồng bộ mã nguồn
 ```bash
-git clone --branch p3 --single-branch https://github.com/NeuroDev204/nckh.git ~/Documents/nckh
+git clone --branch main https://github.com/NeuroDev204/nckh.git ~/Documents/nckh
 cd ~/Documents/nckh
 # Nếu đã clone repository:
-git switch p3
-git pull --ff-only origin p3
+git switch main
+git pull --ff-only origin main
 ```
 
 ### 2. Thiết lập môi trường ảo (.venv với Python 3.10)
@@ -69,16 +110,33 @@ python -m pytest -q
 
 ### 4. Kết quả kỳ vọng
 ```text
-21 passed in ~2.0s
+97 passed
 ```
 
 Bộ kiểm thử bao gồm:
 - `tests/test_paths_runcard.py` (6 passed): Đường dẫn hệ thống, mã băm SHA-256, sinh `run_id` và thẻ truy vết `run_card.json`.
 - `tests/test_inspect_checkpoint.py` (4 passed): Nhận diện kiến trúc ViT-B (768) / ViT-L (1024), xử lý checkpoint bọc ngoài.
 - `tests/test_infer.py` (8 passed): Tiền xử lý chuẩn PanDerm, hậu xử lý vùng liên thông lớn nhất của mask, ánh xạ trọng số pretrain sang classification.
-- `tests/test_bench.py` (3 passed): Đo độ trễ suy luận, kiểm tra tính hữu hạn và tổng xác suất bằng 1.0.
+- `tests/test_bench.py` (5 passed): Đo độ trễ suy luận, kiểm tra tính hữu hạn và tổng xác suất bằng 1.0.
+- `tests/test_prepare.py` (9 passed): Tải dữ liệu, trích xuất zip và kiểm tra tính toàn vẹn ISIC 2017/2018.
+- `tests/test_manifest.py` (8 passed): Kiểm tra ảnh/mask, chia nhóm không rò rỉ và phát hiện trùng hash xuyên split.
+- `tests/test_pilot_classification.py` (2 passed): Kiểm tra backward pass, cập nhật trọng số và resume checkpoint.
+- `tests/test_metrics.py` (17 passed): Kiểm thử các chỉ số phân loại, phân đoạn và xử lý các trường hợp biên.
+- `tests/test_evaluate.py` (14 passed): Đánh giá suy luận theo split, xuất báo cáo và thẻ truy vết.
+- `tests/test_report_charts.py` (18 passed): Báo cáo biểu đồ pilot P2, bảng chất lượng manifest P3 và dashboard.
+- `tests/test_streamlit_smoke.py` (6 passed): Smoke test các thành phần và tương tác giao diện Streamlit.
+
 
 ## Smoke test và đo metric trên Streamlit
+
+### Chạy Colab trong VS Code
+
+Cài extension **Google Colab** (`google.colab`) và **Jupyter** (`ms-toolsai.jupyter`).
+Mở `notebooks/nb_colab.ipynb`, chọn **Select Kernel → Colab → Auto Connect**, rồi đăng nhập Google nếu được yêu cầu.
+Chạy lần lượt các cell để kiểm tra runtime, clone source vào `/content/nckh`, cài dependency và chạy test.
+Cell Drive chỉ kiểm tra đường dẫn dữ liệu/checkpoint; notebook chưa huấn luyện mô hình.
+Repo local và repo trong runtime Colab là hai bản riêng; `/content` là vùng lưu trữ tạm.
+Các notebook `nb_cpu`, `nb_cls`, `nb_seg` hiện dùng đường dẫn local và kernel tương ứng trên laptop.
 
 ### Pilot kỹ thuật P2: backward và checkpoint resume
 

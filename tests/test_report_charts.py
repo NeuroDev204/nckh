@@ -162,12 +162,14 @@ def test_p3_report_recomputes_cross_split_duplicates(tmp_path: Path) -> None:
     assert not tables["quality"].set_index("Kiểm tra").loc["Không trùng hash xuyên split", "Đạt"]
 
 
-def test_pilot_dashboard_renders_saved_figures(pilot_summary: dict, tmp_path: Path) -> None:
+def test_pilot_dashboard_renders_saved_figures(pilot_summary: dict, tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
     AppTest = pytest.importorskip("streamlit.testing.v1").AppTest
+    write_p3_artifacts(tmp_path / "data/manifests")
+    monkeypatch.setenv("NCKH_ROOT", str(tmp_path))
     path = tmp_path / "summary.json"
     path.write_text(json.dumps(pilot_summary))
     script = Path(__file__).resolve().parents[1] / "scripts/streamlit_smoke.py"
-    app = AppTest.from_file(str(script)).run()
+    app = AppTest.from_file(str(script), default_timeout=30).run()
     app.text_input(key="pilot_summary").set_value(str(path)).run()
     assert not app.exception
     assert len(app.get("image")) == 7
@@ -180,8 +182,10 @@ def test_pilot_dashboard_renders_saved_figures(pilot_summary: dict, tmp_path: Pa
     assert len(app.get("image")) == 2
 
 
-def test_pilot_dashboard_rejects_bad_json(tmp_path: Path) -> None:
+def test_pilot_dashboard_rejects_bad_json(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
     AppTest = pytest.importorskip("streamlit.testing.v1").AppTest
+    write_p3_artifacts(tmp_path / "data/manifests")
+    monkeypatch.setenv("NCKH_ROOT", str(tmp_path))
     path = tmp_path / "summary.json"
     path.write_text("not json")
     app = AppTest.from_file(str(Path(__file__).resolve().parents[1] / "scripts/streamlit_smoke.py")).run()

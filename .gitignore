@@ -20,3 +20,5 @@ nckh_data/
 runs/
 .env
 *.env
+# Tệp lock tạm của Office
+.~lock.*#
