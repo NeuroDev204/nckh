@@ -22,3 +22,4 @@ runs/
 *.env
 # Tệp lock tạm của Office
 .~lock.*#
+.playwright-cli/

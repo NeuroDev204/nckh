@@ -1,0 +1,975 @@
+<!doctype html>
+<html lang="vi">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Kịch bản Thuyết trình NCKH (05 Phút · 09 Slide) — PanDerm</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com" />
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+    <link
+      href="https://fonts.googleapis.com/css2?family=Be+Vietnam+Pro:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500;600&display=swap"
+      rel="stylesheet"
+    />
+    <script src="https://cdn.jsdelivr.net/npm/@tailwindcss/browser@4"></script>
+    <style type="text/tailwindcss">
+      @theme {
+        --font-sans: "Be Vietnam Pro", system-ui, -apple-system, sans-serif;
+        --font-mono: "JetBrains Mono", monospace;
+
+        --color-background: #f8fafc;
+        --color-surface: #ffffff;
+        --color-surface-alt: #eef2f6;
+        --color-foreground: #09090b;
+        --color-muted: #52525c;
+        --color-border: #eef0f3;
+
+        --color-primary: #4338ca;
+        --color-primary-hover: #3730a3;
+        --color-primary-foreground: #ffffff;
+        --color-primary-light: #e0e7ff;
+
+        --color-success: #15803d;
+        --color-success-bg: #dcfce7;
+        --color-warning: #b45309;
+        --color-warning-bg: #fef3c7;
+        --color-danger: #b91c1c;
+        --color-danger-bg: #fee2e2;
+        --color-neutral: #3f3f46;
+        --color-neutral-bg: #f4f4f5;
+      }
+
+      html {
+        scroll-behavior: smooth;
+      }
+
+      *:focus,
+      *:focus-visible {
+        outline: none !important;
+        box-shadow: none !important;
+      }
+    </style>
+  </head>
+  <body class="min-h-screen bg-background font-sans text-foreground antialiased selection:bg-primary-light selection:text-primary">
+    <!-- ==================== THANH ĐIỀU KHIỂN ĐẦU TRANG ==================== -->
+    <div class="border-b border-border bg-surface">
+      <div class="mx-auto grid w-full max-w-[1800px] grid-cols-1 gap-3 px-4 py-3 sm:px-6 lg:grid-cols-12 lg:items-center lg:px-10">
+        <!-- Cụm 1: Tên kịch bản & Người trình bày -->
+        <div class="flex min-w-0 items-center gap-3 lg:col-span-4">
+          <span class="inline-flex shrink-0 items-center rounded-lg bg-primary px-2.5 py-1.5 font-mono text-xs font-semibold whitespace-nowrap text-primary-foreground tabular-nums">
+            SCRIPT 05:00
+          </span>
+          <div class="min-w-0">
+            <p class="text-sm font-semibold text-balance text-foreground">
+              Kịch bản Thuyết trình NCKH · PanDerm
+            </p>
+            <p class="text-xs text-pretty text-muted">
+              Trình bày: <strong class="font-medium text-foreground">Phạm Văn Sỹ</strong> (09 Slide · 300 giây)
+            </p>
+          </div>
+        </div>
+
+        <!-- Cụm 2: Đồng hồ bấm giờ 05:00 & Gợi ý Slide -->
+        <div class="flex items-center justify-between gap-2 rounded-xl border border-border bg-background px-3 py-1.5 lg:col-span-5">
+          <div class="flex items-center gap-2">
+            <span id="timer-display" class="font-mono text-sm font-bold whitespace-nowrap text-foreground tabular-nums sm:text-base">00:00</span>
+            <span
+              id="timer-slide-hint"
+              class="inline-flex items-center rounded-md bg-primary-light px-2 py-1 font-mono text-xs font-semibold whitespace-nowrap text-primary tabular-nums"
+            >
+              Slide 01
+            </span>
+          </div>
+          <div class="flex shrink-0 items-center gap-2">
+            <button
+              id="btn-timer-toggle"
+              type="button"
+              class="inline-flex min-h-9 cursor-pointer items-center justify-center rounded-lg bg-primary px-3 py-1.5 text-xs font-semibold whitespace-nowrap text-primary-foreground transition-colors hover:bg-primary-hover"
+            >
+              Bắt đầu
+            </button>
+            <button
+              id="btn-timer-reset"
+              type="button"
+              class="inline-flex min-h-9 cursor-pointer items-center justify-center rounded-lg border border-border bg-surface px-2.5 py-1.5 text-xs font-medium whitespace-nowrap text-foreground transition-colors hover:bg-primary-light"
+            >
+              Đặt lại
+            </button>
+          </div>
+        </div>
+
+        <!-- Cụm 3: Chuyển chế độ Xem toàn bộ / Teleprompter từng Slide -->
+        <div class="grid grid-cols-2 gap-2 lg:col-span-3" role="group" aria-label="Chế độ xem kịch bản">
+          <button
+            id="btn-mode-all"
+            type="button"
+            class="inline-flex min-h-9 cursor-pointer items-center justify-center rounded-lg bg-primary px-3 py-1.5 text-xs font-semibold whitespace-nowrap text-primary-foreground transition-colors hover:bg-primary-hover"
+          >
+            Xem toàn bộ
+          </button>
+          <button
+            id="btn-mode-tele"
+            type="button"
+            class="inline-flex min-h-9 cursor-pointer items-center justify-center rounded-lg border border-border bg-surface px-3 py-1.5 text-xs font-medium whitespace-nowrap text-foreground transition-colors hover:bg-primary-light"
+          >
+            Từng Slide
+          </button>
+        </div>
+      </div>
+
+      <!-- Thanh tiến độ thời gian 300 giây -->
+      <div class="h-1 w-full bg-surface-alt">
+        <div id="timer-progress" class="h-full w-0 bg-primary transition-all duration-300"></div>
+      </div>
+    </div>
+
+    <main class="mx-auto w-full max-w-[1800px] px-4 py-6 sm:px-6 lg:px-10 lg:py-8">
+      <!-- ==================== CHẾ ĐỘ 1: XEM TOÀN BỘ ==================== -->
+      <div id="view-all-container" class="space-y-8">
+        <!-- Khung Tóm tắt Phân bổ Thời gian & Điều hướng nhanh -->
+        <section aria-labelledby="overview-heading" class="rounded-2xl border border-border bg-surface p-5 sm:p-6">
+          <div class="flex flex-col gap-3 border-b border-border pb-4 sm:flex-row sm:items-center sm:justify-between">
+            <div>
+              <h1 id="overview-heading" class="text-lg font-semibold text-balance text-foreground sm:text-xl lg:text-2xl">
+                Lộ trình điều tiết 05 phút (300 giây) &amp; Chỉ mục nhảy nhanh
+              </h1>
+              <p class="mt-1 text-xs text-pretty text-muted sm:text-sm">
+                Tốc độ nói chuẩn báo cáo hội đồng: 135–145 từ/phút. Các cụm từ <strong class="font-semibold text-primary">in đậm màu xanh</strong> là từ khóa ăn điểm cần nhấn giọng rõ ràng.
+              </p>
+            </div>
+            <span class="inline-flex self-start rounded-full bg-success-bg px-3 py-1 text-xs font-medium whitespace-nowrap text-success tabular-nums sm:self-center">
+              Đồng bộ bao_cao_de_tai (2).html
+            </span>
+          </div>
+
+          <!-- Bảng nhảy nhanh 09 Slide -->
+          <div class="mt-4 grid grid-cols-1 gap-2.5 sm:grid-cols-2 lg:grid-cols-4">
+            <a
+              href="#script-s1"
+              class="flex items-center justify-between gap-2 rounded-xl border border-border bg-background px-3.5 py-2.5 text-xs transition-colors hover:bg-primary-light"
+            >
+              <span class="font-semibold whitespace-nowrap text-foreground">Slide 01 · Giới thiệu</span>
+              <span class="font-mono text-xs whitespace-nowrap text-primary tabular-nums">00:00–00:30</span>
+            </a>
+            <a
+              href="#script-s2"
+              class="flex items-center justify-between gap-2 rounded-xl border border-border bg-background px-3.5 py-2.5 text-xs transition-colors hover:bg-primary-light"
+            >
+              <span class="font-semibold whitespace-nowrap text-foreground">Slide 02 · Ý tưởng</span>
+              <span class="font-mono text-xs whitespace-nowrap text-primary tabular-nums">00:30–01:10</span>
+            </a>
+            <a
+              href="#script-s3"
+              class="flex items-center justify-between gap-2 rounded-xl border border-border bg-background px-3.5 py-2.5 text-xs transition-colors hover:bg-primary-light"
+            >
+              <span class="font-semibold whitespace-nowrap text-foreground">Slide 03 · Mục tiêu</span>
+              <span class="font-mono text-xs whitespace-nowrap text-primary tabular-nums">01:10–01:45</span>
+            </a>
+            <a
+              href="#script-s4"
+              class="flex items-center justify-between gap-2 rounded-xl border border-border bg-background px-3.5 py-2.5 text-xs transition-colors hover:bg-primary-light"
+            >
+              <span class="font-semibold whitespace-nowrap text-foreground">Slide 04 · Dữ liệu</span>
+              <span class="font-mono text-xs whitespace-nowrap text-primary tabular-nums">01:45–02:20</span>
+            </a>
+            <a
+              href="#script-s5"
+              class="flex items-center justify-between gap-2 rounded-xl border border-border bg-background px-3.5 py-2.5 text-xs transition-colors hover:bg-primary-light"
+            >
+              <span class="font-semibold whitespace-nowrap text-foreground">Slide 05 · Kiến trúc</span>
+              <span class="font-mono text-xs whitespace-nowrap text-primary tabular-nums">02:20–03:05</span>
+            </a>
+            <a
+              href="#script-s6"
+              class="flex items-center justify-between gap-2 rounded-xl border border-border bg-background px-3.5 py-2.5 text-xs transition-colors hover:bg-primary-light"
+            >
+              <span class="font-semibold whitespace-nowrap text-foreground">Slide 06 · So sánh</span>
+              <span class="font-mono text-xs whitespace-nowrap text-primary tabular-nums">03:05–03:35</span>
+            </a>
+            <a
+              href="#script-s7"
+              class="flex items-center justify-between gap-2 rounded-xl border border-border bg-background px-3.5 py-2.5 text-xs transition-colors hover:bg-primary-light"
+            >
+              <span class="font-semibold whitespace-nowrap text-foreground">Slide 07 · Kết quả</span>
+              <span class="font-mono text-xs whitespace-nowrap text-primary tabular-nums">03:35–04:15</span>
+            </a>
+            <a
+              href="#script-s8"
+              class="flex items-center justify-between gap-2 rounded-xl border border-border bg-background px-3.5 py-2.5 text-xs transition-colors hover:bg-primary-light"
+            >
+              <span class="font-semibold whitespace-nowrap text-foreground">Slide 08 · Kế hoạch</span>
+              <span class="font-mono text-xs whitespace-nowrap text-primary tabular-nums">04:15–04:45</span>
+            </a>
+            <a
+              href="#script-s9"
+              class="flex items-center justify-between gap-2 rounded-xl border border-border bg-background px-3.5 py-2.5 text-xs transition-colors hover:bg-primary-light"
+            >
+              <span class="font-semibold whitespace-nowrap text-foreground">Slide 09 · Cảm ơn</span>
+              <span class="font-mono text-xs whitespace-nowrap text-primary tabular-nums">04:45–05:00</span>
+            </a>
+          </div>
+        </section>
+
+        <!-- ==================== PHẦN I · MỞ ĐẦU & Ý TƯỞNG NGHIÊN CỨU ==================== -->
+        <div class="space-y-6">
+          <div class="flex items-center justify-between gap-2 border-b border-border pb-2">
+            <h2 class="text-base font-semibold text-balance text-foreground sm:text-lg">
+              Phần I · Mở đầu & Ý tưởng nghiên cứu (00:00 – 01:10)
+            </h2>
+            <span class="font-mono text-xs whitespace-nowrap text-muted tabular-nums">Trang 01–02</span>
+          </div>
+
+          <!-- SLIDE 01 -->
+          <article id="script-s1" class="scroll-mt-24 rounded-2xl border border-border bg-surface p-5 sm:p-6">
+            <div class="flex flex-col gap-2 border-b border-border pb-3.5 sm:flex-row sm:items-center sm:justify-between">
+              <div class="flex flex-wrap items-center gap-2.5">
+                <span class="inline-flex items-center rounded-full bg-primary-light px-3 py-1 font-mono text-xs font-semibold whitespace-nowrap text-primary tabular-nums">
+                  Trang 01 / 09
+                </span>
+                <h3 class="text-base font-semibold text-balance text-foreground sm:text-lg">
+                  Slide 01 · Trang bìa Giới thiệu đề tài & Nhóm thực hiện
+                </h3>
+              </div>
+              <span class="inline-flex self-start rounded-lg bg-background px-3 py-1 font-mono text-xs font-semibold whitespace-nowrap text-foreground tabular-nums sm:self-center">
+                ⏱ 00:00 – 00:30 (30 giây)
+              </span>
+            </div>
+
+            <div class="mt-4 grid grid-cols-1 gap-5 lg:grid-cols-12">
+              <div class="space-y-3 rounded-xl border border-border bg-background p-4 sm:p-5 lg:col-span-8">
+                <p class="text-xs font-semibold tracking-wide text-primary uppercase">Lời thoại nguyên văn</p>
+                <p class="text-sm leading-relaxed text-pretty text-foreground sm:text-base">
+                  “Kính chào Quý Thầy Cô trong Hội đồng. Em là <strong class="font-semibold text-primary">Phạm Văn Sỹ</strong>, chủ nhiệm đề tài, cùng bạn <strong class="font-semibold text-primary">Nguyễn Thị Vân An</strong> trình bày dưới sự hướng dẫn của <strong class="font-semibold text-primary">TS. Nguyễn Ngọc Tân</strong>.”
+                </p>
+                <p class="text-sm leading-relaxed text-pretty text-foreground sm:text-base">
+                  “Đề tài là <strong class="font-semibold text-primary">Ứng dụng PanDerm trong phân đoạn tổn thương da, gợi ý nhóm bệnh tham chiếu và dự báo thay đổi tổn thương qua ảnh dermoscopy theo dõi</strong>, thực hiện trong 14 tuần, từ tháng 06 đến tháng 09 năm 2026.”
+                </p>
+              </div>
+
+              <div class="space-y-2.5 rounded-xl border border-border bg-background p-4 sm:p-5 lg:col-span-4">
+                <p class="text-xs font-semibold tracking-wide text-foreground uppercase">Thao tác &amp; Điểm nhấn trên Slide</p>
+                <p class="text-xs leading-relaxed text-pretty text-muted sm:text-sm">
+                  • Mở sẵn chế độ toàn màn hình F11 trước khi bắt đầu.
+                </p>
+                <p class="text-xs leading-relaxed text-pretty text-muted sm:text-sm">
+                  • Đúng giây 00:30: Bấm phím → sang Trang 02.
+                </p>
+              </div>
+            </div>
+          </article>
+
+          <!-- SLIDE 02 -->
+          <article id="script-s2" class="scroll-mt-24 rounded-2xl border border-border bg-surface p-5 sm:p-6">
+            <div class="flex flex-col gap-2 border-b border-border pb-3.5 sm:flex-row sm:items-center sm:justify-between">
+              <div class="flex flex-wrap items-center gap-2.5">
+                <span class="inline-flex items-center rounded-full bg-primary-light px-3 py-1 font-mono text-xs font-semibold whitespace-nowrap text-primary tabular-nums">
+                  Trang 02 / 09
+                </span>
+                <h3 class="text-base font-semibold text-balance text-foreground sm:text-lg">
+                  Slide 02 · Ý tưởng nghiên cứu
+                </h3>
+              </div>
+              <span class="inline-flex self-start rounded-lg bg-background px-3 py-1 font-mono text-xs font-semibold whitespace-nowrap text-foreground tabular-nums sm:self-center">
+                ⏱ 00:30 – 01:10 (40 giây)
+              </span>
+            </div>
+
+            <div class="mt-4 grid grid-cols-1 gap-5 lg:grid-cols-12">
+              <div class="space-y-3 rounded-xl border border-border bg-background p-4 sm:p-5 lg:col-span-8">
+                <p class="text-xs font-semibold tracking-wide text-primary uppercase">Lời thoại nguyên văn</p>
+                <p class="text-sm leading-relaxed text-pretty text-foreground sm:text-base">
+                  “Phần lớn công cụ AI da liễu hiện chỉ đánh giá <strong class="font-semibold text-primary">một ảnh tại một thời điểm</strong>. Trong khi đó, khi theo dõi nốt sắc tố nghi ngờ, điều quan trọng là <strong class="font-semibold text-primary">tổn thương thay đổi thế nào giữa hai lần khám t và t+1</strong>.”
+                </p>
+                <p class="text-sm leading-relaxed text-pretty text-foreground sm:text-base">
+                  “Nhóm kết hợp <strong class="font-semibold text-primary">mô hình nền tảng PanDerm Base ViT-B/16</strong> để phân đoạn tổn thương với <strong class="font-semibold text-primary">hồi quy Ridge một bước</strong> để dự báo biến thiên diện tích. Hệ thống kết nối <strong class="font-semibold text-primary">máy quét da quang học</strong> để hiển thị kết quả theo thời gian thực.”
+                </p>
+              </div>
+
+              <div class="space-y-2.5 rounded-xl border border-border bg-background p-4 sm:p-5 lg:col-span-4">
+                <p class="text-xs font-semibold tracking-wide text-foreground uppercase">Thao tác &amp; Điểm nhấn trên Slide</p>
+                <p class="text-xs leading-relaxed text-pretty text-muted sm:text-sm">
+                  • Chỉ theo ba ý: Phân đoạn → Dataset kết hợp → Máy quét realtime.
+                </p>
+                <p class="text-xs leading-relaxed text-pretty text-muted sm:text-sm">
+                  • Đúng giây 01:10: Bấm phím → sang Trang 03.
+                </p>
+              </div>
+            </div>
+          </article>
+        </div>
+
+        <!-- ==================== PHẦN II · MỤC TIÊU & DỮ LIỆU ==================== -->
+        <div class="space-y-6">
+          <div class="flex items-center justify-between gap-2 border-b border-border pb-2">
+            <h2 class="text-base font-semibold text-balance text-foreground sm:text-lg">
+              Phần II · Mục tiêu & Dữ liệu (01:10 – 02:20)
+            </h2>
+            <span class="font-mono text-xs whitespace-nowrap text-muted tabular-nums">Trang 03–04</span>
+          </div>
+
+          <!-- SLIDE 03 -->
+          <article id="script-s3" class="scroll-mt-24 rounded-2xl border border-border bg-surface p-5 sm:p-6">
+            <div class="flex flex-col gap-2 border-b border-border pb-3.5 sm:flex-row sm:items-center sm:justify-between">
+              <div class="flex flex-wrap items-center gap-2.5">
+                <span class="inline-flex items-center rounded-full bg-primary-light px-3 py-1 font-mono text-xs font-semibold whitespace-nowrap text-primary tabular-nums">
+                  Trang 03 / 09
+                </span>
+                <h3 class="text-base font-semibold text-balance text-foreground sm:text-lg">
+                  Slide 03 · Bốn mục tiêu cụ thể & Phạm vi khoa học
+                </h3>
+              </div>
+              <span class="inline-flex self-start rounded-lg bg-background px-3 py-1 font-mono text-xs font-semibold whitespace-nowrap text-foreground tabular-nums sm:self-center">
+                ⏱ 01:10 – 01:45 (35 giây)
+              </span>
+            </div>
+
+            <div class="mt-4 grid grid-cols-1 gap-5 lg:grid-cols-12">
+              <div class="space-y-3 rounded-xl border border-border bg-background p-4 sm:p-5 lg:col-span-8">
+                <p class="text-xs font-semibold tracking-wide text-primary uppercase">Lời thoại nguyên văn</p>
+                <p class="text-sm leading-relaxed text-pretty text-foreground sm:text-base">
+                  “Từ ý tưởng đó, đề tài đặt ra <strong class="font-semibold text-primary">bốn mục tiêu</strong>. Thứ nhất, xây dựng bộ dữ liệu da liễu phù hợp đặc điểm người Việt, Thứ hai, huấn luyện mô hình AI phân đoạn và dự đoán bệnh da. Thứ ba, tích hợp <strong class="font-semibold text-primary">máy quét da cầm tay</strong> để hiển thị kết quả theo thời gian thực. Thứ tư, kiểm thử độ bền trước nhiễu sáng và góc quét, rồi dựng demo thực nghiệm.”
+                </p>
+                <p class="text-sm leading-relaxed text-pretty text-foreground sm:text-base">
+                  “Về phạm vi, hệ thống <strong class="font-semibold text-primary">chỉ hỗ trợ sàng lọc ban đầu</strong> và <strong class="font-semibold text-primary">không thay thế chẩn đoán y khoa</strong> của bác sĩ.”
+                </p>
+              </div>
+
+              <div class="space-y-2.5 rounded-xl border border-border bg-background p-4 sm:p-5 lg:col-span-4">
+                <p class="text-xs font-semibold tracking-wide text-foreground uppercase">Thao tác &amp; Điểm nhấn trên Slide</p>
+                <p class="text-xs leading-relaxed text-pretty text-muted sm:text-sm">
+                  • Đếm nhanh 4 mục tiêu 01–04 bên trái.
+                </p>
+                <p class="text-xs leading-relaxed text-pretty text-muted sm:text-sm">
+                  • Nhấn mạnh câu “không thay thế chẩn đoán” khi nói về phạm vi.
+                </p>
+                <p class="text-xs leading-relaxed text-pretty text-muted sm:text-sm">
+                  • Đúng giây 01:45: Bấm phím → sang Trang 04.
+                </p>
+              </div>
+            </div>
+          </article>
+
+          <!-- SLIDE 04 -->
+          <article id="script-s4" class="scroll-mt-24 rounded-2xl border border-border bg-surface p-5 sm:p-6">
+            <div class="flex flex-col gap-2 border-b border-border pb-3.5 sm:flex-row sm:items-center sm:justify-between">
+              <div class="flex flex-wrap items-center gap-2.5">
+                <span class="inline-flex items-center rounded-full bg-primary-light px-3 py-1 font-mono text-xs font-semibold whitespace-nowrap text-primary tabular-nums">
+                  Trang 04 / 09
+                </span>
+                <h3 class="text-base font-semibold text-balance text-foreground sm:text-lg">
+                  Slide 04 · Dữ liệu & Biến đổi ảnh
+                </h3>
+              </div>
+              <span class="inline-flex self-start rounded-lg bg-background px-3 py-1 font-mono text-xs font-semibold whitespace-nowrap text-foreground tabular-nums sm:self-center">
+                ⏱ 01:45 – 02:20 (35 giây)
+              </span>
+            </div>
+
+            <div class="mt-4 grid grid-cols-1 gap-5 lg:grid-cols-12">
+              <div class="space-y-3 rounded-xl border border-border bg-background p-4 sm:p-5 lg:col-span-8">
+                <p class="text-xs font-semibold tracking-wide text-primary uppercase">Lời thoại nguyên văn</p>
+                <p class="text-sm leading-relaxed text-pretty text-foreground sm:text-base">
+                  “Về dữ liệu, nhóm sử dụng <strong class="font-semibold text-primary">ISIC 2018 Task 1 với 2.594 ảnh train kèm 5 mask</strong> cho phân đoạn, và <strong class="font-semibold text-primary">ISIC 2017 Task 3 với khoảng 2.000 ảnh train</strong> cho 3 lớp bệnh. Ngoài ra, nhóm dùng <strong class="font-semibold text-primary">bộ dữ liệu người Việt</strong> có đặc thù sắc tố da và bệnh lý bản địa, cùng <strong class="font-semibold text-primary">hơn 35.900 ảnh dữ liệu dọc</strong> để kiểm chéo đối chuẩn.”
+                </p>
+                <p class="text-sm leading-relaxed text-pretty text-foreground sm:text-base">
+                  “Ảnh cũng được biến đổi để kiểm tra độ bền trước nhiễu chụp ảnh thực tế.”
+                </p>
+              </div>
+
+              <div class="space-y-2.5 rounded-xl border border-border bg-background p-4 sm:p-5 lg:col-span-4">
+                <p class="text-xs font-semibold tracking-wide text-foreground uppercase">Thao tác &amp; Điểm nhấn trên Slide</p>
+                <p class="text-xs leading-relaxed text-pretty text-muted sm:text-sm">
+                  • Đọc rõ 2 số liệu: 2.594 ảnh (ISIC 2018) và khoảng 2.000 ảnh (ISIC 2017).
+                </p>
+                <p class="text-xs leading-relaxed text-pretty text-muted sm:text-sm">
+                  • Chỉ vào minh họa biến đổi ảnh bên phải.
+                </p>
+                <p class="text-xs leading-relaxed text-pretty text-muted sm:text-sm">
+                  • Đúng giây 02:20: Bấm phím → sang Trang 05.
+                </p>
+              </div>
+            </div>
+          </article>
+        </div>
+
+        <!-- ==================== PHẦN III · KIẾN TRÚC & SO SÁNH PHƯƠNG ÁN ==================== -->
+        <div class="space-y-6">
+          <div class="flex items-center justify-between gap-2 border-b border-border pb-2">
+            <h2 class="text-base font-semibold text-balance text-foreground sm:text-lg">
+              Phần III · Kiến trúc & So sánh phương án (02:20 – 03:35)
+            </h2>
+            <span class="font-mono text-xs whitespace-nowrap text-muted tabular-nums">Trang 05–06</span>
+          </div>
+
+          <!-- SLIDE 05 -->
+          <article id="script-s5" class="scroll-mt-24 rounded-2xl border border-border bg-surface p-5 sm:p-6">
+            <div class="flex flex-col gap-2 border-b border-border pb-3.5 sm:flex-row sm:items-center sm:justify-between">
+              <div class="flex flex-wrap items-center gap-2.5">
+                <span class="inline-flex items-center rounded-full bg-primary-light px-3 py-1 font-mono text-xs font-semibold whitespace-nowrap text-primary tabular-nums">
+                  Trang 05 / 09
+                </span>
+                <h3 class="text-base font-semibold text-balance text-foreground sm:text-lg">
+                  Slide 05 · Kiến trúc mô hình đề xuất
+                </h3>
+              </div>
+              <span class="inline-flex self-start rounded-lg bg-background px-3 py-1 font-mono text-xs font-semibold whitespace-nowrap text-foreground tabular-nums sm:self-center">
+                ⏱ 02:20 – 03:05 (45 giây)
+              </span>
+            </div>
+
+            <div class="mt-4 grid grid-cols-1 gap-5 lg:grid-cols-12">
+              <div class="space-y-3 rounded-xl border border-border bg-background p-4 sm:p-5 lg:col-span-8">
+                <p class="text-xs font-semibold tracking-wide text-primary uppercase">Lời thoại nguyên văn</p>
+                <p class="text-sm leading-relaxed text-pretty text-foreground sm:text-base">
+                  “Kiến trúc gồm hai nhánh cùng dùng <strong class="font-semibold text-primary">PanDerm Base ViT-B/16</strong>: nhánh <strong class="font-semibold text-primary">phân đoạn</strong>, tinh chỉnh trên ISIC 2018, và nhánh <strong class="font-semibold text-primary">phân loại</strong>, tinh chỉnh trên ISIC 2017. Từ mặt nạ phân đoạn, nhóm tính <strong class="font-semibold text-primary">tỷ lệ diện tích tương đối aₜ</strong>, cùng độ tròn và độ lệch tâm của tổn thương.”
+                </p>
+                <p class="text-sm leading-relaxed text-pretty text-foreground sm:text-base">
+                  “Ba xác suất nhóm bệnh tham chiếu được ghép với <strong class="font-semibold text-primary">khoảng cách Δt đến lần tái khám</strong> thành một vector đặc trưng. Cuối cùng, <strong class="font-semibold text-primary">hồi quy Ridge một bước</strong> dự báo biến thiên diện tích Δâₜ, và kết quả hiển thị realtime trên máy quét.”
+                </p>
+              </div>
+
+              <div class="space-y-2.5 rounded-xl border border-border bg-background p-4 sm:p-5 lg:col-span-4">
+                <p class="text-xs font-semibold tracking-wide text-foreground uppercase">Thao tác &amp; Điểm nhấn trên Slide</p>
+                <p class="text-xs leading-relaxed text-pretty text-muted sm:text-sm">
+                  • Chỉ theo chiều luồng: Ảnh → Phân đoạn → Đặc trưng → Ridge → Hiển thị.
+                </p>
+                <p class="text-xs leading-relaxed text-pretty text-muted sm:text-sm">
+                  • Nhấn mạnh: xác suất nhóm bệnh là tham khảo, không phải chẩn đoán.
+                </p>
+                <p class="text-xs leading-relaxed text-pretty text-muted sm:text-sm">
+                  • Lưu ý khi được hỏi: Δa là đơn vị pixel, không phải milimét.
+                </p>
+                <p class="text-xs leading-relaxed text-pretty text-muted sm:text-sm">
+                  • Đúng giây 03:05: Bấm phím → sang Trang 06.
+                </p>
+              </div>
+            </div>
+          </article>
+
+          <!-- SLIDE 06 -->
+          <article id="script-s6" class="scroll-mt-24 rounded-2xl border border-border bg-surface p-5 sm:p-6">
+            <div class="flex flex-col gap-2 border-b border-border pb-3.5 sm:flex-row sm:items-center sm:justify-between">
+              <div class="flex flex-wrap items-center gap-2.5">
+                <span class="inline-flex items-center rounded-full bg-primary-light px-3 py-1 font-mono text-xs font-semibold whitespace-nowrap text-primary tabular-nums">
+                  Trang 06 / 09
+                </span>
+                <h3 class="text-base font-semibold text-balance text-foreground sm:text-lg">
+                  Slide 06 · So sánh phương pháp & thuật toán
+                </h3>
+              </div>
+              <span class="inline-flex self-start rounded-lg bg-background px-3 py-1 font-mono text-xs font-semibold whitespace-nowrap text-foreground tabular-nums sm:self-center">
+                ⏱ 03:05 – 03:35 (30 giây)
+              </span>
+            </div>
+
+            <div class="mt-4 grid grid-cols-1 gap-5 lg:grid-cols-12">
+              <div class="space-y-3 rounded-xl border border-border bg-background p-4 sm:p-5 lg:col-span-8">
+                <p class="text-xs font-semibold tracking-wide text-primary uppercase">Lời thoại nguyên văn</p>
+                <p class="text-sm leading-relaxed text-pretty text-foreground sm:text-base">
+                  “Các lựa chọn đều có lý do. Nhóm chọn <strong class="font-semibold text-primary">PanDerm Base</strong> thay cho PanDerm-Large do <strong class="font-semibold text-primary">giới hạn tài nguyên huấn luyện</strong>. Với dự báo, nhóm chọn <strong class="font-semibold text-primary">Ridge một bước</strong> thay vì GRU, vì mục tiêu chỉ là một bước dự báo, chuỗi ngắn và khoảng cách Δt không đều.”
+                </p>
+                <p class="text-sm leading-relaxed text-pretty text-foreground sm:text-base">
+                  “Mốc đối chứng là <strong class="font-semibold text-primary">giữ nguyên diện tích, Δa = 0</strong>, để đo sai số so với việc không đổi.”
+                </p>
+              </div>
+
+              <div class="space-y-2.5 rounded-xl border border-border bg-background p-4 sm:p-5 lg:col-span-4">
+                <p class="text-xs font-semibold tracking-wide text-foreground uppercase">Thao tác &amp; Điểm nhấn trên Slide</p>
+                <p class="text-xs leading-relaxed text-pretty text-muted sm:text-sm">
+                  • Chỉ vào cột “Đề tài chọn” và cột “Lý do”.
+                </p>
+                <p class="text-xs leading-relaxed text-pretty text-muted sm:text-sm">
+                  • Lưu ý: so sánh chỉ với các phương án đã cân nhắc trong đề cương.
+                </p>
+                <p class="text-xs leading-relaxed text-pretty text-muted sm:text-sm">
+                  • Đúng giây 03:35: Bấm phím → sang Trang 07.
+                </p>
+              </div>
+            </div>
+          </article>
+        </div>
+
+        <!-- ==================== PHẦN IV · KẾT QUẢ, KẾ HOẠCH & LỜI KẾT ==================== -->
+        <div class="space-y-6">
+          <div class="flex items-center justify-between gap-2 border-b border-border pb-2">
+            <h2 class="text-base font-semibold text-balance text-foreground sm:text-lg">
+              Phần IV · Kết quả, Kế hoạch & Lời kết (03:35 – 05:00)
+            </h2>
+            <span class="font-mono text-xs whitespace-nowrap text-muted tabular-nums">Trang 07–09</span>
+          </div>
+
+          <!-- SLIDE 07 -->
+          <article id="script-s7" class="scroll-mt-24 rounded-2xl border border-border bg-surface p-5 sm:p-6">
+            <div class="flex flex-col gap-2 border-b border-border pb-3.5 sm:flex-row sm:items-center sm:justify-between">
+              <div class="flex flex-wrap items-center gap-2.5">
+                <span class="inline-flex items-center rounded-full bg-primary-light px-3 py-1 font-mono text-xs font-semibold whitespace-nowrap text-primary tabular-nums">
+                  Trang 07 / 09
+                </span>
+                <h3 class="text-base font-semibold text-balance text-foreground sm:text-lg">
+                  Slide 07 · Kết quả dự kiến & Thực tiễn
+                </h3>
+              </div>
+              <span class="inline-flex self-start rounded-lg bg-background px-3 py-1 font-mono text-xs font-semibold whitespace-nowrap text-foreground tabular-nums sm:self-center">
+                ⏱ 03:35 – 04:15 (40 giây)
+              </span>
+            </div>
+
+            <div class="mt-4 grid grid-cols-1 gap-5 lg:grid-cols-12">
+              <div class="space-y-3 rounded-xl border border-border bg-background p-4 sm:p-5 lg:col-span-8">
+                <p class="text-xs font-semibold tracking-wide text-primary uppercase">Lời thoại nguyên văn</p>
+                <p class="text-sm leading-relaxed text-pretty text-foreground sm:text-base">
+                  “Các chỉ tiêu dự kiến gồm bốn nhóm. Về phân đoạn: <strong class="font-semibold text-primary">Dice và IoU</strong>. Về nhóm bệnh tham khảo: <strong class="font-semibold text-primary">Macro-F1 và AUROC</strong>. Về realtime, mục tiêu là <strong class="font-semibold text-primary">FPS từ 15 trở lên</strong> và <strong class="font-semibold text-primary">độ trễ dưới 100 ms</strong>. Về độ bền, nhóm đo <strong class="font-semibold text-primary">mức sụt giảm Dice</strong> khi điều kiện chụp thay đổi.”
+                </p>
+                <p class="text-sm leading-relaxed text-pretty text-foreground sm:text-base">
+                  “Hệ thống cũng <strong class="font-semibold text-primary">tự cảnh báo ảnh nhòe, lệch trắng hoặc sai góc quét</strong> để người dùng quét lại. Giá trị thực tiễn là <strong class="font-semibold text-primary">hỗ trợ bác sĩ sàng lọc ban đầu</strong>.”
+                </p>
+              </div>
+
+              <div class="space-y-2.5 rounded-xl border border-border bg-background p-4 sm:p-5 lg:col-span-4">
+                <p class="text-xs font-semibold tracking-wide text-foreground uppercase">Thao tác &amp; Điểm nhấn trên Slide</p>
+                <p class="text-xs leading-relaxed text-pretty text-muted sm:text-sm">
+                  • Các con số FPS và độ trễ là mục tiêu, chưa phải kết quả đo.
+                </p>
+                <p class="text-xs leading-relaxed text-pretty text-muted sm:text-sm">
+                  • Chỉ vào hình máy quét và màn hình hiển thị realtime.
+                </p>
+                <p class="text-xs leading-relaxed text-pretty text-muted sm:text-sm">
+                  • Đúng giây 04:15: Bấm phím → sang Trang 08.
+                </p>
+              </div>
+            </div>
+          </article>
+
+          <!-- SLIDE 08 -->
+          <article id="script-s8" class="scroll-mt-24 rounded-2xl border border-border bg-surface p-5 sm:p-6">
+            <div class="flex flex-col gap-2 border-b border-border pb-3.5 sm:flex-row sm:items-center sm:justify-between">
+              <div class="flex flex-wrap items-center gap-2.5">
+                <span class="inline-flex items-center rounded-full bg-primary-light px-3 py-1 font-mono text-xs font-semibold whitespace-nowrap text-primary tabular-nums">
+                  Trang 08 / 09
+                </span>
+                <h3 class="text-base font-semibold text-balance text-foreground sm:text-lg">
+                  Slide 08 · Kế hoạch 14 tuần & Tiến độ
+                </h3>
+              </div>
+              <span class="inline-flex self-start rounded-lg bg-background px-3 py-1 font-mono text-xs font-semibold whitespace-nowrap text-foreground tabular-nums sm:self-center">
+                ⏱ 04:15 – 04:45 (30 giây)
+              </span>
+            </div>
+
+            <div class="mt-4 grid grid-cols-1 gap-5 lg:grid-cols-12">
+              <div class="space-y-3 rounded-xl border border-border bg-background p-4 sm:p-5 lg:col-span-8">
+                <p class="text-xs font-semibold tracking-wide text-primary uppercase">Lời thoại nguyên văn</p>
+                <p class="text-sm leading-relaxed text-pretty text-foreground sm:text-base">
+                  “Kế hoạch gồm <strong class="font-semibold text-primary">14 tuần</strong>, chia thành các giai đoạn: khóa protocol và chuẩn bị máy quét ở tuần 1–2, thu thập và chuẩn hóa dữ liệu ở tuần 2–3, tinh chỉnh và huấn luyện mô hình ở tuần 4–6, tích hợp máy quét realtime ở tuần 7–9, rồi đo độ bền, dựng demo và viết báo cáo ở tuần 10–14.”
+                </p>
+                <p class="text-sm leading-relaxed text-pretty text-foreground sm:text-base">
+                  “Theo báo cáo tiến độ, <strong class="font-semibold text-primary">Phase 1 đến Phase 3 đã đạt 100%</strong>.”
+                </p>
+              </div>
+
+              <div class="space-y-2.5 rounded-xl border border-border bg-background p-4 sm:p-5 lg:col-span-4">
+                <p class="text-xs font-semibold tracking-wide text-foreground uppercase">Thao tác &amp; Điểm nhấn trên Slide</p>
+                <p class="text-xs leading-relaxed text-pretty text-muted sm:text-sm">
+                  • Chỉ vào biểu đồ Gantt, mốc T1 đến T14.
+                </p>
+                <p class="text-xs leading-relaxed text-pretty text-muted sm:text-sm">
+                  • Điểm nhấn: Phase 1 đến Phase 3 đạt 100%.
+                </p>
+                <p class="text-xs leading-relaxed text-pretty text-muted sm:text-sm">
+                  • Đúng giây 04:45: Bấm phím → sang Trang 09.
+                </p>
+              </div>
+            </div>
+          </article>
+
+          <!-- SLIDE 09 -->
+          <article id="script-s9" class="scroll-mt-24 rounded-2xl border border-border bg-surface p-5 sm:p-6">
+            <div class="flex flex-col gap-2 border-b border-border pb-3.5 sm:flex-row sm:items-center sm:justify-between">
+              <div class="flex flex-wrap items-center gap-2.5">
+                <span class="inline-flex items-center rounded-full bg-primary-light px-3 py-1 font-mono text-xs font-semibold whitespace-nowrap text-primary tabular-nums">
+                  Trang 09 / 09
+                </span>
+                <h3 class="text-base font-semibold text-balance text-foreground sm:text-lg">
+                  Slide 09 · Lời cảm ơn
+                </h3>
+              </div>
+              <span class="inline-flex self-start rounded-lg bg-background px-3 py-1 font-mono text-xs font-semibold whitespace-nowrap text-foreground tabular-nums sm:self-center">
+                ⏱ 04:45 – 05:00 (15 giây)
+              </span>
+            </div>
+
+            <div class="mt-4 grid grid-cols-1 gap-5 lg:grid-cols-12">
+              <div class="space-y-3 rounded-xl border border-border bg-background p-4 sm:p-5 lg:col-span-8">
+                <p class="text-xs font-semibold tracking-wide text-primary uppercase">Lời thoại nguyên văn</p>
+                <p class="text-sm leading-relaxed text-pretty text-foreground sm:text-base">
+                  “Tóm lại, đề tài kết hợp PanDerm, hồi quy Ridge và máy quét da để hỗ trợ sàng lọc tổn thương da. Nhóm xin chân thành cảm ơn Quý Thầy Cô đã lắng nghe, và rất mong nhận được ý kiến đóng góp để hoàn thiện đề tài ạ!”
+                </p>
+              </div>
+
+              <div class="space-y-2.5 rounded-xl border border-border bg-background p-4 sm:p-5 lg:col-span-4">
+                <p class="text-xs font-semibold tracking-wide text-foreground uppercase">Thao tác &amp; Điểm nhấn trên Slide</p>
+                <p class="text-xs leading-relaxed text-pretty text-muted sm:text-sm">
+                  • Cúi chào Hội đồng ở giây 05:00, giữ màn hình Trang 09 để bước vào Hỏi – Đáp.
+                </p>
+              </div>
+            </div>
+          </article>
+        </div>
+
+      </div>
+
+      <!-- ==================== CHẾ ĐỘ 2: TELEPROMPTER TỪNG SLIDE (CỠ CHỮ LỚN) ==================== -->
+      <section
+        id="view-tele-container"
+        aria-label="Chế độ Teleprompter từng Slide"
+        class="hidden rounded-2xl border border-border bg-surface p-5 sm:p-8 lg:p-10"
+      >
+        <!-- Thanh điều hướng Teleprompter -->
+        <div class="flex flex-col gap-3 border-b border-border pb-4 sm:flex-row sm:items-center sm:justify-between">
+          <div class="flex flex-wrap items-center gap-2.5">
+            <span
+              id="tele-page-badge"
+              class="inline-flex items-center rounded-lg bg-primary px-3.5 py-1.5 font-mono text-xs font-semibold whitespace-nowrap text-primary-foreground tabular-nums sm:text-sm"
+            >
+              Trang 01 / 09
+            </span>
+            <span
+              id="tele-time-badge"
+              class="inline-flex items-center rounded-lg bg-primary-light px-3.5 py-1.5 font-mono text-xs font-semibold whitespace-nowrap text-primary tabular-nums sm:text-sm"
+            >
+              ⏱ 00:00 – 00:30 (30 giây)
+            </span>
+          </div>
+
+          <div class="flex items-center gap-2">
+            <button
+              id="btn-tele-prev"
+              type="button"
+              class="inline-flex min-h-10 cursor-pointer items-center justify-center rounded-xl border border-border bg-background px-4 py-2 text-xs font-semibold whitespace-nowrap text-foreground transition-colors hover:bg-primary-light sm:text-sm"
+            >
+              ← Slide trước
+            </button>
+            <button
+              id="btn-tele-next"
+              type="button"
+              class="inline-flex min-h-10 cursor-pointer items-center justify-center rounded-xl bg-primary px-4 py-2 text-xs font-semibold whitespace-nowrap text-primary-foreground transition-colors hover:bg-primary-hover sm:text-sm"
+            >
+              Slide tiếp theo →
+            </button>
+          </div>
+        </div>
+
+        <!-- Nội dung Teleprompter cỡ lớn -->
+        <div class="mt-6 space-y-6">
+          <h2 id="tele-title" class="text-xl font-bold text-balance text-foreground sm:text-2xl lg:text-3xl">
+            Slide 01 · Trang bìa Giới thiệu đề tài &amp; Nhóm thực hiện
+          </h2>
+
+          <div
+            id="tele-speech"
+            class="space-y-4 rounded-2xl border border-border bg-background p-6 text-base leading-relaxed text-pretty text-foreground sm:p-8 sm:text-xl lg:text-2xl lg:leading-relaxed"
+          ></div>
+
+          <div class="rounded-2xl border border-border bg-primary-light/50 p-5 sm:p-6">
+            <p class="text-xs font-semibold tracking-wide text-primary uppercase sm:text-sm">
+              Gợi ý thao tác &amp; Điểm nhấn khi đang chiếu Slide này
+            </p>
+            <div id="tele-cues" class="mt-2.5 space-y-2 text-sm text-pretty text-foreground sm:text-base"></div>
+          </div>
+        </div>
+
+        <!-- Chân trang Teleprompter: Phím số 1-9 -->
+        <div class="mt-6 flex flex-col gap-2 border-t border-border pt-4 text-xs text-muted sm:flex-row sm:items-center sm:justify-between sm:text-sm">
+          <span>Mẹo: Dùng phím mũi tên <code class="font-mono text-foreground">←</code> / <code class="font-mono text-foreground">→</code> hoặc phím số <code class="font-mono text-foreground">1</code>–<code class="font-mono text-foreground">9</code> đồng bộ với file trình chiếu.</span>
+          <span id="tele-footer-page" class="font-mono font-semibold whitespace-nowrap text-foreground tabular-nums">Trang 01 / 09</span>
+        </div>
+      </section>
+    </main>
+
+    <script>
+      (function () {
+        const slidesData = [
+          {
+            page: "Trang 01 / 09",
+            timeRange: "⏱ 00:00 – 00:30 (30 giây)",
+            startSec: 0,
+            endSec: 30,
+            title: "Slide 01 · Trang bìa Giới thiệu đề tài & Nhóm thực hiện",
+            speech: [
+              "“Kính chào Quý Thầy Cô trong Hội đồng. Em là <strong class='font-semibold text-primary'>Phạm Văn Sỹ</strong>, chủ nhiệm đề tài, cùng bạn <strong class='font-semibold text-primary'>Nguyễn Thị Vân An</strong> trình bày dưới sự hướng dẫn của <strong class='font-semibold text-primary'>TS. Nguyễn Ngọc Tân</strong>.”",
+              "“Đề tài là <strong class='font-semibold text-primary'>Ứng dụng PanDerm trong phân đoạn tổn thương da, gợi ý nhóm bệnh tham chiếu và dự báo thay đổi tổn thương qua ảnh dermoscopy theo dõi</strong>, thực hiện trong 14 tuần, từ tháng 06 đến tháng 09 năm 2026.”",
+            ],
+            cues: [
+              "• Mở sẵn chế độ toàn màn hình F11 trước khi bắt đầu.",
+              "• Đúng giây 00:30: Bấm phím → sang Trang 02.",
+            ],
+          },
+          {
+            page: "Trang 02 / 09",
+            timeRange: "⏱ 00:30 – 01:10 (40 giây)",
+            startSec: 30,
+            endSec: 70,
+            title: "Slide 02 · Ý tưởng nghiên cứu",
+            speech: [
+              "“Phần lớn công cụ AI da liễu hiện chỉ đánh giá <strong class='font-semibold text-primary'>một ảnh tại một thời điểm</strong>. Trong khi đó, khi theo dõi nốt sắc tố nghi ngờ, điều quan trọng là <strong class='font-semibold text-primary'>tổn thương thay đổi thế nào giữa hai lần khám t và t+1</strong>.”",
+              "“Nhóm kết hợp <strong class='font-semibold text-primary'>mô hình nền tảng PanDerm Base ViT-B/16</strong> để phân đoạn tổn thương với <strong class='font-semibold text-primary'>hồi quy Ridge một bước</strong> để dự báo biến thiên diện tích. Hệ thống kết nối <strong class='font-semibold text-primary'>máy quét da quang học</strong> để hiển thị kết quả theo thời gian thực.”",
+            ],
+            cues: [
+              "• Chỉ theo ba ý: Phân đoạn → Dataset kết hợp → Máy quét realtime.",
+              "• Đúng giây 01:10: Bấm phím → sang Trang 03.",
+            ],
+          },
+          {
+            page: "Trang 03 / 09",
+            timeRange: "⏱ 01:10 – 01:45 (35 giây)",
+            startSec: 70,
+            endSec: 105,
+            title: "Slide 03 · Bốn mục tiêu cụ thể & Phạm vi khoa học",
+            speech: [
+              "“Từ ý tưởng đó, đề tài đặt ra <strong class='font-semibold text-primary'>bốn mục tiêu</strong>. Thứ nhất, xây dựng bộ dữ liệu da liễu phù hợp đặc điểm người Việt, Thứ hai, huấn luyện mô hình AI phân đoạn và dự đoán bệnh da. Thứ ba, tích hợp <strong class='font-semibold text-primary'>máy quét da cầm tay</strong> để hiển thị kết quả theo thời gian thực. Thứ tư, kiểm thử độ bền trước nhiễu sáng và góc quét, rồi dựng demo thực nghiệm.”",
+              "“Về phạm vi, hệ thống <strong class='font-semibold text-primary'>chỉ hỗ trợ sàng lọc ban đầu</strong> và <strong class='font-semibold text-primary'>không thay thế chẩn đoán y khoa</strong> của bác sĩ.”",
+            ],
+            cues: [
+              "• Đếm nhanh 4 mục tiêu 01–04 bên trái.",
+              "• Nhấn mạnh câu “không thay thế chẩn đoán” khi nói về phạm vi.",
+              "• Đúng giây 01:45: Bấm phím → sang Trang 04.",
+            ],
+          },
+          {
+            page: "Trang 04 / 09",
+            timeRange: "⏱ 01:45 – 02:20 (35 giây)",
+            startSec: 105,
+            endSec: 140,
+            title: "Slide 04 · Dữ liệu & Biến đổi ảnh",
+            speech: [
+              "“Về dữ liệu, nhóm sử dụng <strong class='font-semibold text-primary'>ISIC 2018 Task 1 với 2.594 ảnh train kèm 5 mask</strong> cho phân đoạn, và <strong class='font-semibold text-primary'>ISIC 2017 Task 3 với khoảng 2.000 ảnh train</strong> cho 3 lớp bệnh. Ngoài ra, nhóm dùng <strong class='font-semibold text-primary'>bộ dữ liệu người Việt</strong> có đặc thù sắc tố da và bệnh lý bản địa, cùng <strong class='font-semibold text-primary'>hơn 35.900 ảnh dữ liệu dọc</strong> để kiểm chéo đối chuẩn.”",
+              "“Ảnh cũng được biến đổi để kiểm tra độ bền trước nhiễu chụp ảnh thực tế.”",
+            ],
+            cues: [
+              "• Đọc rõ 2 số liệu: 2.594 ảnh (ISIC 2018) và khoảng 2.000 ảnh (ISIC 2017).",
+              "• Chỉ vào minh họa biến đổi ảnh bên phải.",
+              "• Đúng giây 02:20: Bấm phím → sang Trang 05.",
+            ],
+          },
+          {
+            page: "Trang 05 / 09",
+            timeRange: "⏱ 02:20 – 03:05 (45 giây)",
+            startSec: 140,
+            endSec: 185,
+            title: "Slide 05 · Kiến trúc mô hình đề xuất",
+            speech: [
+              "“Kiến trúc gồm hai nhánh cùng dùng <strong class='font-semibold text-primary'>PanDerm Base ViT-B/16</strong>: nhánh <strong class='font-semibold text-primary'>phân đoạn</strong>, tinh chỉnh trên ISIC 2018, và nhánh <strong class='font-semibold text-primary'>phân loại</strong>, tinh chỉnh trên ISIC 2017. Từ mặt nạ phân đoạn, nhóm tính <strong class='font-semibold text-primary'>tỷ lệ diện tích tương đối aₜ</strong>, cùng độ tròn và độ lệch tâm của tổn thương.”",
+              "“Ba xác suất nhóm bệnh tham chiếu được ghép với <strong class='font-semibold text-primary'>khoảng cách Δt đến lần tái khám</strong> thành một vector đặc trưng. Cuối cùng, <strong class='font-semibold text-primary'>hồi quy Ridge một bước</strong> dự báo biến thiên diện tích Δâₜ, và kết quả hiển thị realtime trên máy quét.”",
+            ],
+            cues: [
+              "• Chỉ theo chiều luồng: Ảnh → Phân đoạn → Đặc trưng → Ridge → Hiển thị.",
+              "• Nhấn mạnh: xác suất nhóm bệnh là tham khảo, không phải chẩn đoán.",
+              "• Lưu ý khi được hỏi: Δa là đơn vị pixel, không phải milimét.",
+              "• Đúng giây 03:05: Bấm phím → sang Trang 06.",
+            ],
+          },
+          {
+            page: "Trang 06 / 09",
+            timeRange: "⏱ 03:05 – 03:35 (30 giây)",
+            startSec: 185,
+            endSec: 215,
+            title: "Slide 06 · So sánh phương pháp & thuật toán",
+            speech: [
+              "“Các lựa chọn đều có lý do. Nhóm chọn <strong class='font-semibold text-primary'>PanDerm Base</strong> thay cho PanDerm-Large do <strong class='font-semibold text-primary'>giới hạn tài nguyên huấn luyện</strong>. Với dự báo, nhóm chọn <strong class='font-semibold text-primary'>Ridge một bước</strong> thay vì GRU, vì mục tiêu chỉ là một bước dự báo, chuỗi ngắn và khoảng cách Δt không đều.”",
+              "“Mốc đối chứng là <strong class='font-semibold text-primary'>giữ nguyên diện tích, Δa = 0</strong>, để đo sai số so với việc không đổi.”",
+            ],
+            cues: [
+              "• Chỉ vào cột “Đề tài chọn” và cột “Lý do”.",
+              "• Lưu ý: so sánh chỉ với các phương án đã cân nhắc trong đề cương.",
+              "• Đúng giây 03:35: Bấm phím → sang Trang 07.",
+            ],
+          },
+          {
+            page: "Trang 07 / 09",
+            timeRange: "⏱ 03:35 – 04:15 (40 giây)",
+            startSec: 215,
+            endSec: 255,
+            title: "Slide 07 · Kết quả dự kiến & Thực tiễn",
+            speech: [
+              "“Các chỉ tiêu dự kiến gồm bốn nhóm. Về phân đoạn: <strong class='font-semibold text-primary'>Dice và IoU</strong>. Về nhóm bệnh tham khảo: <strong class='font-semibold text-primary'>Macro-F1 và AUROC</strong>. Về realtime, mục tiêu là <strong class='font-semibold text-primary'>FPS từ 15 trở lên</strong> và <strong class='font-semibold text-primary'>độ trễ dưới 100 ms</strong>. Về độ bền, nhóm đo <strong class='font-semibold text-primary'>mức sụt giảm Dice</strong> khi điều kiện chụp thay đổi.”",
+              "“Hệ thống cũng <strong class='font-semibold text-primary'>tự cảnh báo ảnh nhòe, lệch trắng hoặc sai góc quét</strong> để người dùng quét lại. Giá trị thực tiễn là <strong class='font-semibold text-primary'>hỗ trợ bác sĩ sàng lọc ban đầu</strong>.”",
+            ],
+            cues: [
+              "• Các con số FPS và độ trễ là mục tiêu, chưa phải kết quả đo.",
+              "• Chỉ vào hình máy quét và màn hình hiển thị realtime.",
+              "• Đúng giây 04:15: Bấm phím → sang Trang 08.",
+            ],
+          },
+          {
+            page: "Trang 08 / 09",
+            timeRange: "⏱ 04:15 – 04:45 (30 giây)",
+            startSec: 255,
+            endSec: 285,
+            title: "Slide 08 · Kế hoạch 14 tuần & Tiến độ",
+            speech: [
+              "“Kế hoạch gồm <strong class='font-semibold text-primary'>14 tuần</strong>, chia thành các giai đoạn: khóa protocol và chuẩn bị máy quét ở tuần 1–2, thu thập và chuẩn hóa dữ liệu ở tuần 2–3, tinh chỉnh và huấn luyện mô hình ở tuần 4–6, tích hợp máy quét realtime ở tuần 7–9, rồi đo độ bền, dựng demo và viết báo cáo ở tuần 10–14.”",
+              "“Theo báo cáo tiến độ, <strong class='font-semibold text-primary'>Phase 1 đến Phase 3 đã đạt 100%</strong>.”",
+            ],
+            cues: [
+              "• Chỉ vào biểu đồ Gantt, mốc T1 đến T14.",
+              "• Điểm nhấn: Phase 1 đến Phase 3 đạt 100%.",
+              "• Đúng giây 04:45: Bấm phím → sang Trang 09.",
+            ],
+          },
+          {
+            page: "Trang 09 / 09",
+            timeRange: "⏱ 04:45 – 05:00 (15 giây)",
+            startSec: 285,
+            endSec: 300,
+            title: "Slide 09 · Lời cảm ơn",
+            speech: [
+              "“Tóm lại, đề tài kết hợp PanDerm, hồi quy Ridge và máy quét da để hỗ trợ sàng lọc tổn thương da. Nhóm xin chân thành cảm ơn Quý Thầy Cô đã lắng nghe, và rất mong nhận được ý kiến đóng góp để hoàn thiện đề tài ạ!”",
+            ],
+            cues: [
+              "• Cúi chào Hội đồng ở giây 05:00, giữ màn hình Trang 09 để bước vào Hỏi – Đáp.",
+            ],
+          },
+        ];
+
+        let isTeleMode = false;
+        let currentIndex = 0;
+
+        const viewAllContainer = document.getElementById("view-all-container");
+        const viewTeleContainer = document.getElementById("view-tele-container");
+        const btnModeAll = document.getElementById("btn-mode-all");
+        const btnModeTele = document.getElementById("btn-mode-tele");
+
+        const telePageBadge = document.getElementById("tele-page-badge");
+        const teleTimeBadge = document.getElementById("tele-time-badge");
+        const teleTitle = document.getElementById("tele-title");
+        const teleSpeech = document.getElementById("tele-speech");
+        const teleCues = document.getElementById("tele-cues");
+        const teleFooterPage = document.getElementById("tele-footer-page");
+        const btnTelePrev = document.getElementById("btn-tele-prev");
+        const btnTeleNext = document.getElementById("btn-tele-next");
+
+        function renderTeleSlide(index) {
+          if (index < 0 || index >= slidesData.length) return;
+          currentIndex = index;
+          const item = slidesData[currentIndex];
+          telePageBadge.textContent = item.page;
+          teleTimeBadge.textContent = item.timeRange;
+          teleTitle.textContent = item.title;
+          teleSpeech.innerHTML = item.speech.map((p) => `<p>${p}</p>`).join("");
+          teleCues.innerHTML = item.cues.map((c) => `<p>${c}</p>`).join("");
+          teleFooterPage.textContent = item.page;
+        }
+
+        function setMode(tele) {
+          isTeleMode = tele;
+          if (isTeleMode) {
+            viewAllContainer.classList.add("hidden");
+            viewTeleContainer.classList.remove("hidden");
+            btnModeTele.className =
+              "inline-flex min-h-9 cursor-pointer items-center justify-center rounded-lg bg-primary px-3 py-1.5 text-xs font-semibold whitespace-nowrap text-primary-foreground transition-colors hover:bg-primary-hover";
+            btnModeAll.className =
+              "inline-flex min-h-9 cursor-pointer items-center justify-center rounded-lg border border-border bg-surface px-3 py-1.5 text-xs font-medium whitespace-nowrap text-foreground transition-colors hover:bg-primary-light";
+            renderTeleSlide(currentIndex);
+            window.scrollTo({ top: 0, behavior: "smooth" });
+          } else {
+            viewTeleContainer.classList.add("hidden");
+            viewAllContainer.classList.remove("hidden");
+            btnModeAll.className =
+              "inline-flex min-h-9 cursor-pointer items-center justify-center rounded-lg bg-primary px-3 py-1.5 text-xs font-semibold whitespace-nowrap text-primary-foreground transition-colors hover:bg-primary-hover";
+            btnModeTele.className =
+              "inline-flex min-h-9 cursor-pointer items-center justify-center rounded-lg border border-border bg-surface px-3 py-1.5 text-xs font-medium whitespace-nowrap text-foreground transition-colors hover:bg-primary-light";
+          }
+        }
+
+        btnModeAll.addEventListener("click", () => setMode(false));
+        btnModeTele.addEventListener("click", () => setMode(true));
+        btnTelePrev.addEventListener("click", () => renderTeleSlide(currentIndex - 1));
+        btnTeleNext.addEventListener("click", () => renderTeleSlide(currentIndex + 1));
+
+        document.addEventListener("keydown", (e) => {
+          if (e.target && ["INPUT", "TEXTAREA", "SELECT"].includes(e.target.tagName)) return;
+          if (e.key === "ArrowRight" || e.key === "PageDown") {
+            if (isTeleMode) {
+              e.preventDefault();
+              renderTeleSlide(currentIndex + 1);
+            }
+          } else if (e.key === "ArrowLeft" || e.key === "PageUp") {
+            if (isTeleMode) {
+              e.preventDefault();
+              renderTeleSlide(currentIndex - 1);
+            }
+          } else if (/^[1-9]$/.test(e.key)) {
+            const idx = Number(e.key) - 1;
+            if (isTeleMode) {
+              e.preventDefault();
+              renderTeleSlide(idx);
+            } else {
+              const target = document.getElementById(`script-s${idx + 1}`);
+              if (target) target.scrollIntoView({ behavior: "smooth", block: "start" });
+            }
+          }
+        });
+
+        let elapsedSeconds = 0;
+        let timerInterval = null;
+        const totalSeconds = 300;
+        const timerDisplay = document.getElementById("timer-display");
+        const timerSlideHint = document.getElementById("timer-slide-hint");
+        const timerProgress = document.getElementById("timer-progress");
+        const btnTimerToggle = document.getElementById("btn-timer-toggle");
+        const btnTimerReset = document.getElementById("btn-timer-reset");
+
+        function formatMMSS(sec) {
+          const m = Math.floor(sec / 60);
+          const s = sec % 60;
+          return `${String(m).padStart(2, "0")}:${String(s).padStart(2, "0")}`;
+        }
+
+        function updateTimerUI() {
+          timerDisplay.textContent = formatMMSS(elapsedSeconds);
+          const pct = Math.min(100, (elapsedSeconds / totalSeconds) * 100);
+          timerProgress.style.width = `${pct}%`;
+
+          const activeSlideIdx = slidesData.findIndex(
+            (s) => elapsedSeconds >= s.startSec && elapsedSeconds < s.endSec
+          );
+          if (elapsedSeconds >= totalSeconds) {
+            timerSlideHint.textContent = "Hết giờ (05:00)";
+            timerSlideHint.className =
+              "inline-flex items-center rounded-md bg-danger-bg px-2 py-1 font-mono text-xs font-semibold whitespace-nowrap text-danger tabular-nums";
+          } else if (activeSlideIdx !== -1) {
+            timerSlideHint.textContent = `Slide ${String(activeSlideIdx + 1).padStart(2, "0")}`;
+            timerSlideHint.className =
+              "inline-flex items-center rounded-md bg-primary-light px-2 py-1 font-mono text-xs font-semibold whitespace-nowrap text-primary tabular-nums";
+          }
+        }
+
+        btnTimerToggle.addEventListener("click", () => {
+          if (timerInterval) {
+            clearInterval(timerInterval);
+            timerInterval = null;
+            btnTimerToggle.textContent = "Tiếp tục";
+          } else {
+            btnTimerToggle.textContent = "Tạm dừng";
+            timerInterval = setInterval(() => {
+              elapsedSeconds += 1;
+              updateTimerUI();
+            }, 1000);
+          }
+        });
+
+        btnTimerReset.addEventListener("click", () => {
+          if (timerInterval) {
+            clearInterval(timerInterval);
+            timerInterval = null;
+          }
+          elapsedSeconds = 0;
+          btnTimerToggle.textContent = "Bắt đầu";
+          updateTimerUI();
+        });
+
+        renderTeleSlide(0);
+        updateTimerUI();
+      })();
+    </script>
+  </body>
+</html>

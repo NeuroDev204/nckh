@@ -1,0 +1,28 @@
+--- a/classification/run_class_finetuning.py
++++ b/classification/run_class_finetuning.py
+@@ -685,6 +685,10 @@
+     max_accuracy = 0.0
+     max_auc = 0.0
+     max_performance = 0.0
++    # Colab co the ngat giua chung: khoi phuc metric tot nhat de checkpoint-best khong bi ghi de boi epoch kem hon.
++    best_metric_path = Path(args.output_dir) / 'best_metric.json'
++    if args.start_epoch > 0 and best_metric_path.is_file():
++        max_performance = json.loads(best_metric_path.read_text())['max_performance']
+     for epoch in range(args.start_epoch, args.epochs):
+         if args.distributed:
+             data_loader_train.sampler.set_epoch(epoch)
+@@ -732,6 +736,14 @@
+                         loss_scaler=loss_scaler, epoch='best', model_ema=model_ema)
+             print(f'Max val mean recall: {max_performance:.2f}%')
+ 
++        if args.output_dir:
++            # Ban goc chi luu checkpoint-best (epoch='best'), khong resume duoc; luu checkpoint so epoch, giu 1 ban moi nhat.
++            best_metric_path.write_text(json.dumps({'max_performance': max_performance}))
++            utils.save_model(
++                args=args, model=model, model_without_ddp=model_without_ddp, optimizer=optimizer,
++                loss_scaler=loss_scaler, epoch=epoch, model_ema=model_ema)
++            (Path(args.output_dir) / f'checkpoint-{epoch - 1}.pth').unlink(missing_ok=True)
++
+         if epoch == (args.epochs - 1):
+             model_weight = args.output_dir + '/' + 'checkpoint-best.pth'
+             model_dict = torch.load(model_weight)

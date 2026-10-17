@@ -1,0 +1,1095 @@
+<!DOCTYPE html>
+<html lang="vi">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Báo cáo tiến độ & Dự định Thứ Tư — Đề tài NCKH PanDerm</title>
+
+  <!-- Reveal.js & FontAwesome CDN -->
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/reveal.js/4.5.0/reveal.min.css">
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/reveal.js/4.5.0/theme/black.min.css" id="theme">
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+
+  <!-- Google Fonts: Inter & JetBrains Mono -->
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800;900&family=JetBrains+Mono:wght@400;600;700;800&display=swap" rel="stylesheet">
+
+  <style>
+    :root {
+      --bg-main: #070d19;
+      --card-bg: rgba(15, 23, 42, 0.85);
+      --card-border: rgba(56, 189, 248, 0.22);
+      --accent-cyan: #38bdf8;
+      --accent-blue: #3b82f6;
+      --accent-green: #10b981;
+      --accent-amber: #f59e0b;
+      --accent-purple: #a855f7;
+      --text-primary: #f8fafc;
+      --text-secondary: #94a3b8;
+      --text-muted: #64748b;
+    }
+
+    * {
+      box-sizing: border-box;
+    }
+
+    body {
+      background: var(--bg-main);
+      font-family: 'Inter', -apple-system, BlinkMacSystemFont, sans-serif;
+      color: var(--text-primary);
+      overflow: hidden;
+      margin: 0;
+      padding: 0;
+    }
+
+    .reveal {
+      font-family: 'Inter', sans-serif;
+      color: var(--text-primary);
+      font-size: 19px;
+    }
+
+    .reveal .slides {
+      text-align: left;
+    }
+
+    /* Ambient background styling */
+    .slide-bg-glow {
+      position: fixed;
+      top: 0;
+      left: 0;
+      right: 0;
+      bottom: 0;
+      background: radial-gradient(circle at 85% 15%, rgba(56, 189, 248, 0.12), transparent 40%),
+                  radial-gradient(circle at 12% 88%, rgba(59, 130, 246, 0.12), transparent 45%),
+                  radial-gradient(circle at 50% 50%, rgba(168, 85, 247, 0.05), transparent 60%);
+      pointer-events: none;
+      z-index: 1;
+    }
+
+    .slide-canvas {
+      position: relative;
+      z-index: 2;
+      width: 1200px;
+      height: 660px;
+      margin: 0 auto;
+      display: flex;
+      flex-direction: column;
+      justify-content: space-between;
+      padding: 10px 0 20px 0;
+    }
+
+    /* Top slide header */
+    .slide-header {
+      display: flex;
+      justify-content: space-between;
+      align-items: flex-end;
+      border-bottom: 1px solid rgba(255, 255, 255, 0.12);
+      padding-bottom: 12px;
+      margin-bottom: 14px;
+    }
+
+    .slide-tag {
+      font-size: 11.5px;
+      text-transform: uppercase;
+      letter-spacing: 2px;
+      font-weight: 700;
+      color: var(--accent-cyan);
+      display: flex;
+      align-items: center;
+      gap: 7px;
+      margin-bottom: 4px;
+    }
+
+    .slide-title {
+      font-size: 27px;
+      font-weight: 800;
+      color: #ffffff;
+      margin: 0;
+      letter-spacing: -0.5px;
+      display: flex;
+      align-items: center;
+      gap: 12px;
+    }
+
+    .slide-badge {
+      background: rgba(56, 189, 248, 0.14);
+      border: 1px solid var(--accent-cyan);
+      color: var(--accent-cyan);
+      font-size: 11.5px;
+      font-weight: 700;
+      padding: 4px 12px;
+      border-radius: 999px;
+      letter-spacing: 0.5px;
+      display: inline-flex;
+      align-items: center;
+      gap: 6px;
+    }
+
+    .badge-success {
+      background: rgba(16, 185, 129, 0.15);
+      border-color: var(--accent-green);
+      color: var(--accent-green);
+    }
+
+    .badge-warning {
+      background: rgba(245, 158, 11, 0.15);
+      border-color: var(--accent-amber);
+      color: var(--accent-amber);
+    }
+
+    /* Grids */
+    .grid-2 {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 18px;
+    }
+
+    .grid-3 {
+      display: grid;
+      grid-template-columns: repeat(3, 1fr);
+      gap: 16px;
+    }
+
+    .grid-4 {
+      display: grid;
+      grid-template-columns: repeat(4, 1fr);
+      gap: 14px;
+    }
+
+    .grid-left-wide {
+      display: grid;
+      grid-template-columns: 1.35fr 1fr;
+      gap: 18px;
+    }
+
+    /* Cards */
+    .card {
+      background: var(--card-bg);
+      border: 1px solid var(--card-border);
+      border-radius: 12px;
+      padding: 16px 20px;
+      backdrop-filter: blur(14px);
+      box-shadow: 0 8px 24px rgba(0, 0, 0, 0.4);
+      display: flex;
+      flex-direction: column;
+      position: relative;
+    }
+
+    .card:hover {
+      border-color: rgba(56, 189, 248, 0.45);
+    }
+
+    .card-title {
+      font-size: 15px;
+      font-weight: 700;
+      color: #f1f5f9;
+      margin-bottom: 12px;
+      display: flex;
+      align-items: center;
+      gap: 8px;
+    }
+
+    .card-title i {
+      color: var(--accent-cyan);
+    }
+
+    /* Metric counter widget */
+    .metric-box {
+      background: linear-gradient(135deg, rgba(30, 41, 59, 0.85), rgba(15, 23, 42, 0.95));
+      border: 1px solid rgba(255, 255, 255, 0.12);
+      border-radius: 10px;
+      padding: 12px 14px;
+      text-align: center;
+      box-shadow: 0 4px 14px rgba(0, 0, 0, 0.25);
+    }
+
+    .metric-value {
+      font-size: 26px;
+      font-weight: 900;
+      color: var(--accent-cyan);
+      line-height: 1.1;
+      font-family: 'JetBrains Mono', monospace;
+    }
+
+    .metric-label {
+      font-size: 11px;
+      font-weight: 700;
+      color: var(--text-secondary);
+      margin-top: 5px;
+      text-transform: uppercase;
+      letter-spacing: 0.5px;
+    }
+
+    /* Compact bullet points */
+    .compact-list {
+      list-style: none;
+      padding: 0;
+      margin: 0;
+      display: flex;
+      flex-direction: column;
+      gap: 9px;
+    }
+
+    .compact-list li {
+      display: flex;
+      align-items: flex-start;
+      gap: 8px;
+      font-size: 14px;
+      line-height: 1.45;
+      color: #cbd5e1;
+    }
+
+    .compact-list li i {
+      margin-top: 3px;
+      font-size: 13px;
+      flex-shrink: 0;
+    }
+
+    .compact-list li strong {
+      color: #ffffff;
+      font-weight: 700;
+    }
+
+    /* Status Pills */
+    .status-pill {
+      display: inline-flex;
+      align-items: center;
+      gap: 5px;
+      padding: 3px 8px;
+      border-radius: 6px;
+      font-size: 11px;
+      font-weight: 700;
+      font-family: 'JetBrains Mono', monospace;
+      letter-spacing: 0.3px;
+    }
+
+    .status-done {
+      background: rgba(16, 185, 129, 0.2);
+      color: #34d399;
+      border: 1px solid rgba(16, 185, 129, 0.45);
+    }
+
+    .status-ready {
+      background: rgba(56, 189, 248, 0.2);
+      color: #38bdf8;
+      border: 1px solid rgba(56, 189, 248, 0.45);
+    }
+
+    .status-planned {
+      background: rgba(245, 158, 11, 0.2);
+      color: #fbbf24;
+      border: 1px solid rgba(245, 158, 11, 0.45);
+    }
+
+    /* Image frame */
+    .image-frame {
+      border-radius: 12px;
+      overflow: hidden;
+      border: 1px solid rgba(255, 255, 255, 0.16);
+      background: #090e1a;
+      box-shadow: 0 12px 28px rgba(0, 0, 0, 0.55);
+      position: relative;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+    }
+
+    .image-frame img {
+      width: 100%;
+      height: 100%;
+      display: block;
+      object-fit: contain;
+    }
+
+    .image-caption {
+      position: absolute;
+      bottom: 0;
+      left: 0;
+      right: 0;
+      background: rgba(8, 14, 26, 0.92);
+      font-size: 11.5px;
+      font-weight: 600;
+      color: #cbd5e1;
+      padding: 6px 12px;
+      display: flex;
+      justify-content: space-between;
+      backdrop-filter: blur(6px);
+      border-top: 1px solid rgba(255, 255, 255, 0.1);
+    }
+
+    /* Callout & highlight box */
+    .callout-box {
+      border-left: 3px solid var(--accent-cyan);
+      background: rgba(56, 189, 248, 0.08);
+      padding: 10px 14px;
+      border-radius: 0 8px 8px 0;
+      font-size: 13px;
+      color: #e2e8f0;
+      line-height: 1.45;
+    }
+
+    /* Table styling */
+    .table-compact {
+      width: 100%;
+      border-collapse: collapse;
+      font-size: 12.5px;
+    }
+
+    .table-compact th {
+      background: rgba(30, 41, 59, 0.95);
+      color: #94a3b8;
+      font-weight: 700;
+      padding: 8px 10px;
+      border-bottom: 1px solid rgba(255, 255, 255, 0.18);
+      text-align: left;
+    }
+
+    .table-compact td {
+      padding: 8px 10px;
+      border-bottom: 1px solid rgba(255, 255, 255, 0.07);
+      color: #cbd5e1;
+    }
+
+    .table-compact tr:hover td {
+      background: rgba(255, 255, 255, 0.035);
+    }
+
+    /* Hero Cover Slide Styles */
+    .hero-container {
+      display: flex;
+      flex-direction: column;
+      justify-content: center;
+      height: 640px;
+      max-width: 1140px;
+      margin: 0 auto;
+    }
+
+    .title-banner {
+      display: inline-flex;
+      align-items: center;
+      gap: 8px;
+      background: rgba(56, 189, 248, 0.12);
+      border: 1px solid rgba(56, 189, 248, 0.35);
+      padding: 6px 16px;
+      border-radius: 999px;
+      font-size: 12.5px;
+      font-weight: 800;
+      color: var(--accent-cyan);
+      letter-spacing: 1.2px;
+      margin-bottom: 14px;
+      width: fit-content;
+    }
+
+    .hero-title {
+      font-size: 38px !important;
+      font-weight: 900 !important;
+      line-height: 1.25 !important;
+      color: #ffffff !important;
+      margin-bottom: 14px !important;
+      letter-spacing: -0.8px;
+    }
+
+    .hero-title span {
+      background: linear-gradient(90deg, #38bdf8, #818cf8);
+      -webkit-background-clip: text;
+      -webkit-text-fill-color: transparent;
+    }
+
+    .hero-subtitle {
+      font-size: 17px;
+      color: #94a3b8;
+      margin-bottom: 26px;
+      font-weight: 500;
+      line-height: 1.5;
+    }
+
+    .meta-box {
+      display: flex;
+      flex-direction: column;
+      gap: 4px;
+      padding: 12px 16px;
+      border-radius: 10px;
+      background: rgba(255, 255, 255, 0.04);
+      border: 1px solid rgba(255, 255, 255, 0.09);
+    }
+
+    .meta-label {
+      font-size: 10.5px;
+      text-transform: uppercase;
+      font-weight: 700;
+      color: var(--text-muted);
+      letter-spacing: 0.5px;
+    }
+
+    .meta-val {
+      font-size: 14px;
+      font-weight: 700;
+      color: #f1f5f9;
+    }
+
+    /* Fixed Deck Footer */
+    .deck-footer {
+      position: fixed;
+      bottom: 10px;
+      left: 24px;
+      right: 24px;
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      font-size: 11px;
+      color: var(--text-muted);
+      z-index: 100;
+      pointer-events: none;
+      border-top: 1px solid rgba(255, 255, 255, 0.08);
+      padding-top: 5px;
+    }
+  </style>
+</head>
+<body>
+  <div class="slide-bg-glow"></div>
+
+  <!-- Persistent Bottom Footer -->
+  <div class="deck-footer">
+    <div><strong>Đề tài NCKH:</strong> PanDerm Skin Lesion Segmentation & Temporal Change Forecasting</div>
+    <div><strong>GVHD:</strong> TS. Nguyễn Ngọc Tân | <strong>Báo cáo tiến độ & Dự định Thứ Tư</strong></div>
+  </div>
+
+  <div class="reveal">
+    <div class="slides">
+
+      <!-- ==========================================
+           SLIDE 1: TRANG TIÊU ĐỀ
+           ========================================== -->
+      <section>
+        <div class="hero-container">
+          <div class="title-banner">
+            <i class="fa-solid fa-microscope"></i> BÁO CÁO TIẾN ĐỘ & DỰ ĐỊNH THỨ TƯ
+          </div>
+          
+          <h1 class="hero-title">
+            Ứng Dụng <span>PanDerm</span> Trong Phân Đoạn, Gợi Ý Nhóm Bệnh & Dự Báo Thay Đổi Tổn Thương Da
+          </h1>
+
+          <p class="hero-subtitle">
+            Nghiên cứu ứng dụng mô hình nền tảng ViT-B/16 kết hợp hồi quy tuyến tính một bước trên ảnh dermoscopy theo dõi qua thời gian (Δt).
+          </p>
+
+          <div class="grid-4" style="margin-bottom: 22px;">
+            <div class="meta-box">
+              <span class="meta-label">Giảng viên hướng dẫn</span>
+              <span class="meta-val"><i class="fa-solid fa-user-tie" style="color:var(--accent-cyan); margin-right:6px;"></i>TS. Nguyễn Ngọc Tân</span>
+            </div>
+            <div class="meta-box">
+              <span class="meta-label">Phụ trách Mô hình & Demo</span>
+              <span class="meta-val"><i class="fa-solid fa-brain" style="color:var(--accent-green); margin-right:6px;"></i>Kỹ sư Mô hình & Demo</span>
+            </div>
+            <div class="meta-box">
+              <span class="meta-label">Phụ trách Dữ liệu & Đo lường</span>
+              <span class="meta-val"><i class="fa-solid fa-database" style="color:var(--accent-amber); margin-right:6px;"></i>Kỹ sư Dữ liệu & Kiểm thử</span>
+            </div>
+            <div class="meta-box">
+              <span class="meta-label">Thời điểm báo cáo</span>
+              <span class="meta-val"><i class="fa-solid fa-calendar-check" style="color:var(--accent-purple); margin-right:6px;"></i>Thứ Tư • 14/10/2026</span>
+            </div>
+          </div>
+
+          <div style="display: flex; gap: 10px;">
+            <span class="slide-badge badge-success"><i class="fa-solid fa-circle-check"></i> Số 1: Đã duyệt 100%</span>
+            <span class="slide-badge badge-success"><i class="fa-solid fa-check"></i> Pilot P2 & P3: Nghiệm thu hoàn tất</span>
+            <span class="slide-badge"><i class="fa-solid fa-shield-halved"></i> 97/97 Unit Tests Passed</span>
+            <span class="slide-badge badge-warning"><i class="fa-solid fa-bolt"></i> Dự định Thứ 4: Kích hoạt GPU</span>
+          </div>
+        </div>
+      </section>
+
+      <!-- ==========================================
+           SLIDE 2: MỤC TIÊU CỐT LÕI & GIỚI HẠN KHOA HỌC
+           ========================================== -->
+      <section>
+        <div class="slide-canvas">
+          <div class="slide-header">
+            <div>
+              <div class="slide-tag"><i class="fa-solid fa-bullseye"></i> Phạm vi & Khung nghiên cứu</div>
+              <h2 class="slide-title">Mục Tiêu Cốt Lõi & Giới Hạn Khoa Học</h2>
+            </div>
+            <span class="slide-badge">Protocol v1 Đã Khóa</span>
+          </div>
+
+          <div class="grid-2" style="height: 440px;">
+            <!-- Col 1: 4 Core Objectives -->
+            <div class="card" style="justify-content: space-between;">
+              <div>
+                <div class="card-title"><i class="fa-solid fa-list-check"></i> 4 Mục tiêu kỹ thuật cốt lõi</div>
+                <ul class="compact-list">
+                  <li><i class="fa-solid fa-circle-check" style="color:var(--accent-green)"></i> <span><strong>Phân đoạn tổn thương:</strong> PanDerm Base ViT-B/16 trên ISIC 2018 Task 1.</span></li>
+                  <li><i class="fa-solid fa-circle-check" style="color:var(--accent-green)"></i> <span><strong>Nhóm bệnh tham chiếu:</strong> 3 nhóm ISIC 2017 (Melanoma, Nevus, SK).</span></li>
+                  <li><i class="fa-solid fa-circle-check" style="color:var(--accent-green)"></i> <span><strong>Dự báo thay đổi diện tích:</strong> Hồi quy Ridge một bước theo khoảng thời gian Δt.</span></li>
+                  <li><i class="fa-solid fa-circle-check" style="color:var(--accent-green)"></i> <span><strong>Đánh giá độ bền:</strong> Khảo sát ảnh suy giảm (mờ, sáng, lệch màu, lông che).</span></li>
+                </ul>
+              </div>
+
+              <div class="callout-box">
+                <i class="fa-solid fa-calculator" style="color:var(--accent-cyan); margin-right:6px;"></i>
+                <strong>Định nghĩa dự báo:</strong> Thay đổi tỷ lệ diện tích mask Δa_t = a_(t+1) − a_t. Baseline đối chứng: giữ nguyên diện tích (Δa = 0).
+              </div>
+            </div>
+
+            <!-- Col 2: Scientific Boundary -->
+            <div class="card" style="justify-content: space-between;">
+              <div>
+                <div class="card-title"><i class="fa-solid fa-triangle-exclamation" style="color:var(--accent-amber)"></i> Ranh giới khoa học & Nguyên tắc đạo đức</div>
+                <ul class="compact-list">
+                  <li><i class="fa-solid fa-shield" style="color:var(--accent-cyan)"></i> <span><strong>Không chẩn đoán y khoa:</strong> Nhãn phân loại chỉ mang tính chất tham chiếu.</span></li>
+                  <li><i class="fa-solid fa-chart-area" style="color:var(--accent-cyan)"></i> <span><strong>Chỉ dấu hình ảnh:</strong> Dự báo diện tích mask trên ảnh, không đo tổn thương vật lý.</span></li>
+                  <li><i class="fa-solid fa-lock" style="color:var(--accent-cyan)"></i> <span><strong>Bảo mật dữ liệu:</strong> UQ chỉ lưu trữ và xử lý cục bộ, không đưa lên cloud.</span></li>
+                  <li><i class="fa-solid fa-code-compare" style="color:var(--accent-cyan)"></i> <span><strong>Thiết kế tinh gọn:</strong> Kiến trúc cố định, không thêm GRU hay Diffusion.</span></li>
+                </ul>
+              </div>
+
+              <div style="display:flex; gap:12px;">
+                <div class="metric-box" style="flex:1;">
+                  <div class="metric-value">ViT-B/16</div>
+                  <div class="metric-label">Backbone chuẩn</div>
+                </div>
+                <div class="metric-box" style="flex:1;">
+                  <div class="metric-value">Ridge</div>
+                  <div class="metric-label">Hồi quy 1 bước</div>
+                </div>
+              </div>
+            </div>
+          </div>
+
+          <div style="font-size:12px; color:var(--text-muted); display:flex; justify-content:space-between;">
+            <span><i class="fa-solid fa-circle-info"></i> Kiểm soát chia tập UQ theo mã người tham gia (participant_id) để chống rò rỉ bệnh nhân.</span>
+            <span>Nghiệm thu: Đề cương chi tiết & Kế hoạch 14 tuần</span>
+          </div>
+        </div>
+      </section>
+
+      <!-- ==========================================
+           SLIDE 3: TIẾN ĐỘ TỔNG THỂ & KPI
+           ========================================== -->
+      <section>
+        <div class="slide-canvas">
+          <div class="slide-header">
+            <div>
+              <div class="slide-tag"><i class="fa-solid fa-bars-progress"></i> Trạng thái đề tài</div>
+              <h2 class="slide-title">Bảng Tiến Độ Tổng Thể & KPI Thực Tế</h2>
+            </div>
+            <span class="slide-badge badge-success"><i class="fa-solid fa-check"></i> Số 1: Đã duyệt 100%</span>
+          </div>
+
+          <!-- Top 4 KPI Metrics -->
+          <div class="grid-4" style="margin-bottom: 10px;">
+            <div class="metric-box">
+              <div class="metric-value" style="color:var(--accent-green);">100%</div>
+              <div class="metric-label">Mục 1 (Đã duyệt)</div>
+            </div>
+            <div class="metric-box">
+              <div class="metric-value" style="color:var(--accent-cyan);">97 / 97</div>
+              <div class="metric-label">Unit Tests Pass</div>
+            </div>
+            <div class="metric-box">
+              <div class="metric-value" style="color:var(--accent-purple);">6.444</div>
+              <div class="metric-label">Ảnh ISIC Khóa SHA</div>
+            </div>
+            <div class="metric-box">
+              <div class="metric-value" style="color:var(--accent-amber);">812 MB</div>
+              <div class="metric-label">VRAM Đỉnh (RTX 3050)</div>
+            </div>
+          </div>
+
+          <!-- Progress Table -->
+          <div class="card" style="padding: 10px 14px; flex: 1;">
+            <table class="table-compact">
+              <thead>
+                <tr>
+                  <th style="width: 45px;">STT</th>
+                  <th>Hạng mục công việc theo Đề cương</th>
+                  <th style="width: 140px;">Trạng thái</th>
+                  <th style="width: 80px; text-align: center;">Tiến độ</th>
+                  <th>Minh chứng kỹ thuật thực tế</th>
+                </tr>
+              </thead>
+              <tbody>
+                <tr>
+                  <td><strong>01</strong></td>
+                  <td>Khảo sát tài liệu & Điều kiện pháp lý dữ liệu</td>
+                  <td><span class="status-pill status-done"><i class="fa-solid fa-check"></i> ĐÃ DUYỆT</span></td>
+                  <td style="text-align: center; font-weight:800; color:var(--accent-green);">100%</td>
+                  <td>Nature Med, Sc. Data; Phê duyệt quyền UQ & CC BY-NC-ND</td>
+                </tr>
+                <tr>
+                  <td><strong>02</strong></td>
+                  <td>Đề cương & Kế hoạch triển khai 14 tuần</td>
+                  <td><span class="status-pill status-done"><i class="fa-solid fa-check"></i> HOÀN THÀNH</span></td>
+                  <td style="text-align: center; font-weight:800; color:var(--accent-green);">100%</td>
+                  <td>Khóa Protocol v1, Ke_hoach_trien_khai_2_nguoi.md</td>
+                </tr>
+                <tr>
+                  <td><strong>03</strong></td>
+                  <td>Tải dữ liệu ISIC, Kiểm tra nhãn/mask & Manifest split</td>
+                  <td><span class="status-pill status-done"><i class="fa-solid fa-check"></i> HOÀN THÀNH</span></td>
+                  <td style="text-align: center; font-weight:800; color:var(--accent-green);">100%</td>
+                  <td>3.694 ISIC 2018 + 2.750 ISIC 2017; Khóa hash SHA-256</td>
+                </tr>
+                <tr>
+                  <td><strong>04</strong></td>
+                  <td>Pilot Checkpoint PanDerm Base, Vá lỗi & Thử nghiệm</td>
+                  <td><span class="status-pill status-done"><i class="fa-solid fa-check"></i> HOÀN THÀNH</span></td>
+                  <td style="text-align: center; font-weight:800; color:var(--accent-green);">100%</td>
+                  <td>Độ phủ ViT-B 100%; Smoke test 20 ảnh; Optimizer resume PASS</td>
+                </tr>
+                <tr>
+                  <td><strong>05</strong></td>
+                  <td>Fine-tuning GPU Phân đoạn & Phân loại tham khảo</td>
+                  <td><span class="status-pill status-planned"><i class="fa-solid fa-clock"></i> KẾ HOẠCH T4</span></td>
+                  <td style="text-align: center; font-weight:800; color:var(--accent-amber);">0%</td>
+                  <td>Đã sẵn sàng loader, patch, script run.sh; Chờ kích hoạt GPU</td>
+                </tr>
+                <tr>
+                  <td><strong>06</strong></td>
+                  <td>Ghép chuỗi dọc UQ & Huấn luyện Ridge dự báo</td>
+                  <td><span class="status-pill status-ready"><i class="fa-solid fa-arrow-right"></i> SẴN SÀNG</span></td>
+                  <td style="text-align: center; font-weight:800; color:var(--accent-cyan);">0%</td>
+                  <td>Đã chuẩn bị module nckh.infer và cấu trúc trích xuất z_t</td>
+                </tr>
+                <tr>
+                  <td><strong>07</strong></td>
+                  <td>Kiểm tra suy giảm ảnh (Robustness) & Giao diện Demo</td>
+                  <td><span class="status-pill status-planned"><i class="fa-solid fa-spinner"></i> ĐANG CHẠY</span></td>
+                  <td style="text-align: center; font-weight:800; color:var(--accent-purple);">20%</td>
+                  <td>Dashboard Streamlit smoke test, module metrics CI 95%</td>
+                </tr>
+              </tbody>
+            </table>
+          </div>
+        </div>
+      </section>
+
+      <!-- ==========================================
+           SLIDE 4: DỮ LIỆU ĐÃ HOÀN THÀNH (PHỤ TRÁCH DỮ LIỆU)
+           ========================================== -->
+      <section>
+        <div class="slide-canvas">
+          <div class="slide-header">
+            <div>
+              <div class="slide-tag"><i class="fa-solid fa-database"></i> Trọng tâm Phase 3 • Phụ trách Dữ liệu</div>
+              <h2 class="slide-title">Dữ Liệu Chuẩn Hóa & Kiểm Định Manifest</h2>
+            </div>
+            <span class="slide-badge badge-success"><i class="fa-solid fa-shield-virus"></i> Zero Data Leakage</span>
+          </div>
+
+          <div class="grid-left-wide" style="height: 480px;">
+            <!-- Chart Frame -->
+            <div class="image-frame" style="height: 100%;">
+              <img src="assets/chart_data_distribution.png" alt="Phân bố dữ liệu ISIC 2018 và 2017">
+              <div class="image-caption">
+                <span><i class="fa-solid fa-chart-pie"></i> Phân bổ tập Train / Val / Test & 3 nhóm bệnh tham chiếu</span>
+                <span style="color: var(--accent-cyan);">Báo cáo P3 Streamlit</span>
+              </div>
+            </div>
+
+            <!-- Data Audit Summary -->
+            <div style="display: flex; flex-direction: column; justify-content: space-between; height: 100%;">
+              <div class="card">
+                <div class="card-title"><i class="fa-solid fa-images"></i> ISIC 2018 Phân đoạn (Task 1)</div>
+                <ul class="compact-list">
+                  <li><i class="fa-solid fa-check" style="color:var(--accent-green)"></i> <span><strong>3.694 ảnh & mask:</strong> Khớp kích thước 100%.</span></li>
+                  <li><i class="fa-solid fa-check" style="color:var(--accent-green)"></i> <span><strong>Phân chia:</strong> Train 2.594 | Val 100 | Test 1.000.</span></li>
+                  <li><i class="fa-solid fa-check" style="color:var(--accent-green)"></i> <span><strong>Độc lập tuyệt đối:</strong> 0 trùng lặp hash xuyên split.</span></li>
+                </ul>
+              </div>
+
+              <div class="card">
+                <div class="card-title"><i class="fa-solid fa-tags"></i> ISIC 2017 Phân loại (Task 3)</div>
+                <ul class="compact-list">
+                  <li><i class="fa-solid fa-check" style="color:var(--accent-green)"></i> <span><strong>2.750 ảnh:</strong> Train 2000 | Val 150 | Test 600.</span></li>
+                  <li><i class="fa-solid fa-check" style="color:var(--accent-green)"></i> <span><strong>Bảo vệ tập Test:</strong> Tách <code>isic2017_cls_trainphase.csv</code>.</span></li>
+                  <li><i class="fa-solid fa-check" style="color:var(--accent-green)"></i> <span><strong>3 nhóm nhãn:</strong> Melanoma, Nevus, SK.</span></li>
+                </ul>
+              </div>
+
+              <div class="callout-box">
+                <i class="fa-solid fa-key" style="color:var(--accent-cyan); margin-right:6px;"></i>
+                <strong>Khóa SHA-256 Manifest:</strong> <code>8cf5e733...</code> lưu an toàn trên Google Drive, bảo đảm tính tái lập CLAIM.
+              </div>
+            </div>
+          </div>
+        </div>
+      </section>
+
+      <!-- ==========================================
+           SLIDE 5: KIẾN TRÚC MÔ HÌNH (PHỤ TRÁCH MÔ HÌNH)
+           ========================================== -->
+      <section>
+        <div class="slide-canvas">
+          <div class="slide-header">
+            <div>
+              <div class="slide-tag"><i class="fa-solid fa-network-wired"></i> Trọng tâm Phase 2 • Phụ trách Mô hình</div>
+              <h2 class="slide-title">Kiến Trúc Pipeline PanDerm & Xử Lý Độc Lập</h2>
+            </div>
+            <span class="slide-badge"><i class="fa-solid fa-puzzle-piece"></i> ViT-B/16 Patch 100%</span>
+          </div>
+
+          <div class="grid-left-wide" style="height: 480px;">
+            <!-- Diagram Frame -->
+            <div class="image-frame" style="height: 100%;">
+              <img src="assets/panderm_overview.png" alt="Kiến trúc tổng thể PanDerm">
+              <div class="image-caption">
+                <span><i class="fa-solid fa-sitemap"></i> Pipeline tích hợp đa nhánh: Phân đoạn, Phân loại & Dự báo Ridge</span>
+                <span style="color: var(--accent-cyan);">Mã nguồn nckh</span>
+              </div>
+            </div>
+
+            <!-- Technical Pipeline Highlights -->
+            <div style="display: flex; flex-direction: column; justify-content: space-between; height: 100%;">
+              <div class="card">
+                <div class="card-title"><i class="fa-solid fa-microchip"></i> Backbone PanDerm Base</div>
+                <ul class="compact-list">
+                  <li><i class="fa-solid fa-code" style="color:var(--accent-cyan)"></i> <span><strong>Kiến trúc:</strong> ViT-B/16 (768 chiều, 12 transformer blocks).</span></li>
+                  <li><i class="fa-solid fa-file-shield" style="color:var(--accent-cyan)"></i> <span><strong>Checkpoint:</strong> 328 MB (SHA-256: <code>be1e0fb1...</code>).</span></li>
+                  <li><i class="fa-solid fa-wand-magic-sparkles" style="color:var(--accent-cyan)"></i> <span><strong>Bản vá:</strong> <code>panderm_base_seg.patch</code> độ phủ 100%.</span></li>
+                </ul>
+              </div>
+
+              <div class="card">
+                <div class="card-title"><i class="fa-solid fa-layer-group"></i> Phân lập 2 môi trường GPU</div>
+                <ul class="compact-list">
+                  <li><i class="fa-solid fa-arrow-right" style="color:var(--accent-green)"></i> <span><strong>venv_seg:</strong> PyTorch 2.1.2 + MMCV 2.1.0 + MMSeg 1.2.2.</span></li>
+                  <li><i class="fa-solid fa-arrow-right" style="color:var(--accent-green)"></i> <span><strong>venv_cls:</strong> PyTorch 2.4.1 + timm 0.9.16.</span></li>
+                  <li><i class="fa-solid fa-arrow-right" style="color:var(--accent-green)"></i> <span><strong>Hậu xử lý:</strong> Thuật toán giữ vùng liên thông lớn nhất.</span></li>
+                </ul>
+              </div>
+
+              <div class="callout-box">
+                <i class="fa-solid fa-bolt" style="color:var(--accent-amber); margin-right:6px;"></i>
+                <strong>Hồi quy Ridge:</strong> Nhận đặc trưng z_t + khoảng Δt → Dự báo diện tích a_(t+1) ở lần khám kế tiếp.
+              </div>
+            </div>
+          </div>
+        </div>
+      </section>
+
+      <!-- ==========================================
+           SLIDE 6: KẾT QUẢ THỰC NGHIỆM PILOT P2
+           ========================================== -->
+      <section>
+        <div class="slide-canvas">
+          <div class="slide-header">
+            <div>
+              <div class="slide-tag"><i class="fa-solid fa-chart-line"></i> Kết quả thực nghiệm sơ bộ</div>
+              <h2 class="slide-title">Đo Kiểm Benchmark & Pilot Huấn Luyện</h2>
+            </div>
+            <span class="slide-badge badge-success"><i class="fa-solid fa-check"></i> Status: PASS (Tesla T4 & RTX 3050)</span>
+          </div>
+
+          <div class="grid-left-wide" style="height: 480px;">
+            <!-- Benchmark Chart Frame -->
+            <div class="image-frame" style="height: 100%;">
+              <img src="assets/chart_pilot_benchmark.png" alt="Biểu đồ Benchmark Pilot P2">
+              <div class="image-caption">
+                <span><i class="fa-solid fa-stopwatch"></i> Độ trễ suy luận & Mức tiêu thụ VRAM thực tế</span>
+                <span style="color: var(--accent-green);">Run Card có chữ ký số</span>
+              </div>
+            </div>
+
+            <!-- Experimental Metrics -->
+            <div style="display: flex; flex-direction: column; justify-content: space-between; height: 100%;">
+              <div class="card">
+                <div class="card-title"><i class="fa-solid fa-gauge-high"></i> Benchmark Smoke Test (20 ảnh Val)</div>
+                <table class="table-compact" style="margin-top: 4px;">
+                  <thead>
+                    <tr>
+                      <th>Tác vụ</th>
+                      <th>Latency TB</th>
+                      <th>P95 Latency</th>
+                      <th>VRAM Đỉnh</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    <tr>
+                      <td><span class="status-pill status-ready">Phân đoạn</span></td>
+                      <td><strong>177.5 ms</strong></td>
+                      <td>285.5 ms</td>
+                      <td style="color:var(--accent-cyan); font-weight:700;">812.4 MB</td>
+                    </tr>
+                    <tr>
+                      <td><span class="status-pill status-ready">Phân loại</span></td>
+                      <td><strong>85.6 ms</strong></td>
+                      <td>160.9 ms</td>
+                      <td style="color:var(--accent-green); font-weight:700;">350.5 MB</td>
+                    </tr>
+                  </tbody>
+                </table>
+              </div>
+
+              <div class="card">
+                <div class="card-title"><i class="fa-solid fa-rotate"></i> Kiểm thử Backward Pass & Resume</div>
+                <ul class="compact-list">
+                  <li><i class="fa-solid fa-check-double" style="color:var(--accent-green)"></i> <span><strong>Loss giảm ổn định:</strong> 1.0985 → 1.0981 trên Tesla T4.</span></li>
+                  <li><i class="fa-solid fa-check-double" style="color:var(--accent-green)"></i> <span><strong>Resume Optimizer:</strong> Khôi phục 100% logits sau ngắt.</span></li>
+                  <li><i class="fa-solid fa-check-double" style="color:var(--accent-green)"></i> <span><strong>Bộ kiểm thử:</strong> 97/97 tests pass trên toàn hệ thống.</span></li>
+                </ul>
+              </div>
+
+              <div class="callout-box">
+                <i class="fa-solid fa-circle-check" style="color:var(--accent-green); margin-right:6px;"></i>
+                VRAM đỉnh 812 MB chứng minh mô hình hoàn toàn vận hành mượt mà trên GPU 4GB và sẵn sàng cho huấn luyện đa epoch.
+              </div>
+            </div>
+          </div>
+        </div>
+      </section>
+
+      <!-- ==========================================
+           SLIDE 7: KHÓ KHĂN & GIẢI PHÁP KỸ THUẬT
+           ========================================== -->
+      <section>
+        <div class="slide-canvas">
+          <div class="slide-header">
+            <div>
+              <div class="slide-tag"><i class="fa-solid fa-wrench"></i> Giải pháp phẫu thuật kỹ thuật</div>
+              <h2 class="slide-title">3 Khó Khăn Đã Vượt Qua & Phương Án Xử Lý</h2>
+            </div>
+            <span class="slide-badge"><i class="fa-solid fa-code-merge"></i> Zero Drive-by Edits</span>
+          </div>
+
+          <div class="grid-3" style="height: 480px;">
+            <!-- Challenge 1 -->
+            <div class="card" style="justify-content: space-between;">
+              <div>
+                <div class="card-title" style="color: #f87171;">
+                  <i class="fa-solid fa-triangle-exclamation" style="color: #f87171;"></i> 1. Xung đột thư viện
+                </div>
+                <div class="callout-box" style="border-left-color: #f87171; background: rgba(239, 68, 68, 0.08); margin-bottom: 14px;">
+                  MMCV 2.1.0 bắt buộc PyTorch 2.1.2; timm phân loại cần PyTorch 2.4.1. Cài chung gây assert crash.
+                </div>
+                <div class="card-title" style="color: var(--accent-green); font-size:13.5px; margin-bottom:8px;">
+                  <i class="fa-solid fa-circle-check" style="color: var(--accent-green);"></i> Giải pháp đã xử lý
+                </div>
+                <ul class="compact-list">
+                  <li><i class="fa-solid fa-chevron-right" style="color:var(--accent-cyan)"></i> <span>Tách lập 2 môi trường GPU độc lập.</span></li>
+                  <li><i class="fa-solid fa-chevron-right" style="color:var(--accent-cyan)"></i> <span>Dùng <code>venv_seg</code> & <code>venv_cls</code> riêng biệt.</span></li>
+                  <li><i class="fa-solid fa-chevron-right" style="color:var(--accent-cyan)"></i> <span>Cầu nối Subprocess điều phối qua Streamlit.</span></li>
+                </ul>
+              </div>
+              <span class="status-pill status-done"><i class="fa-solid fa-check"></i> ĐÃ GIẢI QUYẾT TRIỆT ĐỂ</span>
+            </div>
+
+            <!-- Challenge 2 -->
+            <div class="card" style="justify-content: space-between;">
+              <div>
+                <div class="card-title" style="color: #f87171;">
+                  <i class="fa-solid fa-triangle-exclamation" style="color: #f87171;"></i> 2. Hardcode ViT-Large
+                </div>
+                <div class="callout-box" style="border-left-color: #f87171; background: rgba(239, 68, 68, 0.08); margin-bottom: 14px;">
+                  Mã PanDerm upstream viết cứng 1024 chiều (ViT-L), nạp checkpoint ViT-B (768d) bị lệch tensor size.
+                </div>
+                <div class="card-title" style="color: var(--accent-green); font-size:13.5px; margin-bottom:8px;">
+                  <i class="fa-solid fa-circle-check" style="color: var(--accent-green);"></i> Giải pháp đã xử lý
+                </div>
+                <ul class="compact-list">
+                  <li><i class="fa-solid fa-chevron-right" style="color:var(--accent-cyan)"></i> <span>Viết bản vá <code>panderm_base_seg.patch</code>.</span></li>
+                  <li><i class="fa-solid fa-chevron-right" style="color:var(--accent-cyan)"></i> <span>Định hình lại 12 tầng transformer (768d).</span></li>
+                  <li><i class="fa-solid fa-chevron-right" style="color:var(--accent-cyan)"></i> <span>Đạt độ phủ trọng số 100% (186/197 keys).</span></li>
+                </ul>
+              </div>
+              <span class="status-pill status-done"><i class="fa-solid fa-check"></i> ĐÃ VÁ MÃ NGUỒN 100%</span>
+            </div>
+
+            <!-- Challenge 3 -->
+            <div class="card" style="justify-content: space-between;">
+              <div>
+                <div class="card-title" style="color: #f87171;">
+                  <i class="fa-solid fa-triangle-exclamation" style="color: #f87171;"></i> 3. Lỗi Resume Checkpoint
+                </div>
+                <div class="callout-box" style="border-left-color: #f87171; background: rgba(239, 68, 68, 0.08); margin-bottom: 14px;">
+                  PanDerm xóa head trước khi nạp strict, dẫn đến lỗi missing keys khi nạp lại checkpoint đã train.
+                </div>
+                <div class="card-title" style="color: var(--accent-green); font-size:13.5px; margin-bottom:8px;">
+                  <i class="fa-solid fa-circle-check" style="color: var(--accent-green);"></i> Giải pháp đã xử lý
+                </div>
+                <ul class="compact-list">
+                  <li><i class="fa-solid fa-chevron-right" style="color:var(--accent-cyan)"></i> <span>Áp bản vá <code>panderm_cls_resume.patch</code>.</span></li>
+                  <li><i class="fa-solid fa-chevron-right" style="color:var(--accent-cyan)"></i> <span>Bảo toàn phân lớp head đã cập nhật.</span></li>
+                  <li><i class="fa-solid fa-chevron-right" style="color:var(--accent-cyan)"></i> <span>Khôi phục nguyên vẹn 100% logits.</span></li>
+                </ul>
+              </div>
+              <span class="status-pill status-done"><i class="fa-solid fa-check"></i> ĐÃ VERIFY TRÊN GPU</span>
+            </div>
+          </div>
+        </div>
+      </section>
+
+      <!-- ==========================================
+           SLIDE 8: DỰ ĐỊNH THỨ 4 & KẾ HOẠCH TIẾP THEO
+           ========================================== -->
+      <section>
+        <div class="slide-canvas">
+          <div class="slide-header">
+            <div>
+              <div class="slide-tag"><i class="fa-solid fa-calendar-day"></i> Kế hoạch hành động</div>
+              <h2 class="slide-title">Dự Định Thứ Tư & Kế Hoạch Giai Đoạn Tiếp Theo</h2>
+            </div>
+            <span class="slide-badge badge-warning"><i class="fa-solid fa-star"></i> Trọng Tâm Hành Động</span>
+          </div>
+
+          <!-- Highlight Card: DỰ ĐỊNH THỨ 4 -->
+          <div class="card" style="border-color: var(--accent-cyan); background: rgba(14, 116, 144, 0.16); padding: 18px 22px; margin-bottom: 12px;">
+            <div class="card-title" style="color: #38bdf8; font-size: 16.5px; margin-bottom: 10px;">
+              <i class="fa-solid fa-calendar-check" style="color: #38bdf8;"></i> DỰ ĐỊNH THỨ TƯ (14/10/2026) — BÁO CÁO & XIN Ý KIẾN GVHD
+            </div>
+            <div class="grid-3" style="gap: 14px;">
+              <div style="background: rgba(15, 23, 42, 0.7); border:1px solid rgba(255,255,255,0.08); padding: 12px 14px; border-radius: 8px;">
+                <strong style="color:#ffffff; font-size:13.5px; display:flex; align-items:center; gap:6px;">
+                  <i class="fa-solid fa-1" style="color:var(--accent-cyan)"></i> Báo cáo nghiệm thu P2 & P3
+                </strong>
+                <p style="font-size:12px; color:#cbd5e1; margin:6px 0 0 0; line-height:1.4;">
+                  Trình bày hạ tầng GPU, pilot checkpoint và 97 unit tests đạt tỷ lệ tuyệt đối.
+                </p>
+              </div>
+              <div style="background: rgba(15, 23, 42, 0.7); border:1px solid rgba(255,255,255,0.08); padding: 12px 14px; border-radius: 8px;">
+                <strong style="color:#ffffff; font-size:13.5px; display:flex; align-items:center; gap:6px;">
+                  <i class="fa-solid fa-2" style="color:var(--accent-cyan)"></i> Thông qua cấu hình Fine-tuning
+                </strong>
+                <p style="font-size:12px; color:#cbd5e1; margin:6px 0 0 0; line-height:1.4;">
+                  Xin ý kiến GVHD về hyperparams (LR, batch size, 100 epochs) cho nhánh Seg & Cls.
+                </p>
+              </div>
+              <div style="background: rgba(15, 23, 42, 0.7); border:1px solid rgba(255,255,255,0.08); padding: 12px 14px; border-radius: 8px;">
+                <strong style="color:#ffffff; font-size:13.5px; display:flex; align-items:center; gap:6px;">
+                  <i class="fa-solid fa-3" style="color:var(--accent-cyan)"></i> Kích hoạt huấn luyện trên GPU
+                </strong>
+                <p style="font-size:12px; color:#cbd5e1; margin:6px 0 0 0; line-height:1.4;">
+                  Khởi động script huấn luyện Phase 5a trên GPU trường / Colab GPU ngay trong ngày.
+                </p>
+              </div>
+            </div>
+          </div>
+
+          <!-- Next Steps Timeline -->
+          <div class="grid-4" style="height: 190px;">
+            <div class="card" style="border-color: var(--accent-cyan); background: rgba(30, 58, 102, 0.45); justify-content: space-between; padding: 14px;">
+              <div>
+                <span class="status-pill status-ready" style="margin-bottom:6px;"><i class="fa-solid fa-clock"></i> TUẦN 5 – 7</span>
+                <strong style="color:#fff; display:block; font-size:13.5px; margin-bottom:6px;">Huấn luyện & Đánh giá</strong>
+                <ul class="compact-list" style="font-size:12px; gap:6px;">
+                  <li>• Fine-tune 100 epoch ISIC.</li>
+                  <li>• Khóa checkpoint qua Val.</li>
+                  <li>• Suy luận mask trên tập UQ.</li>
+                </ul>
+              </div>
+            </div>
+
+            <div class="card" style="justify-content: space-between; padding: 14px;">
+              <div>
+                <span class="status-pill status-done" style="margin-bottom:6px;"><i class="fa-solid fa-calendar"></i> TUẦN 7 – 9</span>
+                <strong style="color:#fff; display:block; font-size:13.5px; margin-bottom:6px;">Hồi quy Ridge 1 bước</strong>
+                <ul class="compact-list" style="font-size:12px; gap:6px;">
+                  <li>• Trích đặc trưng z_t + Δt.</li>
+                  <li>• Train Ridge dự báo diện tích.</li>
+                  <li>• Đối chứng baseline Δa = 0.</li>
+                </ul>
+              </div>
+            </div>
+
+            <div class="card" style="justify-content: space-between; padding: 14px;">
+              <div>
+                <span class="status-pill status-planned" style="margin-bottom:6px;"><i class="fa-solid fa-calendar"></i> TUẦN 9 – 11</span>
+                <strong style="color:#fff; display:block; font-size:13.5px; margin-bottom:6px;">Robustness & Demo</strong>
+                <ul class="compact-list" style="font-size:12px; gap:6px;">
+                  <li>• Đánh giá mờ, sáng, lông che.</li>
+                  <li>• Tích hợp UI Streamlit demo.</li>
+                  <li>• Cảnh báo ranh giới y tế.</li>
+                </ul>
+              </div>
+            </div>
+
+            <div class="card" style="justify-content: space-between; padding: 14px;">
+              <div>
+                <span class="status-pill status-planned" style="margin-bottom:6px;"><i class="fa-solid fa-calendar"></i> TUẦN 12 – 14</span>
+                <strong style="color:#fff; display:block; font-size:13.5px; margin-bottom:6px;">Báo cáo & Tái lập</strong>
+                <ul class="compact-list" style="font-size:12px; gap:6px;">
+                  <li>• Bản thảo bài báo hoàn chỉnh.</li>
+                  <li>• Thiết kế poster NCKH.</li>
+                  <li>• Đóng gói artifact CLAIM.</li>
+                </ul>
+              </div>
+            </div>
+          </div>
+        </div>
+      </section>
+
+      <!-- ==========================================
+           SLIDE 9: TỔNG KẾT & Q&A
+           ========================================== -->
+      <section>
+        <div class="hero-container" style="text-align: center; align-items: center;">
+          <div class="slide-tag" style="justify-content: center; margin-bottom: 10px;">
+            <i class="fa-solid fa-flag-checkered"></i> KẾT LUẬN TIẾN ĐỘ
+          </div>
+
+          <h2 style="font-size: 38px; font-weight: 900; color: #ffffff; margin-bottom: 24px; letter-spacing: -0.5px;">
+            Hạ Tầng Sẵn Sàng — Tự Tin Kích Hoạt Huấn Luyện GPU
+          </h2>
+
+          <div class="grid-3" style="max-width: 1060px; width: 100%; margin-bottom: 30px; text-align: left;">
+            <div class="card" style="text-align: center; padding: 22px;">
+              <i class="fa-solid fa-circle-check" style="font-size: 34px; color: var(--accent-green); margin-bottom: 10px;"></i>
+              <strong style="color: #fff; font-size: 15px; display:block;">100% Kỹ thuật Đạt Chuẩn</strong>
+              <p style="font-size:12.5px; color:#94a3b8; margin:6px 0 0 0; line-height:1.4;">
+                Số 1 đã duyệt; P2 & P3 nghiệm thu hoàn tất; 97/97 unit tests passed.
+              </p>
+            </div>
+            <div class="card" style="text-align: center; padding: 22px;">
+              <i class="fa-solid fa-shield-virus" style="font-size: 34px; color: var(--accent-cyan); margin-bottom: 10px;"></i>
+              <strong style="color: #fff; font-size: 15px; display:block;">Không Rò Rỉ Dữ Liệu</strong>
+              <p style="font-size:12.5px; color:#94a3b8; margin:6px 0 0 0; line-height:1.4;">
+                Phân chia theo bệnh nhân; khóa SHA-256 an toàn chuẩn CLAIM.
+              </p>
+            </div>
+            <div class="card" style="text-align: center; padding: 22px;">
+              <i class="fa-solid fa-rocket" style="font-size: 34px; color: var(--accent-amber); margin-bottom: 10px;"></i>
+              <strong style="color: #fff; font-size: 15px; display:block;">Sẵn Sàng Chạy 100 Epoch</strong>
+              <p style="font-size:12.5px; color:#94a3b8; margin:6px 0 0 0; line-height:1.4;">
+                Kích hoạt huấn luyện GPU ngay sau buổi họp và phê duyệt Thứ Tư.
+              </p>
+            </div>
+          </div>
+
+          <div style="margin-top: 10px;">
+            <p style="font-size: 16px; color: #cbd5e1; margin-bottom: 16px;">
+              Kính mong nhận được ý kiến đóng góp và chỉ dẫn từ <strong>TS. Nguyễn Ngọc Tân</strong> cùng Quý Thầy Cô!
+            </p>
+            <div style="display: inline-flex; align-items: center; gap: 12px; background: rgba(56, 189, 248, 0.12); border: 1px solid var(--accent-cyan); padding: 10px 28px; border-radius: 999px;">
+              <i class="fa-solid fa-comments" style="color: var(--accent-cyan); font-size: 18px;"></i>
+              <span style="font-weight: 800; font-size: 16.5px; color: #ffffff; letter-spacing: 1.2px;">Q & A / TRAO ĐỔI THẢO LUẬN</span>
+            </div>
+          </div>
+        </div>
+      </section>
+
+    </div>
+  </div>
+
+  <!-- Reveal.js JavaScript -->
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/reveal.js/4.5.0/reveal.min.js"></script>
+  <script>
+    Reveal.initialize({
+      width: 1280,
+      height: 720,
+      margin: 0.04,
+      controls: true,
+      progress: true,
+      center: true,
+      hash: true,
+      transition: 'slide',
+      transitionSpeed: 'fast',
+      backgroundTransition: 'fade',
+      slideNumber: 'c/t'
+    });
+  </script>
+</body>
+</html>

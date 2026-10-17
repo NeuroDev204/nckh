@@ -42,6 +42,7 @@ Căn cứ theo [Kế hoạch triển khai NCKH PanDerm](Ke_hoach_trien_khai_NCKH
 | Giai đoạn | Nhiệm vụ | Trạng thái | Minh chứng thực tế |
 | :--- | :--- | :---: | :--- |
 | **Phase 0** | Khóa Protocol, mục tiêu và định nghĩa endpoint nghiên cứu | **Đạt (100%)** | Quy chuẩn đề cương, protocol và kế hoạch phân công 2 người. |
+| **Phase 1** | Khảo sát tài liệu, lý thuyết & Phê duyệt điều kiện dữ liệu (PanDerm, ISIC, UQ) | **Đạt (100%)** | Danh mục tài liệu Nature Med, Scientific Data; phân tích quyền UQ & CC BY-NC-ND; đã phê duyệt checklist Go/No-Go cho dữ liệu dọc UQ. |
 | **Phase 2** | Hạ tầng môi trường, Checkpoint PanDerm Base, Vá mã nguồn & Smoke test | **Đạt (100%)** | Checkpoint ViT-B 328 MB (SHA-256 `be1e0fb1...`); 2 venv GPU (`venv_seg`, `venv_cls`); bản vá `patches/panderm_base_seg.patch` (độ phủ ViT 100%); smoke test 20 ảnh (RTX 3050 & Tesla T4); pilot backward pass & resume optimizer đạt (`status: PASS`). |
 | **Phase 3** | Tải dữ liệu ISIC, Kiểm tra nhãn/mask & Lập manifest chia tập (Split) | **Đạt (100%)** | 3.694 ảnh & mask ISIC 2018 (1 mask/ảnh, 0 lỗi, SHA-256 manifest `8cf5e733...`); 2.750 ảnh ISIC 2017 (3 lớp); tách `isic2017_cls_trainphase.csv` chống leakage; tab Báo cáo P3 trên Streamlit; 97/97 unit tests passed. Toàn bộ dữ liệu lưu trữ trên Google Drive. |
 | **Phase 5a** | Tinh chỉnh nhánh phân đoạn (ISIC 2018 Task 1) | **Chưa chạy (0%)** | **Đã sẵn sàng pipeline & dữ liệu**: Đã vá code, kiểm tra loader, chuẩn bị `run.sh`; chờ kích hoạt huấn luyện 100 epoch trên GPU. |
